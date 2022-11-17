@@ -1,64 +1,129 @@
 # Beets-audible: Organize Your Audiobook Collection With Beets
-This is my fork of the awesome Beets-Audible plug-in made by Neurrone https://github.com/Neurrone/beets-audible
 
 This is a plugin that allows Beets to manage audiobook collections.
 
 It fetches audiobook metadata via the Audible and [Audnex API](https://github.com/laxamentumtech/audnexus). With this data, it ensures books have the correct tags and makes the collection ready to be served by Plex, Audiobookshelf or Booksonic.
 
-This fork is intended to be used in conjunction with my [auto-m4b](https://github.com/seanap/auto-m4b) docker this way all the folder names and functions line up.
-
 ## Motivation
 
-This is a linux only workflow solution to quickly convert and tag your audiobook files to a standard that works with plex.  This is a CLI only tool, which is actually a great interface to quickly tag a large number of files.
+[seanap's audiobook organization guide](https://github.com/seanap/Plex-Audiobook-Guide) describes a workflow for adding tags to audiobooks and moving the files to the right folders.
 
-This was developed to handle book files with no tags, bad tags, or that need to be named and organized in the right folder structure.
+However, it relies on using Mp3tag, a gui tool which does not lend itself to automation. Mp3tag works only on Windows.
+
+This Beets plugin solves both problems.
 
 ## Installation
 
+1. Clone this repository.
+2. Install dependencies via pip: `pip install markdownify natsort beets-copyartifacts3` (copyartifacts is optional). See the next section instead if you're running Beets in Docker (highly recommended as it makes it easier to maintain a separate Beets installation dedicated to audiobooks).
+3. Use a separate beets config and database for managing audiobooks. This is the recommended Beets config for this plugin:
+
+   ```yaml
+   # add audible to the list of plugins
+   # copyartifacts is optional but recommended if you're manually specifying metadata via metadata.yml, see the "Importing non-audible content" section
+   plugins: copyartifacts edit fromfilename scrub audible
+
+   directory: /audiobooks
+
+   # Place books in their own folders to be compatible with Booksonic and Audiobookshelf servers
+   paths:
+     # For books that belong to a series
+     "albumtype:audiobook series_name::.+ series_position::.+": $albumartist/%ifdef{series_name}/%ifdef{series_position} - $album%aunique{}/$track - $title
+     "albumtype:audiobook series_name::.+": $albumartist/%ifdef{series_name}/$album%aunique{}/$track - $title
+     # Stand-alone books
+     "albumtype:audiobook": $albumartist/$album%aunique{}/$track - $title
+     default: $albumartist/$album%aunique{}/$track - $title
+     singleton: Non-Album/$artist - $title
+     comp: Compilations/$album%aunique{}/$track - $title
+     albumtype_soundtrack: Soundtracks/$album/$track $title
+
+   # disables musicbrainz lookup, as it doesn't help for audiobooks
+   # This is a workaround, as there is currently no built-in way of doing so
+   # see https://github.com/beetbox/beets/issues/400
+   musicbrainz:
+     host: localhost:5123
+
+   pluginpath:
+     - /plugins/audible # point this to the directory which contains audible.py
+
+   audible:
+     # if the number of files in the book is the same as the number of chapters from Audible,
+     # attempt to match each file to an audible chapter
+     match_chapters: true
+     source_weight: 0.0 # disable the source_weight penalty
+     fetch_art: true # whether to retrieve cover art
+     include_narrator_in_artists: true # include author and narrator in artist tag. Or just author
+     write_description_file: true # output desc.txt
+     write_reader_file: true # output reader.txt
+
+   copyartifacts:
+     extensions: .yml # so that metadata.yml is copied, see below
+
+   scrub:
+     auto: yes # optional, enabling this is personal preference
+   ```
+
+4. Run the `beet --version` command and verify that the audible plugin appears in the list of plugins.
+
 ### With Docker
 
-1. `git clone https://github.com/seanap/beets-audible.git` # Open a terminal and clone this repository  
-2. `nano beets-audible/beets/docker-compose.yml` # Edit `docker-compose.yml`  
-    * Update the following lines:
-      * `PUID`
-      * `PGID`
-      * `TZ`
-      * `/path/to/plex/audibooks` # Location of your plex audiobooks folder
-      * `/path/to/temp/untagged` # Location of Untagged books ready for tagging
-3. `nano beets-audible/beets/config/config.yaml` # Edit `config.yaml`  
-    * Update the `Plex` section at the end of the file:
-      * `host` # IP of plex server
-      * `token` # https://support.plex.tv/hc/en-us/articles/204059436-Finding-your-account-token-X-Plex-Token
-      * `library_name` # Name of plex audiobook library
-4. `cd beets-audible/beets && docker-compose up -d` # Start the container
-7. `docker exec -it beets sh` # Start the interactive shell inside the beets container
-8. `beet --version` # Verify that the audible plugin appears in the list of plugins.
+1. Create the following folder structure:
+
+   ```
+   beets
+     config/
+     plugins/
+     scripts/
+       install-deps.sh # see step 3
+     docker-compose.yml # see step 2
+   ```
+
+2. Save the following as the docker-compose file:
+
+   ```yaml
+   ---
+   version: "3"
+   services:
+     beets:
+       image: lscr.io/linuxserver/beets:latest
+       container_name: beets
+       environment:
+         # Update as needed
+         - PUID=1000
+         - PGID=1000
+         - TZ=Asia/Singapore
+       volumes:
+         - ./config:/config
+         - ./plugins:/plugins
+         - ./scripts:/config/custom-cont-init.d
+         - /path/to/audiobooks:/audiobooks
+         - /path/to/import/books/from:/input
+       restart: unless-stopped
+   ```
+
+3. Save the following under `scripts/install-deps.sh`:
+
+   ```sh
+   #!/bin/bash
+   echo "Installing dependencies..."
+   # copyartifacts is optional but recommended
+   pip install --no-cache-dir markdownify natsort beets-copyartifacts3
+   ```
+
+4. Clone this repository into the `plugins` folder.
+5. Spin up the container: `docker-compose up -d`
+6. Update the config in `config/config.yaml` as described above.
+7. Run the `beet --version` command and verify that the audible plugin appears in the list of plugins.
 
 ## Usage
 
-> :warning: **Ensure that each book is in it's own folder**, even if the audiobook only consists of a single file. This is so that the files for a book are treated as an album by Beets.
+When importing audiobooks into Beets, ensure that the files for each book are in its own folder, even if the audiobook only consists of a single file. This is so that the files for a book are treated as an album by Beets. Avoid putting files from multiple books in the same folder.
 
+When ready, start the import with the following command:
 
-* Add books that need tagging to your `../temp/untagged` folder you configured in the `docker-compose.yml` file
-* `docker exec -it beets sh -c 'beet import /untagged'` # Start the interactive shell inside the beets docker container and run beets on your `.../temp/untagged` folder.
-  * ALTERNATIVE: Portainer>beets>console
-> To exit the beets docker shell simply type `exit`
-
-### Create a script shortcut that will: 
-* Automatically ssh into the docker host computer from your Windwos PC
-* Execute the docker exec command
-* Run beets and import your `.../temp/untagged` folder
-
-#### Windows
-* Install [putty](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html)
-* Open Powershell with admin rights (Right click > `Run as Administrator`), run the following line:  
-  * `Set-ItemProperty HKCU:\Console VirtualTerminalLevel -Type DWORD 1`
-* Open notepad++ and save the following line as `runbeets.bat` and edit with your [USER] [IP] [PW]  
-  * `plink -ssh user@192.168.0.123 -pw supersecretpass -P 22 -t (docker exec -it beets sh -c 'beet import /untagged')`
-* double-click `runbeets.bat` to run
-
-
-## Notes
+```sh
+beet import /path/to/audiobooks
+```
 
 The following sources of information are used to search for book matches in order of preference:
 
@@ -74,6 +139,18 @@ If you're not getting a match for a book, try the following:
 3. Specify the book's data by using `metadata.yml` if it isn't on Audible (see the next section).
 
 The plugin gets chapter data of each book and tries to match them to the imported files if and only if the number of imported files is the same as the number of chapters from Audible. This can fail and cause inaccurate track assignments if the lengths of the files don't match Audible's chapter data. If this happens, set the config option `match_chapters` to `false` temporarily and try again, and remember to uncomment that line once done.
+
+### Goodreads for original work first published date
+
+The plugin can search Goodreads to find the original publication date of the work the audiobook is based on by searching on the ASIN. To enable this option you need a Goodreads API key and you must set that key in the audible plugin config
+
+```
+   audible:
+     goodreads_apikey: [APIKEYHERE] #optional
+```
+
+If you want this date used as the release date for the audiobook, you must set [original_date](https://beets.readthedocs.io/en/stable/reference/config.html#original-date) to yes in your beets config
+
 
 ### Importing Non-Audible Content
 
@@ -121,41 +198,41 @@ Terry Goodkind/
       cover.png
       desc.txt
       reader.txt
-      01 - Wizards first rule (1989).m4b
+      wizards first rule.m4b
 George Orwell/
   Animal Farm/
-    01 - Animal Farm (1935).m4b
+    Animal Farm.m4b
     cover.png
     desc.txt
     reader.txt
 ```
 
-Desc.txt and reader.txt contain the book description and narrator populated from Audible. These are needed for Booksonic servers only.
+Desc.txt and reader.txt contain the book description and narrator populated from Audible.
 
 ## Tags Written
 
 The plugin writes the following tags:
 
-| ID3 Tag                          | Audible.com Value                                                                                                                   |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `TIT1` (CONTENTGROUP)            | Series, Book #                                                                                                                      |
-| `TALB` (ALBUM)                   | Title                                                                                                                               |
-| `TIT3` (SUBTITLE)                | Subtitle                                                                                                                            |
-| `TPE1` (ARTIST)                  | Author, Narrator                                                                                                                    |
-| `TPE2` (ALBUMARTIST)             | Author                                                                                                                              |
-| `TCOM` (COMPOSER)                | Narrator                                                                                                                            |
-| `TCON` (GENRE)                   | Genre1/Genre2                                                                                                                       |
-| `TDRC` and `TDRL` (release date) | audio publication date                                                                                                              |
-| `COMM` (COMMENT)                 | Publisher's Summary (MP3)                                                                                                           |
-| `desc` (DESCRIPTION)             | Publisher's Summary (M4B)                                                                                                           |
-| `TSOA` (ALBUMSORT)               | If ALBUM only, then %Title%<br>If ALBUM and SUBTITLE, then %Title% - %Subtitle%<br>If Series, then %Series% %Series-part% - %Title% |
-| `TPUB` (PUBLISHER)               | Publisher                                                                                                                           |
-| `ASIN` (ASIN)                    | Amazon Standard Identification Number                                                                                               |
-| `ITUNESMEDIATYPE`                | "Audiobook"                                                                                                                         |
-| `MVNM` (MOVEMENTNAME)            | Series                                                                                                                              |
-| `MVIN` (MOVEMENT)                | Series Book #                                                                                                                       |
-| `TXXX_SERIES` (SERIES)           | Series                                                                                                                              |
-| `TXXX_SERIESPART`                | Series position                                                                                                                     |
+| ID3 Tag                                  | Audible.com Value                                                                                                                   |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `TIT1` (CONTENTGROUP)                    | Series, Book #                                                                                                                      |
+| `TALB` (ALBUM)                           | Title                                                                                                                               |
+| `TIT3` (SUBTITLE)                        | Subtitle                                                                                                                            |
+| `TPE1` (ARTIST)                          | Author, Narrator                                                                                                                    |
+| `TPE2` (ALBUMARTIST)                     | Author                                                                                                                              |
+| `TCOM` (COMPOSER)                        | Narrator                                                                                                                            |
+| `TCON` (GENRE)                           | Genre1/Genre2                                                                                                                       |
+| `TDRC` and `TDRL` (release date)         | audio publication date                                                                                                              |
+| `COMM` or `desc` for m4b files (COMMENT) | Publisher's Summary                                                                                                                 |
+| `TSOA` (ALBUMSORT)                       | If ALBUM only, then %Title%<br>If ALBUM and SUBTITLE, then %Title% - %Subtitle%<br>If Series, then %Series% %Series-part% - %Title% |
+| `TPUB` (PUBLISHER)                       | Publisher                                                                                                                           |
+| `ASIN` (ASIN)                            | Amazon Standard Identification Number                                                                                               |
+| `stik` (media type), m4b only            | 2 (audiobook)                                                                                                                       |
+| `shwm` (show movement), m4b only         | 1 if part of a series                                                                                                               |
+| `MVNM` (MOVEMENTNAME)                    | Series                                                                                                                              |
+| `MVIN` / `MVI` for m4b files (MOVEMENT)  | Series Book #                                                                                                                       |
+| `TXXX_SERIES` (SERIES)                   | Series                                                                                                                              |
+| `TXXX_SERIES-PART`                       | Series position                                                                                                                     |
 
 ## Known Limitations
 
@@ -163,4 +240,4 @@ The plugin writes the following tags:
 
 ## Plex Integration
 
-If the directory where Beets imports audiobooks to is also where you've set Plex to serve content from, the [plexupdate plugin] (https://beets.readthedocs.io/en/stable/plugins/plexupdate.html) is enabled by default.  It will automatically notify Plex when new books are imported.
+If the directory where Beets imports audiobooks to is also where you've set Plex to serve content from, you can enable the [plexupdate plugin](https://beets.readthedocs.io/en/stable/plugins/plexupdate.html) to notify Plex when new books are imported.

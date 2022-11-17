@@ -2,6 +2,7 @@ import datetime
 import os
 import pathlib
 import re
+import urllib.error
 from tempfile import NamedTemporaryFile
 import yaml
 
@@ -13,6 +14,7 @@ import mediafile
 from natsort import os_sorted
 
 from .api import get_book_info, make_request, search_audible
+from .goodreads import get_original_date
 
 class Audible(BeetsPlugin):
     data_source = 'Audible'
@@ -23,7 +25,12 @@ class Audible(BeetsPlugin):
             'fetch_art': True,
             'match_chapters': True,
             'source_weight': 0.0,
+            'write_description_file': True,
+            'write_reader_file': True,
+            'include_narrator_in_artists': True,
+            'goodreads_apikey': None
         })
+        self.config['goodreads_apikey'].redact = True
         # Mapping of asin to cover art urls
         self.cover_art_urls = {}
         # stores paths of downloaded cover art to be used during import
@@ -35,35 +42,61 @@ class Audible(BeetsPlugin):
         if self.config['fetch_art']:
             self.import_stages = [self.fetch_art]
         
-        # see https://github.com/beetbox/mediafile/blob/master/mediafile.py
+        # see the following:
+        # Beet's internal mapping to tags: https://github.com/beetbox/mediafile/blob/master/mediafile.py
+        # Mp3tag's mapping: https://docs.mp3tag.de/mapping/
+        # Tag Mapping from the Hydrogenaudio Knowledgebase: https://wiki.hydrogenaud.io/index.php?title=Tag_Mapping
+        # List of M4b tags: https://mutagen.readthedocs.io/en/latest/api/mp4.html
         album_sort = mediafile.MediaField(
             mediafile.MP3StorageStyle(u'TSOA'),
-            mediafile.StorageStyle(u'TSOA')
+            mediafile.MP4StorageStyle('soal'),
+            mediafile.StorageStyle(u'TSOA'),
+            mediafile.ASFStorageStyle('WM/AlbumSortOrder'),
         )
         self.add_media_field('album_sort', album_sort)
-
+        desc = mediafile.MediaField(
+            mediafile.MP4StorageStyle('desc')
+        )
+        self.add_media_field('desc', desc)
         itunes_media_type = mediafile.MediaField(
-            mediafile.MP3DescStorageStyle(u'ITUNESMEDIATYPE'),
-            mediafile.StorageStyle(u'ITUNESMEDIATYPE')
+            mediafile.MP4StorageStyle('stik', as_type=int),
         )
         self.add_media_field('itunes_media_type', itunes_media_type)
+        show_movement = mediafile.MediaField(
+            mediafile.MP4StorageStyle('shwm', as_type=int),
+        )
+        self.add_media_field('show_movement', show_movement)
 
         series_name = mediafile.MediaField(
             mediafile.MP3StorageStyle(u'MVNM'),
             mediafile.MP3DescStorageStyle(u'SERIES'),
+            mediafile.MP4StorageStyle('\xa9mvn'),
+            mediafile.MP4StorageStyle('----:com.apple.iTunes:SERIES'),
             mediafile.StorageStyle(u'MVNM')
         )
         self.add_media_field('series_name', series_name)
         series_position = mediafile.MediaField(
             mediafile.MP3StorageStyle(u'MVIN'),
-            mediafile.MP3DescStorageStyle(u'SERIESPOSITION'),
+            mediafile.MP3DescStorageStyle(u'SERIES-PART'),
+            # Using the "mvi" tag for M4b wouldn't work when the value can't be converted to an integer
+            # For instance, an m4b containing multiple books has series position "1-3"
+            # Trying to do so would cause an exception, hence why this is commented out here
+            # and handled below separately
+            # mediafile.MP4StorageStyle('\xa9mvi'),
+            mediafile.MP4StorageStyle('----:com.apple.iTunes:SERIES-PART'),
             mediafile.StorageStyle(u'MVIN')
         )
         self.add_media_field('series_position', series_position)
+        mvi = mediafile.MediaField(
+            mediafile.MP4StorageStyle('\xa9mvi', as_type=int),
+        )
+        self.add_media_field('mvi', mvi)
 
         subtitle = mediafile.MediaField(
             mediafile.MP3StorageStyle(u'TIT3'),
-            mediafile.StorageStyle(u'TIT3')
+            mediafile.MP4StorageStyle('----:com.apple.iTunes:SUBTITLE'),
+            mediafile.StorageStyle(u'TIT3'),
+            mediafile.ASFStorageStyle('WM/SubTitle'),
         )
         self.add_media_field('subtitle', subtitle)
 
@@ -140,7 +173,7 @@ class Audible(BeetsPlugin):
                 # is technically possible (based on the API) but unsure how often it happens
                 self._log.warn(f"Chapter data for {a.album} could be inaccurate.")
             
-            if is_likely_match and not (is_chapterized and self.config['match_chapters']):
+            if is_likely_match and (not is_chapterized or not self.config['match_chapters']):
                 self._log.debug(f"Attempting to match book: album {album} with {len(items)} files to book {a.album} with {len(a.tracks)} chapters.")
                 
                 common_track_attributes = dict(a.tracks[0])
@@ -155,7 +188,6 @@ class Audible(BeetsPlugin):
                 # using the bytestring_path function from Beets is needed for correctness
                 # I was noticing inaccurate sorting if using str to convert paths to strings
                 naturally_sorted_items = os_sorted(items, key=lambda i: util.bytestring_path(i.path))
-
                 a.tracks = [
                     TrackInfo(**common_track_attributes, title=item.title, length=item.length, index=i+1)
                     for i, item in enumerate(naturally_sorted_items)
@@ -174,7 +206,7 @@ class Audible(BeetsPlugin):
         if series_name:
             if series_position:
                 album_sort = f"{series_name} {series_position} - {title}"
-                content_group_description = f"{series_name}, book #{series_position}"
+                content_group_description = f"{series_name}, Book #{series_position}"
             else:
                 album_sort = f"{series_name} - {title}"
         elif subtitle:
@@ -185,6 +217,11 @@ class Audible(BeetsPlugin):
         authors = ', '.join(data['authors'])
         narrators = ', '.join(data['narrators'])
         authors_and_narrators = ', '.join([authors, narrators])
+        if self.config['include_narrator_in_artists']:
+            artists = authors_and_narrators
+        else:
+            artists = authors        
+
         description = data['description']
         genres = '/'.join(data['genres'])
 
@@ -199,8 +236,8 @@ class Audible(BeetsPlugin):
         # populate tracks by using some of the info from the files being imported
         tracks = [
             TrackInfo(
-                **common_attributes, track_id=None, artist=authors_and_narrators, 
-                index=i+1, length=item.length, title=item.title,
+                **common_attributes, track_id=None, artist=artists, 
+                index=i+1, length=item.length, title=item.title, medium=1
             )    
             for i, item in enumerate(naturally_sorted_items)
         ]
@@ -212,7 +249,7 @@ class Audible(BeetsPlugin):
         publisher = data['publisher']
 
         return AlbumInfo(
-            tracks=tracks, album=title, album_id=None, albumtype="audiobook",
+            tracks=tracks, album=title, album_id=None, albumtype="audiobook", mediums=1,
             artist=authors, year=year, month=month, day=day,
             original_year=year, original_month=month, original_day=day,
             language=language, label=publisher, **common_attributes
@@ -251,8 +288,13 @@ class Audible(BeetsPlugin):
             if len(products_without_unreleased_entries) < len(products):
                 # see https://github.com/laxamentumtech/audnexus/issues/239
                 self._log.info(f"Excluded {len(products) - len(products_without_unreleased_entries)} books which have not been released from consideration.")
-            
-            return [self.get_album_info(p["asin"]) for p in products_without_unreleased_entries]
+            out = []
+            for p in products_without_unreleased_entries:
+                try:
+                    out.append(self.get_album_info(p['asin']))
+                except urllib.error.HTTPError:
+                    self._log.debug("Error while fetching book information from Audnex", exc_info=True)
+            return out
         except Exception as e:
             self._log.warn("Error while fetching book information from Audnex",
                             exc_info=True)
@@ -275,7 +317,7 @@ class Audible(BeetsPlugin):
             series_position = series.position
             if series_position:
                 album_sort = f"{series_name} {series_position} - {title}"
-                content_group_description = f"{series_name}, book #{series_position}"
+                content_group_description = f"{series_name}, Book #{series_position}"
             else:
                 album_sort = f"{series_name} - {title}"
                 content_group_description = None
@@ -292,6 +334,11 @@ class Audible(BeetsPlugin):
         authors = ', '.join([a.name for a in book.authors])
         narrators = ', '.join([n.name for n in book.narrators])
         authors_and_narrators = ', '.join([authors, narrators])
+        if self.config['include_narrator_in_artists']:
+            artists = authors_and_narrators
+        else:
+            artists = authors
+
         description = book.summary_markdown
         cover_url = book.image_url
         genres = '/'.join([g.name for g in book.genres])
@@ -301,12 +348,13 @@ class Audible(BeetsPlugin):
             "composer": narrators, "grouping": content_group_description,
             "genre": genres, "series_name": series_name, "series_position": series_position,
             "comments": description, "data_source": self.data_source, "subtitle": subtitle,
+            "catalognum": asin
         }
 
         tracks = [
             TrackInfo(
                 track_id=None, index=i+1, title=c.title, medium=1,
-                artist=authors_and_narrators, length=c.length_ms / 1000,
+                artist=artists, length=c.length_ms / 1000,
                 **common_attributes
             )
             for i, c in enumerate(chapters.chapters)
@@ -320,21 +368,44 @@ class Audible(BeetsPlugin):
         data_url = f"https://api.audnex.us/books/{asin}"
 
         self.cover_art_urls[asin] = cover_url
+
+        original_year=year
+        original_month=month
+        original_day=day
+
+        if self.config['goodreads_apikey']:
+            original_date = get_original_date(self, asin, authors, title)
+            if original_date.get("year") is not None:
+                original_year=original_date.get("year")
+                original_month=original_date.get("month")
+                original_day=original_date.get("day")
+        
         return AlbumInfo(
-            tracks=tracks, album=album, album_id=None, albumtype="audiobook", mediums=1,
+            tracks=tracks, album=album, album_id=asin, albumtype="audiobook", mediums=1,
             artist=authors, year=year, month=month, day=day,
-            original_year=year, original_month=month, original_day=day,
+            original_year=original_year, original_month=original_month, original_day=original_day,
             cover_url=cover_url, summary_html=book.summary_html,
             is_chapter_data_accurate=is_chapter_data_accurate,
             language=book.language, label=book.publisher, **common_attributes
         )
     
     def on_write(self, item, path, tags):
-        tags["itunes_media_type"] = "Audiobook"
         # Strip unwanted tags that Beets automatically adds
+        tags['mb_albumid'] = None
         tags['mb_trackid'] = None
         tags['lyrics'] = None
         tags['bpm'] = None
+        if path.endswith(b"m4b"):
+            # audiobook media type, see https://exiftool.org/TagNames/QuickTime.html
+            tags["desc"] = tags.get("comments")
+            tags["itunes_media_type"] = 2
+            if tags.get("series_name"):
+                tags["show_movement"] = 1
+            try:
+                # The "mvi" tag for m4b files only accepts integers
+                tags["mvi"] = int(tags.get("series_position"))
+            except Exception:
+                pass
 
     def fetch_art(self, session, task):
         # Only fetch art for albums
@@ -387,11 +458,13 @@ class Audible(BeetsPlugin):
         item = items[0]
         destination = os.path.dirname(item.path)
         
-        description = item.comments
-        with open(os.path.join(destination, b'desc.txt'), 'w') as f:
-            f.write(description)
+        if self.config['write_description_file']:
+            description = item.comments
+            with open(os.path.join(destination, b'desc.txt'), 'w') as f:
+                f.write(description)
         
-        narrator = item.composer
-        with open(os.path.join(destination, b'reader.txt'), 'w') as f:
-            f.write(narrator)
+        if self.config['write_reader_file']:
+            narrator = item.composer
+            with open(os.path.join(destination, b'reader.txt'), 'w') as f:
+                f.write(narrator)
         

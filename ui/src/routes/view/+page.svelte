@@ -22,7 +22,7 @@
 </script>
 
 <div class="bg-white">
-    <button class="text-sm font-medium block px-3 py-2 rounded-md { syncButtonLocked ? 'bg-sky-500 text-white' : 'bg-slate-100'}" on:click={sync}>Sync</button>
+    <button class="text-sm font-medium block px-3 py-2 test rounded-md { syncButtonLocked ? 'bg-sky-500 text-white' : 'bg-slate-100'}" on:click={sync}>Sync</button>
     <br><br>
     <BookList {books} />
 </div>

@@ -1,0 +1,44 @@
+# https://hackernoon.com/a-better-way-to-develop-node-js-with-docker-cd29d3a0093
+
+version: '3'
+services:
+  dev:
+    image: unabridged-dev
+    container_name: unabridged-dev
+    volumes:
+      - nodemodules-unabridged:/ui/node_modules
+      - ../ui:/ui
+      - ../.audible:/config/.audible
+      - ../beets-audible/config:/config
+      - ../beets-audible/plugins:/plugins
+      - ../beets-audible/scripts:/config/custom-cont-init.d
+    environment:
+      - NODE_ENV=development
+      # - AWS_ACCESS_KEY_ID=your_key_id
+      # - AWS_SECRET_ACCESS_KEY=your_secret_key
+      # - AWSEndpoint=http://dynamodb:8000
+      # - AWS_Endpoint=http://dynamodb:8000
+    working_dir: /ui
+    command: sh -c "npm i && npm run dev"
+    ports:
+      - 5173:5173
+    tty: true
+    stdin_open: true
+    # network_mode: "host"
+  # dynamodb:
+  #   image: amazon/dynamodb-local
+  #   hostname: dynamodb-local
+  #   container_name: dynamodb-local
+  #   environment:
+  #     - AWS_ACCESS_KEY_ID=your_key_id
+  #     - AWS_SECRET_ACCESS_KEY=your_secret_key
+  #   entrypoint: java
+  #   command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /data"
+  #   restart: always
+  #   volumes:
+  #     - ./database/data:/data
+  #   ports:
+  #     - 8000:8000
+volumes:
+  nodemodules-unabridged:
+    external: true

@@ -4,6 +4,7 @@ ui/build
 ui/.svelte-kit
 ui/package
 ui/db.json
+.audible/*
 .venv
 .env
 .env.*

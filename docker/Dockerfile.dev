@@ -11,11 +11,6 @@ COPY beets-audible/config /config
 COPY beets-audible/plugins /plugins
 COPY beets-audible/scripts /scripts
 
-# Add manager compiled code
-COPY manager/bin /manager
-COPY manager/package.json /manager/package.json
-COPY manager/package-lock.json /manager/package-lock.json
-
 # Add auto-start services
 COPY services.d /etc/services.d
 
@@ -55,8 +50,8 @@ echo "---- REMOVE BEET AUTO-START ----" \
   && rm -rf /etc/services.d/beets && \
 echo "---- INSTALL AUDIBLE-CLI ----" \
   && pip3 install audible-cli markdownify natsort beets-copyartifacts3 && \
-echo "---- INSTALL NODE_MODULES ----" \
-  && cd /manager && npm install --production && cd / && \
+# echo "---- INSTALL NODE_MODULES ----" \
+#   && cd /manager && npm install --production && cd / && \
 echo "---- REMOVE BUILD DEPENDENCIES (to keep image small) ----" \
    && apk del --purge build-dependencies && rm -rf /tmp/* \
    && rm -rf /root/.cache /tmp/*

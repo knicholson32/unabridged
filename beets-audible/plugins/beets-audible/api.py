@@ -1,4 +1,5 @@
 import json
+import xml.etree.ElementTree as ET
 from time import sleep
 from typing import Dict, Tuple
 from urllib import parse, request
@@ -7,6 +8,7 @@ from .book import Book, BookChapters
 
 AUDIBLE_ENDPOINT="https://api.audible.com/1.0/catalog/products"
 AUDNEX_ENDPOINT="https://api.audnex.us"
+GOODREADS_ENDPOINT="https://www.goodreads.com/search/index.xml"
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36"
 
 def search_audible(keywords: str) -> Dict:
@@ -19,6 +21,15 @@ def search_audible(keywords: str) -> Dict:
     query = parse.urlencode( params )
     response = json.loads(make_request(f"{AUDIBLE_ENDPOINT}?{query}"))
     return response
+
+def search_goodreads(api_key: str, keywords: str) -> Dict:
+    params = {
+        "key": api_key,
+        "q": keywords
+    }
+    query = parse.urlencode( params )
+    url = f"{GOODREADS_ENDPOINT}?{query}"
+    return ET.fromstring(make_request(url))
 
 def get_book_info(asin: str) -> Tuple[Book, BookChapters]:
     book_response = json.loads(make_request(f"{AUDNEX_ENDPOINT}/books/{asin}"))
@@ -42,6 +53,9 @@ def make_request(url):
             with request.urlopen(req) as response:
                 return response.read()
         except HTTPError as e:
+            if e.code == 404:
+                print(f"Error while requesting {url}: status code {e.code}, {e.reason}")
+                raise e
             print(f"Error while requesting {url}, attempt {n+1}/{NUM_RETRIES}: status code {e.code}, {e.reason}")
             if n < NUM_RETRIES - 1:
                 sleep(SLEEP_TIME)

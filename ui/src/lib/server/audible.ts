@@ -8,7 +8,7 @@ import path from 'node:path';
 import stream from 'node:stream';
 import fs from 'node:fs';
 // import readline from 'node:readline';
-import JSONStream from 'jsonstream';
+import JSONStream from 'JSONStream';
 
 const regex =
     /^\s*[a-zA-Z0-9_-]+\.aax:\s*(?<precent>[0-9]+%).+\|\s*(?<downloaded>[0-9\.]+)M\/(?<total>[0-9\.]+)M\s*\[[0-9:<,]+\s(?<speed>[0-9.]+)MB\/s]/;
