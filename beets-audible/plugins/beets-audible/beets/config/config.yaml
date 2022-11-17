@@ -1,0 +1,56 @@
+# add audible to the list of plugins
+# copyartifacts is optional but recommended if you're manually specifying metadata via metadata.yml, see the "Importing non-audible content" section
+plugins: copyartifacts edit fromfilename scrub audible plexupdate web
+
+directory: /audiobooks
+
+# Place books in their own folders to be compatible with Booksonic and Audiobookshelf servers
+paths:
+  # For books that belong to a series
+  "albumtype:audiobook series_name::.+ series_position::.+": $albumartist/%ifdef{series_name}/%ifdef{series_position} - $album%aunique{}/$track - $title ($year)
+  "albumtype:audiobook series_name::.+": $albumartist/%ifdef{series_name}/$album%aunique{}/$track - $title ($year)
+  # Stand-alone books
+  "albumtype:audiobook": $albumartist/$album%aunique{}/$track - $title ($year)
+  default: $albumartist/$album%aunique{}/$track - $title ($year)
+  singleton: Non-Album/$artist - $title ($year)
+  comp: Compilations/$album%aunique{}/$track - $title ($year)
+  albumtype_soundtrack: Soundtracks/$album/$track $title ($year)
+
+# disables musicbrainz lookup, as it doesn't help for audiobooks
+# This is a workaround see https://github.com/beetbox/beets/issues/400
+# musicbrainz:
+#   host: localhost:5123
+  
+musicbrainz:
+  enabled: no
+
+pluginpath:
+  - /plugins/audible # point this to the directory which contains audible.py
+
+audible:
+  # if the number of files in the book is the same as the number of chapters from Audible,
+  # attempt to match each file to an audible chapter
+  match_chapters: true
+  source_weight: 0.0 # disable the source_weight penalty
+  
+import:
+  write: yes
+  copy: no
+  move: yes
+  hardlink: no
+  timid: no
+  log: /config/beet.log
+  
+  fetch_art: true # whether to retrieve cover art
+
+copyartifacts:
+  extensions: .yml # so that metadata.yml is copied, see below
+
+scrub:
+  auto: yes # optional, enabling this is personal preference
+  
+plex:
+  host: localhost
+  port: 32400
+  token: xxxxxxxxxxxxxxxxxxxx # Your plex token
+  library_name: Audiobooks # The name of your audiobook library in Plex

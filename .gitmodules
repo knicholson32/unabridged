@@ -1,0 +1,3 @@
+[submodule "beets-audible/plugins/beets-audible"]
+	path = beets-audible/plugins/beets-audible
+	url = https://github.com/seanap/beets-audible.git

@@ -1,0 +1,8 @@
+.git
+.github
+.gitignore
+*Dockerfile*
+*docker-compose*
+node_modules
+Makefile
+**/*.bak

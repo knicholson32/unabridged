@@ -1,0 +1,47 @@
+# copyartifacts is optional but recommended if you're manually specifying metadata via metadata.yml, see the "Importing non-audible content" section
+plugins: copyartifacts edit fromfilename scrub audible
+# plexupdate
+
+directory: /library
+
+# Place books in their own folders to be compatible with Booksonic and Audiobookshelf servers
+paths:
+  # For books that belong to a series
+  "albumtype:audiobook series_name::.+ series_position::.+": $albumartist/%ifdef{series_name}/%ifdef{series_position} - $album%aunique{}/$track - $title
+  "albumtype:audiobook series_name::.+": $albumartist/%ifdef{series_name}/$album%aunique{}/$track - $title
+  # Stand-alone books
+  "albumtype:audiobook": $albumartist/$album%aunique{}/$track - $title
+  default: $albumartist/$album%aunique{}/$track - $title
+  singleton: Non-Album/$artist - $title
+  comp: Compilations/$album%aunique{}/$track - $title
+  albumtype_soundtrack: Soundtracks/$album/$track $title
+
+# disables musicbrainz lookup, as it doesn't help for audiobooks
+# This is a workaround, as there is currently no built-in way of doing so
+# see https://github.com/beetbox/beets/issues/400
+musicbrainz:
+  enabled: no
+
+pluginpath:
+  - /plugins/beets-audible # point this to the directory which contains audible.py
+
+audible:
+  # if the number of files in the book is the same as the number of chapters from Audible,
+  # attempt to match each file to an audible chapter
+  match_chapters: true
+  source_weight: 0.0 # disable the source_weight penalty
+  fetch_art: true # whether to retrieve cover art
+  include_narrator_in_artists: true # include author and narrator in artist tag. Or just author
+  write_description_file: true # output desc.txt
+  write_reader_file: true # output reader.txt
+
+# plex:
+#     host: 192.168.1.100
+#     port: 32400
+#     token: hRokBxupXnaiitoWaL9n
+
+copyartifacts:
+  extensions: .yml # so that metadata.yml is copied, see below
+
+scrub:
+  auto: yes # optional, enabling this is personal preference

@@ -1,0 +1,17 @@
+version: "3"
+services:
+  beets:
+    image: lscr.io/linuxserver/beets:latest
+    container_name: beets
+    environment:
+      # Update as needed
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Singapore
+    volumes:
+      - ./config:/config
+      - ./plugins:/plugins
+      - ./scripts:/config/custom-cont-init.d
+      - /path/to/plex/audiobooks:/audiobooks
+      - /path/to/temp/untagged:/untagged
+    restart: unless-stopped

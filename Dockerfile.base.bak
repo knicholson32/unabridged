@@ -1,0 +1,49 @@
+# FROM python:3.11.0-slim-bullseye
+FROM linuxserver/beets:latest
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+# Install dependancies
+RUN apt-get -y update
+RUN apt-get -y install wget
+RUN apt-get -y install xz-utils
+RUN apt-get -y install lame
+RUN apt-get -y install x264 x265 bc
+RUN apt-get -y install jq
+# RUN apt-get -y install mp4v2-utils
+RUN apt-get -y install mediainfo
+
+# Install FFMPEG
+RUN wget 'https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-'$(echo "$TARGETPLATFORM" | sed 's:.*/::')'-static.tar.xz' -O ffmpeg.tar.xz
+RUN mkdir /tar-tmp
+RUN tar -xvf ffmpeg.tar.xz -C /tar-tmp --strip-components=1
+# RUN cp -r /tar-tmp/model /usr/local/share/
+RUN cp /tar-tmp/ffmpeg /usr/bin/ffmpeg
+RUN cp /tar-tmp/ffprobe /usr/bin/ffprobe
+RUN rm -rf /tar-tmp
+RUN rm ffmpeg.tar.xz
+
+# # Install pip
+# RUN wget https://bootstrap.pypa.io/get-pip.py
+# RUN python3 ./get-pip.py
+# RUN rm ./get-pip.py
+
+# Install audible-cli
+RUN pip3 install audible-cli
+
+# Install AAXtoMP3
+RUN wget https://github.com/KrumpetPirate/AAXtoMP3/releases/download/v1.3/AAXtoMP3-v1.3.tar.gz -O - | tar -xz
+RUN cp -vn ./AAXtoMP3/AAXtoMP3 /usr/bin/AAXtoMP3
+RUN rm -rf ./AAXtoMP3
+
+# Install mp4v2-utils
+RUN echo "deb http://www.deb-multimedia.org bullseye main" | tee -a /etc/apt/sources.list
+RUN apt-get update -oAcquire::AllowInsecureRepositories=true
+RUN apt-get install -y --allow-unauthenticated deb-multimedia-keyring
+RUN apt-get install -y --allow-unauthenticated mp4v2-utils
+
+# Uninstall now unused dependancies
+RUN apt-get -y remove wget
+RUN apt-get -y remove xz-utils
+RUN apt-get -y autoremove
