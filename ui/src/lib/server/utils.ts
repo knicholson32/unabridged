@@ -1,12 +1,67 @@
 import { EventEmitter } from 'events';
 import { spawn, exec } from 'node:child_process';
 import type { Readable } from 'node:stream';
+import uuid from 'uuid';
+import * as DataBase from '$lib/server/db';
+import { OperationStatus, OperationType, type GenericOperationData } from '$lib/types';
 
 export type ExecutionResult = {
     code: number;
     stdout: string;
     stderr: string;
 };
+
+
+export class Operation {
+    public id: string;
+    private _active: boolean;
+    
+    constructor(type: OperationType) {
+        this.id = uuid.v4();
+        this._active = true;;
+
+        DataBase.operationStore[this.id] = {
+            status: OperationStatus.Active,
+            progress: 0,
+            type: type,
+            id: this.id
+        }
+    }
+
+    async execute(func: (op: Operation) => Promise<any>): Promise<any> {
+        const resp =  await func(this);
+        this.finish();
+        return resp;
+    }
+
+    get data() {
+        return DataBase.operationStore[this.id] as GenericOperationData;
+    }
+
+    finish() {
+        this._active = false;
+        DataBase.operationStore[this.id].status = OperationStatus.Done;
+
+        // Delete the operation from the 'database' in 10 seconds
+        setTimeout(() => {
+            console.log('Removing Done Operation', this.id);
+            delete DataBase.operationStore[this.id];
+        }, 10 * 1000);
+    }
+
+    get progress() {
+        if (this._active) return DataBase.operationStore[this.id].progress;
+        else return -1;
+    }
+
+    set progress(p: number) {
+        if (this._active) DataBase.operationStore[this.id].progress = p || -1;
+    }
+}
+
+const af = async (test: number): Promise<boolean> => {
+    return false;
+}
 
 export class Exec extends EventEmitter {
     // Command to pass to the spawn method

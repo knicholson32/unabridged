@@ -1,28 +1,68 @@
 <script lang="ts">
     import type { PageData } from './$types';
-    import type { LibraryItemBookInfo } from '$lib/types';
-	import BookList from './book.list.svelte';
+    import { OperationStatus, type LibraryItemBookInfo, type SyncOperationData } from '$lib/types';
+    import BookList from './book.list.svelte';
+    import * as requests from '$lib/client/requests';
 
     export let data: PageData;
-	const books : LibraryItemBookInfo[] = [];
-    for (let book of Object.values(data)) books.push(book);
+    let books = data.books as LibraryItemBookInfo[];
 
-    let syncButtonLocked = false;
+    let syncActive = false;
+    let syncProgress = 0;
+    let operationStatusTimeout = 0;
+    let operation: SyncOperationData;
+
+    const sleep = (timeout: number) =>
+        new Promise((resolve, _) => setTimeout(resolve, timeout));
+
+    const monitorSync = async () => {
+        while (syncActive && operationStatusTimeout < 250) {
+            await sleep(1000);
+            await (async () => {
+                operation = await requests.syncOSR(operation.id);
+
+                // Not started yet or doesnt exist
+                if (operation.status === OperationStatus.Inactive) {
+                    syncProgress = 0;
+                    operationStatusTimeout++;
+                }
+
+                // Currently Active
+                else if (operation.status === OperationStatus.Active) {
+                    syncProgress = Math.floor(operation.progress);
+                }
+
+                // Done
+                else if (operation.status === OperationStatus.Done) {
+                    console.log('done');
+                    syncProgress = 100;
+                    syncActive = false;
+                }
+            })();
+        }
+
+        books = await requests.getAllBookData();
+    };
 
     const sync = async () => {
-        if (!syncButtonLocked) {
-            syncButtonLocked = true;
-            const response = await fetch('/api/sync', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-            });
-            syncButtonLocked = false;
+        if (!syncActive) {
+            syncActive = true;
+            console.log('Starting Sync');
+            operation = await requests.startSync();
+            
+            operationStatusTimeout = 0;
+            monitorSync();
         }
     };
 </script>
 
 <div class="bg-white">
-    <button class="text-sm font-medium block px-3 py-2 test rounded-md { syncButtonLocked ? 'bg-sky-500 text-white' : 'bg-slate-100'}" on:click={sync}>Sync</button>
-    <br><br>
+    <button
+        class="test block rounded-md px-3 py-2 text-sm font-medium {syncActive
+            ? 'bg-sky-500 text-white'
+            : 'bg-slate-100'}"
+        on:click={sync}>{'Sync ' + syncProgress + '%'}
+    </button>
+    <br/><br/>
     <BookList {books} />
 </div>

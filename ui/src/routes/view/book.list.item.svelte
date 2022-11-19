@@ -1,51 +1,61 @@
 <script lang="ts">
-    import { BookStatus, type LibraryItemBookInfo } from '$lib/types';
+    import * as requests from '$lib/client/requests';
+    import { BookStatus, OperationStatus, type BookDownloadOperationData, type LibraryItemBookInfo } from '$lib/types';
     export let book: LibraryItemBookInfo;
 
     let downloadProgress = 0;
     let downloadActive = false;
 
+    let operation: BookDownloadOperationData;
+    let operationStatusTimeout: number = 0;
+
     const sleep = (timeout: number) =>
         new Promise((resolve, _) => setTimeout(resolve, timeout));
 
     const monitorDownload = async () => {
-        while(downloadActive) {
-            await sleep(250);
-            await fetchUpdate();
-        }
-    }
-    const fetchUpdate = async () => {
-        const response = await fetch('/api/download/status', {
-            method: 'POST',
-            body: JSON.stringify(book.asin),
-            headers: { 'content-type': 'application/json' },
-        });
-        const download = await response.json();
+        while (downloadActive && operationStatusTimeout < 250) {
+            await sleep(1000);
+            await (async () => {
+                operation = await requests.bookDownloadOSR(operation.id);
 
-        if (!downloadActive || download === undefined) downloadProgress = 100;
-        else downloadProgress = download.percentage;
+                // Not started yet or doesnt exist
+                if (operation.status === OperationStatus.Inactive) {
+                    downloadProgress = 0;
+                    operationStatusTimeout++;
+                }
+
+                // Currently Active
+                else if (operation.status === OperationStatus.Active) {
+                    downloadProgress = operation.progress;
+                }
+
+                // Done
+                else if (operation.status === OperationStatus.Done) {
+                    console.log('done');
+                    downloadProgress = 100;
+                    downloadActive = false;
+                }
+            })();
+        }
+
+        // Update the book
+        book = await requests.getBookData(book.asin);
+        console.log('New Book Version Recevied', book);
     };
 
     const download = async () => {
         if (!downloadActive) {
             downloadActive = true;
+            console.log('Starting Download', book.asin);
+            operation = await requests.startBookDownload(book.asin);
 
+            operationStatusTimeout = 0;
             monitorDownload();
-
-            const response = await fetch('/api/download', {
-                method: 'POST',
-                body: JSON.stringify(book.asin),
-                headers: { 'content-type': 'application/json' },
-            });
-            downloadActive = false;
-
-            const newData = await response.json();
-            book = newData.book;
-            downloadProgress = 100;
         }
     };
 
-    $: buttonText = book.status === BookStatus.Absent ? 'Download' : 'Downloaded';
+    $: buttonText =
+        book.status === BookStatus.Absent ? 'Download' : 'Downloaded';
 </script>
 
 <article class="flex items-start space-x-6 p-6">
@@ -121,7 +131,8 @@
                 class="block rounded-md px-3 py-2 text-sm font-medium {downloadActive
                     ? 'bg-sky-500 text-white'
                     : 'bg-slate-100'}"
-                on:click={download}>{buttonText + ' ' + downloadProgress}</button
+                on:click={download}
+                >{buttonText + ' ' + downloadProgress + '%'}</button
             >
         </dl>
     </div>
