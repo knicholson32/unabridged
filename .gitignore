@@ -4,7 +4,8 @@ ui/build
 ui/.svelte-kit
 ui/package
 ui/db.json
-beets-audible/config/.ash_history
+beets-audible/config/*
+docker/database/data
 .audible/*
 .venv
 .env
