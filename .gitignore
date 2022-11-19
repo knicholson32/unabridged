@@ -5,6 +5,8 @@ ui/.svelte-kit
 ui/package
 ui/db.json
 beets-audible/config/*
+!beets-audible/config/config.yaml
+
 docker/database/data
 .audible/*
 .venv
