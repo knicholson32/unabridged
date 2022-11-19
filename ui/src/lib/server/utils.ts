@@ -80,13 +80,15 @@ export class Exec extends EventEmitter {
     // Timeout in miliseconds
     private _timeoutMs: number | undefined;
 
-    constructor(command: string, args: string | string[], timeout?: number) {
+    constructor(command: string, args?: string | string[], timeout?: number) {
         super();
 
         this._command = command;
 
-        if (typeof args === 'string') this._arguments = args.split(' ');
-        else this._arguments = args;
+        if (args !== undefined) {
+            if (typeof args === 'string') this._arguments = args.split(' ');
+            else this._arguments = args;
+        }
 
         this._timeoutMs = timeout;
         this._stdoutStr = '';
