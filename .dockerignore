@@ -3,6 +3,9 @@
 .gitignore
 *Dockerfile*
 *docker-compose*
-node_modules
+/app/node_modules
+/app/build
+/app/.svelte-kit
+/app/db.json
 Makefile
 **/*.bak

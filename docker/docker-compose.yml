@@ -25,9 +25,43 @@ services:
     command: sh -c "npm i && npm run dev"
     ports:
       - 5173:5173
+    depends_on:
+      - mongo
+    links:
+      - mongo
     tty: true
     stdin_open: true
     # network_mode: "host"
+  mongo:
+    image: mongo:4
+    restart: unless-stopped
+    ports:
+      - 27017:27017
+    volumes:
+      - ./database/data:/data
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: unabridged
+  mongo-express:
+    image: mongo-express
+    restart: unless-stopped
+    ports:
+      - 8081:8081
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_MONGODB_ENABLE_ADMIN=false
+      - ME_CONFIG_MONGODB_AUTH_DATABASE=admin
+      - ME_CONFIG_MONGODB_AUTH_USERNAME=root
+      - ME_CONFIG_MONGODB_AUTH_PASSWORD=password
+      - ME_CONFIG_BASICAUTH_USERNAME=express
+      - ME_CONFIG_BASICAUTH_PASSWORD=password
+    depends_on:
+      - mongo
+    links:
+      - mongo
+
   dynamodb:
     image: amazon/dynamodb-local
     hostname: dynamodb-local
@@ -42,6 +76,7 @@ services:
       - ./database/data:/data
     ports:
       - 8000:8000
+
 volumes:
   nodemodules-unabridged:
     external: true

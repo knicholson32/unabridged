@@ -4,6 +4,7 @@ app/build
 app/.svelte-kit
 app/package
 app/db.json
+app/build
 
 docker/database/data
 .audible/*
