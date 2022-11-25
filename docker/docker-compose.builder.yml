@@ -6,9 +6,9 @@ services:
     image: node:16.17.1-alpine
     container_name: unabridged-builder
     volumes:
-      - nodemodules-unabridged:/ui/node_modules
-      - ../ui:/ui
-    working_dir: /ui
+      - nodemodules-unabridged:/app/node_modules
+      - ../app:/app
+    working_dir: /app
   install:
     extends:
       service: base

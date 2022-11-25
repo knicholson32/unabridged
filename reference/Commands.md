@@ -5,7 +5,6 @@ audible quickstart
 audible download -a B01N48VJFJ -o /home/Books --aax --cover --cover-size 1215 --chapter
 audible library export -o /home/library.tsv
 audible activation-bytes
-echo 4165af03 > .authcode 
 
  --ffmpeg-path /usr/bin/ 
 AAXtoMP3 -e:m4b -s -D '$title \($narrator\)' -t /audiobooks-exports /home/Books/*.aax
@@ -15,11 +14,14 @@ AAXtoMP3 -e:m4b -s -D '$title \($narrator\)' -t /audiobooks-exports /home/Books/
 1774241978: Brandon Q. Morris: Proxima Trilogy: Proxima Rising
 
 
+audible -P haley download -a 1982592575 -o /home/downloads --aaxc --cover --cover-size 1215 --chapter
+
+
 audible -P haley download -a B004NQKRVE -o /home/downloads --aaxc --cover --cover-size 1215 --chapter 2>&1 | tee -a logfile
 
 AAXtoMP3 -e:m4b -s --file-naming-scheme '$title' --dir-naming-scheme '$artist/$title' --use-audible-cli-data -t /home/processing /home/downloads/*.aaxc
 
-beet import /home/processing
+<!-- beet import /home/processing -->
 
 
 rm -rf /home/downloads/*

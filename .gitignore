@@ -1,11 +1,9 @@
 .DS_Store
-ui/node_modules
-ui/build
-ui/.svelte-kit
-ui/package
-ui/db.json
-beets-audible/config/*
-!beets-audible/config/config.yaml
+app/node_modules
+app/build
+app/.svelte-kit
+app/package
+app/db.json
 
 docker/database/data
 .audible/*

@@ -1,7 +1,0 @@
-#!/usr/bin/with-contenv bash
-umask 022
-
-exec \
-        echo "test123" > /testfile.txt
-#       s6-setuidgid abc beet web
-

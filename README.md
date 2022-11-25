@@ -21,4 +21,4 @@ audible quick-start
 ```
 
 ## TODO
-- [ ] Remove beets-audible items from this project and set Docker to make the required changes / installation as apart of the build process
+- [X] Remove beets-audible items from this project and set Docker to make the required changes / installation as apart of the build process

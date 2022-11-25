@@ -10,7 +10,7 @@
 * Download an audiobook
 * Convert the audiobook to MP3
 * Adjust tags as required
-* Go through Beets integration process (TODO: Is this really required?)
+* Import the book into the library
 
 ### Additional Features
 * Be able to edit all info for an audiobook, including:
@@ -25,7 +25,6 @@
 * Menu to sort library items to edit. Only books that are at least downloading will show up in this list. Default filter is to only show items that are not yet fully integrated into the library
 * List of books to interact with. Author information is not as important. Series info might be helpful
 * Ability to select one or more books and edit properties & tags
-* Ability to select one or more books and integrate them into the library using Beets (TODO: Is this really required?)
 
 ## Authors
 Be able to edit author information, including adding author pictures

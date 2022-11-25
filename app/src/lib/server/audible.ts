@@ -6,6 +6,8 @@ import type { ExecutionResult } from '$lib/server/utils';
 import os from 'os';
 import path from 'node:path';
 import fs from 'node:fs';
+import { exit } from 'node:process';
+import { rejects } from 'node:assert';
 
 const regex =
     /^\s*[a-zA-Z0-9_-]+\.aax:\s*(?<precent>[0-9]+%).+\|\s*(?<downloaded>[0-9\.]+)M\/(?<total>[0-9\.]+)M\s*\[[0-9:<,]+\s(?<speed>[0-9.]+)MB\/s]/;
@@ -80,7 +82,7 @@ export const download = (): Promise<string> => {
 
 const profile_list = (): Promise<{ name: string; file: string; country: string }[]> => {
     const profile_regex = /\|\s[\*\s]\s\|\s(?<name>[a-zA-Z]+)\s+\|\s(?<file>[a-zA-Z\.]+)\s+\|\s(?<country>[a-zA-Z]{2})\s\|/gm;
-    return new Promise(async (resolve, _) => {
+    return new Promise(async (resolve, reject) => {
         const profileList = new Exec('audible', [
             '--verbosity',
             'ERROR',
@@ -88,15 +90,19 @@ const profile_list = (): Promise<{ name: string; file: string; country: string }
             'profile',
             'list',
         ]);
-        let profilesRaw = await profileList.execute();
-        let response = [];
-        let m: any;
-        while ((m = profile_regex.exec(profilesRaw.stdout)) !== null) {
-            // This is necessary to avoid infinite loops with zero-width matches
-            if (m.index === regex.lastIndex) regex.lastIndex++;
-            response.push(m?.groups);
+        try {
+            let profilesRaw = await profileList.execute();
+            let response = [];
+            let m: any;
+            while ((m = profile_regex.exec(profilesRaw.stdout)) !== null) {
+                // This is necessary to avoid infinite loops with zero-width matches
+                if (m.index === regex.lastIndex) regex.lastIndex++;
+                response.push(m?.groups);
+            }
+            resolve(response);
+        } catch(error) {
+            reject(error);
         }
-        resolve(response);
     });
 };
 
@@ -121,9 +127,14 @@ const activation_bytes = async (profile: string): Promise<string> => {
 // Refresh database with all books that are on Audible
 export const sync = async (operation: Operation) => {
     // Get a list of the profiles we have access to
-    const profiles = await profile_list();
+    let profiles
+    try {
+        profiles = await profile_list();
+    } catch(error) {
+        console.log(JSON.stringify(error));
+        exit(1);
+    }
     const profilePromiseList: Promise<void>[] = [];
-
 
 
     // Loop through each profile and get each of their books
@@ -132,16 +143,21 @@ export const sync = async (operation: Operation) => {
         const tmpFile = path.join(os.tmpdir(), `${profile.name}-${Math.random().toString(36).substr(2, 5)}.json`);
 
         // Execute the audible command line function to get the JSON
-        await new Exec('audible', [
-            '-P',
-            profile.name,
-            'library',
-            'export',
-            '-f',
-            'json',
-            '-o',
-            tmpFile,
-        ]).execute();
+        try {
+            await new Exec('audible', [
+                '-P',
+                profile.name,
+                'library',
+                'export',
+                '-f',
+                'json',
+                '-o',
+                tmpFile,
+            ]).execute();
+        } catch(error) {
+            console.log(JSON.stringify(error));
+            exit(1);
+        }
 
         // Create a stream that will read the JSON in one key at a time. This will reduce
         // the memory overhead of loading the entire file in at once
@@ -216,6 +232,7 @@ export const sync = async (operation: Operation) => {
             resolve();
         }));
 
+
         // Wait for all of the books to be added before updating the profile information. This is
         // to make sure that the booklist has been written to by each promise
         await Promise.all(bookPromiseList);
@@ -229,7 +246,6 @@ export const sync = async (operation: Operation) => {
 
         // Remove the temp file created earlier
         fs.unlinkSync(tmpFile);
-
         resolve()
     }));
     return Promise.all(profilePromiseList);
