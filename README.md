@@ -1,5 +1,6 @@
-![Unabridged Logo](../assets/Unabridged.png?raw=true)
+![Unabridged Logo](https://github.com/knicholson32/unabridged/raw/assets/Unabridged.png?raw=true)
 --
+[![Docker Build](https://github.com/knicholson32/unabridged/actions/workflows/docker-build.yml/badge.svg)](https://github.com/knicholson32/unabridged/actions/workflows/docker-build.yml)
 ### Development
 Development for Unabridged is done inside a developmental Docker image. Create this image with the following command:
 ```
