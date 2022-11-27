@@ -190,15 +190,13 @@ RUN echo "---- INSTALL AUDIBLE-CLI ----" \
   && pip3 install --no-index --find-links=/tmp/whl audible-cli markdownify natsort \
   && rm -rf /tmp/*
 
-# # Install the Audible-CLI python module and dependancies
-# RUN echo "---- INSTALL AUDIBLE-CLI ----" \
-#   && case "${TARGETARCH}" in \
-#     "amd64")  PILLOW_WHEEL=x86_64  ;; \
-#     "arm64")  PILLOW_WHEEL=aarch64  ;; \
-#     *) exit 1 ;; \
-#   esac; wget --directory-prefix=/tmp https://github.com/python-pillow/pillow-wheels/releases/download/9.3.0/Pillow-9.3.0-cp310-cp310-manylinux_2_28_${PILLOW_WHEEL}.whl \
-#   && pip3 install /tmp/Pillow-9.3.0-cp310-cp310-manylinux_2_28_${PILLOW_WHEEL}.whl \
-#   && pip3 --no-cache-dir install audible-cli markdownify natsort
+# Install MongoDB
+RUN echo "---- INSTALL MONGODB ----" \
+  && echo http://dl-cdn.alpinelinux.org/alpine/v3.9/community >> /etc/apk/repositories \
+  && echo http://dl-cdn.alpinelinux.org/alpine/v3.9/main >> /etc/apk/repositories \
+  && apk --no-cache update \
+  && apk --no-cache add mongodb mongodb-tools \
+  && mkdir -p /data/db/
 
 # Copy artifacts from the previous stage (base & node)
 COPY --from=base "${USR_LOCAL_EXPORT}/" "/usr/local/"
@@ -214,12 +212,12 @@ CMD ["/usr/bin/node", "/server"]
 ENTRYPOINT ["/init"]
 
 ######### Prodiction Mongo Stage ###################################################################
-FROM prod as prod-mongo
+# FROM prod as prod-mongo
 
-# Install MongoDB
-RUN echo "---- INSTALL MONGODB ----" \
-  && echo http://dl-cdn.alpinelinux.org/alpine/v3.9/community >> /etc/apk/repositories \
-  && echo http://dl-cdn.alpinelinux.org/alpine/v3.9/main >> /etc/apk/repositories \
-  && apk --no-cache update \
-  && apk --no-cache add mongodb mongodb-tools \
-  && mkdir -p /data/db/
+# # Install MongoDB
+# RUN echo "---- INSTALL MONGODB ----" \
+#   && echo http://dl-cdn.alpinelinux.org/alpine/v3.9/community >> /etc/apk/repositories \
+#   && echo http://dl-cdn.alpinelinux.org/alpine/v3.9/main >> /etc/apk/repositories \
+#   && apk --no-cache update \
+#   && apk --no-cache add mongodb mongodb-tools \
+#   && mkdir -p /data/db/
