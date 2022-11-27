@@ -149,6 +149,13 @@ RUN echo "---- BUILD SERVER ----" \
 ######### Prodiction Stage #########################################################################
 FROM python:3.11.0-alpine3.16 as prod
 
+# Assign labels
+LABEL org.opencontainers.image.title unabridged
+LABEL org.opencontainers.image.description Docker container for managing and archiving audiobooks
+LABEL org.opencontainers.image.documentation https://github.com/knicholson32/unabridged
+LABEL org.opencontainers.image.authors Keenan Nicholson, Norris Nicholson
+LABEL org.opencontainers.image.source https://github.com/knicholson32/unabridged
+
 # Renew args from above
 ARG AAXtoMP3_VERSION
 ARG TONE_VERSION
