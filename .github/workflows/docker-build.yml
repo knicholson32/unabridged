@@ -30,7 +30,6 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=edge,branch=main
-            type=sha
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
