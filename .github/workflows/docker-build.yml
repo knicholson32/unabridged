@@ -52,7 +52,7 @@ jobs:
           file: docker/Dockerfile
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=keenanrnicholson/unabridged:buildcache
+          cache-from: type=registry,ref=keenanrnicholson/buildcaches:unabridged
           cache-to: type=registry,ref=keenanrnicholson/buildcaches:unabridged,mode=max
           
       # Update the Docker Hub description to match the README.md
