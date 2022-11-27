@@ -57,10 +57,11 @@ jobs:
           
       # Update the Docker Hub description to match the README.md
       - name: Update repo description
+        if: github.event_name != 'pull_request'
         uses: peter-evans/dockerhub-description@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_OWNER_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_OWNER_TOKEN }}
           repository: keenanrnicholson/unabridged
 
 
