@@ -5,6 +5,7 @@ ARG NODE_VERSION=16.17.1-r0
 ARG S6_OVERLAY_VERSION=3.1.2.1
 ARG USR_LOCAL_EXPORT=/export-usr-bin
 ARG ROOT_EXPORT=/export-root
+ARG WHEEL_EXPORT=/export-wheel
 ARG SERVER_DIRECTORY=/server
 ARG SERVER_PORT=3000
 
@@ -76,6 +77,27 @@ RUN echo "---- REMOVE BUILD DEPENDENCIES (to keep image small) ----" \
    && apk del --purge build-dependencies && rm -rf /tmp/* \
    && rm -rf /root/.cache /tmp/*
 
+######### Wheel Build Stage ########################################################################
+FROM python:3.11.0-alpine3.16 as wheel
+
+# Renew args from above
+ARG WHEEL_EXPORT
+
+# Install dependancies that will be used only to aid the build process
+RUN echo "---- INSTALL BUILD DEPENDENCIES ----" \
+  && echo http://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories \
+  && apk add --no-cache --update --upgrade --virtual=build-dependencies gcc libgcc musl-dev jpeg-dev zlib-dev
+
+# Compile the wheels and save to export location
+RUN echo "---- BUILD WHEELS ----" \
+  && pip3 install wheel \
+  && pip3 wheel -w ${WHEEL_EXPORT} audible-cli markdownify natsort
+
+# Remove build dependancies and packages
+RUN echo "---- REMOVE BUILD DEPENDENCIES (to keep image small) ----" \
+   && apk del --purge build-dependencies && rm -rf /tmp/* \
+   && rm -rf /root/.cache /tmp/*
+
 ######### Development Stage ########################################################################
 FROM python:3.11.0-alpine3.16 as dev
 
@@ -84,6 +106,7 @@ ARG AAXtoMP3_VERSION
 ARG TONE_VERSION
 ARG NODE_VERSION
 ARG USR_LOCAL_EXPORT
+ARG WHEEL_EXPORT
 
 # Set environmental variables
 ENV AAXtoMP3_VERSION=${AAXtoMP3_VERSION}
@@ -91,6 +114,7 @@ ENV TONE_VERSION=${TONE_VERSION}
 
 # Copy artifacts from the previous stage ()
 COPY --from=base "${USR_LOCAL_EXPORT}/" "/usr/local/"
+COPY --from=wheel "${WHEEL_EXPORT}/" "/tmp/whl/"
 
 # Install development dependancies
 RUN echo "---- INSTALL DEPENDENCIES ----" \
@@ -103,7 +127,9 @@ RUN echo "---- INSTALL NODEJS ----" \
 
 # Install the Audible-CLI python module and dependancies
 RUN echo "---- INSTALL AUDIBLE-CLI ----" \
-  && pip3 --no-cache-dir install audible-cli markdownify natsort
+  # && pip3 --no-cache-dir install audible-cli markdownify natsort
+  && pip3 install --no-index --find-links=/tmp/whl audible-cli markdownify natsort \
+  && rm -rf /tmp/*
 
 ######### Node Modules & Build #####################################################################
 FROM node:16.17.1-alpine as node
@@ -129,6 +155,7 @@ ARG TONE_VERSION
 ARG NODE_VERSION
 ARG USR_LOCAL_EXPORT
 ARG ROOT_EXPORT
+ARG WHEEL_EXPORT
 ARG SERVER_DIRECTORY
 ARG SERVER_PORT
 
@@ -138,11 +165,6 @@ ENV TONE_VERSION=${TONE_VERSION}
 ENV PORT=${SERVER_PORT}
 ENV SERVER_DIRECTORY=${SERVER_DIRECTORY}
 
-# Copy artifacts from the previous stage (base & node)
-COPY --from=base "${USR_LOCAL_EXPORT}/" "/usr/local/"
-COPY --from=base "${ROOT_EXPORT}/" "/"
-COPY --from=node "/app/build/" "${SERVER_DIRECTORY}/"
-
 # Install production dependancies
 RUN echo "---- INSTALL DEPENDENCIES ----" \
   && apk --no-cache add bash x264 x265 mediainfo grep findutils ffmpeg jq
@@ -151,17 +173,30 @@ RUN echo "---- INSTALL DEPENDENCIES ----" \
 RUN echo "---- INSTALL NODEJS ----" \
   && apk --no-cache add nodejs=${NODE_VERSION} npm
 
-# Install the Audible-CLI python module and dependancies
-RUN echo "---- INSTALL AUDIBLE-CLI ----" \
-  && pip3 --no-cache-dir install audible-cli markdownify natsort
+# Copy artifacts from the previous stage (wheel)
+COPY --from=wheel "${WHEEL_EXPORT}/" "/tmp/whl/"
 
-# Install MongoDB
-RUN echo "---- INSTALL MONGODB ----" \
-  && echo http://dl-cdn.alpinelinux.org/alpine/v3.9/community >> /etc/apk/repositories \
-  && echo http://dl-cdn.alpinelinux.org/alpine/v3.9/main >> /etc/apk/repositories \
-  && apk --no-cache update \
-  && apk --no-cache add mongodb mongodb-tools \
-  && mkdir -p /data/db/
+# Install the Audible-CLI python module and dependancies
+# TODO: When this issue is resolved, the wheel should already exist: https://github.com/python-pillow/pillow-wheels/issues/346
+RUN echo "---- INSTALL AUDIBLE-CLI ----" \
+  && ls /tmp/whl \
+  && pip3 install --no-index --find-links=/tmp/whl audible-cli markdownify natsort \
+  && rm -rf /tmp/*
+
+# # Install the Audible-CLI python module and dependancies
+# RUN echo "---- INSTALL AUDIBLE-CLI ----" \
+#   && case "${TARGETARCH}" in \
+#     "amd64")  PILLOW_WHEEL=x86_64  ;; \
+#     "arm64")  PILLOW_WHEEL=aarch64  ;; \
+#     *) exit 1 ;; \
+#   esac; wget --directory-prefix=/tmp https://github.com/python-pillow/pillow-wheels/releases/download/9.3.0/Pillow-9.3.0-cp310-cp310-manylinux_2_28_${PILLOW_WHEEL}.whl \
+#   && pip3 install /tmp/Pillow-9.3.0-cp310-cp310-manylinux_2_28_${PILLOW_WHEEL}.whl \
+#   && pip3 --no-cache-dir install audible-cli markdownify natsort
+
+# Copy artifacts from the previous stage (base & node)
+COPY --from=base "${USR_LOCAL_EXPORT}/" "/usr/local/"
+COPY --from=base "${ROOT_EXPORT}/" "/"
+COPY --from=node "/app/build/" "${SERVER_DIRECTORY}/"
 
 # Add auto-start services
 COPY "./docker/services.d/" "/etc/services.d/"
@@ -170,3 +205,14 @@ COPY "./docker/services.d/" "/etc/services.d/"
 EXPOSE ${SERVER_PORT}/tcp
 CMD ["/usr/bin/node", "/server"]
 ENTRYPOINT ["/init"]
+
+######### Prodiction Mongo Stage ###################################################################
+FROM prod as prod-mongo
+
+# Install MongoDB
+RUN echo "---- INSTALL MONGODB ----" \
+  && echo http://dl-cdn.alpinelinux.org/alpine/v3.9/community >> /etc/apk/repositories \
+  && echo http://dl-cdn.alpinelinux.org/alpine/v3.9/main >> /etc/apk/repositories \
+  && apk --no-cache update \
+  && apk --no-cache add mongodb mongodb-tools \
+  && mkdir -p /data/db/
