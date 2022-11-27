@@ -53,7 +53,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=keenanrnicholson/unabridged:buildcache
-          cache-to: type=registry,ref=keenanrnicholson/unabridged:buildcache,mode=max
+          cache-to: type=registry,ref=keenanrnicholson/buildcaches:unabridged,mode=max
           
       # Update the Docker Hub description to match the README.md
       - name: Update repo description
