@@ -1,6 +1,5 @@
-# Unabridged
-
-
+![Unabridged Logo](../assets/Unabridged.png?raw=true)
+--
 ### Development
 Development for Unabridged is done inside a developmental Docker image. Create this image with the following command:
 ```
