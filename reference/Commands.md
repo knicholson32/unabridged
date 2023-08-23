@@ -29,6 +29,13 @@ rm -rf /home/processing/*
 
 ```
 
+```
+audible quickstart
+audible -P haley download -a B004NQKRVE -o /home/downloads --aaxc --cover --cover-size 1215 --chapter
+AAXtoMP3 -e:m4b -s --file-naming-scheme '$title' --dir-naming-scheme '$artist/$title' --use-audible-cli-data -t /home/Books /home/downloads/*.aaxc
+
+```
+
 
 Haley:
 B002UP1LXS: Robert Jordan: Wheel of Time: The Great Hunt

@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Notification {
+  id             String  @id
+  icon_path      String?
+  icon_color     String?
+  theme          String
+  text           String
+  sub_text       String?
+  linger_time    Int
+  needs_clearing Boolean
+  auto_open      Boolean
+  issuer         String
+  identifier     String?
+
+  @@map("notifications")
+}
+
+model Profile {
+  id                String        @id
+  email             String?
+  amazon_acct       String?
+  first_name        String?
+  last_name         String?
+  description       String?
+  profile_image_url String?
+  last_sync         Int?
+  added_date        Int
+  locale_code       String
+  auto_sync         Boolean
+  activation_bytes  String?
+  books             Book[]
+  profileImage      ProfileImage?
+
+  @@map("accounts")
+}
+
+model ProfileImage {
+  profile      Profile @relation(fields: [id], references: [id], onDelete: Cascade)
+  id           String  @unique
+  content_type String
+  full         Bytes
+  i512         Bytes
+  i256         Bytes
+  i128         Bytes
+  i56          Bytes
+
+  @@map("images")
+}
+
+model Author {
+  name  String @id
+  books Book[]
+
+  @@map("authors")
+}
+
+model Narrator {
+  name  String @id
+  books Book[]
+
+  @@map("narrators")
+}
+
+model Genre {
+  tag   String @id
+  books Book[]
+
+  @@map("genres")
+}
+
+model Series {
+  title String @id
+  books Book[]
+
+  @@map("series")
+}
+
+model Book {
+  asin               String     @id
+  google_api_id      String?
+  profiles           Profile[]
+  title              String
+  subtitle           String?
+  authors            Author[]
+  narrators          Narrator[]
+  series             Series?    @relation(fields: [seriesTitle], references: [title])
+  series_sequence    Int?
+  genres             Genre[]
+  runtime_length_min Int?
+  rating             Decimal
+  num_ratings        Int
+  release_date       BigInt
+  description        String?
+  search_description String?
+  isbn               String?
+  purchase_date      BigInt
+  seriesTitle        String?
+
+  downloaded Boolean
+  processed  Boolean
+  progress   Int
+  cover      Cover?
+
+  @@map("books")
+}
+
+model Cover {
+  asin           String   @id
+  book           Book     @relation(fields: [asin], references: [asin], onDelete: Cascade)
+  url_50         String
+  url_100        String
+  url_500        String
+  url_1000       String
+  hex_dom        String?
+  hex_dom_bright Boolean?
+  hex_sim        String?
+  hex_sim_bright Boolean?
+  hex_sqr        String?
+  hex_sqr_bright Boolean?
+  url_isbn       String?
+  url_isbn_s     String?
+
+  @@map("covers")
+}

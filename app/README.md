@@ -36,3 +36,26 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+
+
+
+
+## Notes
+
+### Steps
+1. Link an Audible account
+2. Browse the books in all the accounts and select which ones should be added to the library
+3. For each book or set of books, have the ability to:
+  * Change details about the book such as title, etc.
+  * Add or remove genres / rating
+  * Change the description
+  * Add or remove it from a series/collection
+4. Download and process selected books to the library
+
+### Browse Available Library
+* Be able to browse the local library and sort by lots of params
+* Be able to change params for a book or set of books
+
+### Browse Local Library
+* Be able to browse the local library and sort by lots of params
+* Be able to change params for a book or set of books

@@ -13,69 +13,13 @@ services:
     ###### Issue!! TODO: These arent making it to NODE using process.env!
     environment: 
       - NODE_ENV=development
-      - AWS_REGION=local
-      - AWS_ACCESS_KEY_ID=thisIsaCrazyKeyID
-      - AWS_SECRET_ACCESS_KEY=thisisawILdKeyc0d3
-      - AWS_DYNAMO_ENDPOINT=http://dynamodb:8000
-      - LIBRARY_DYNAMO_TABLE_NAME=unabridged-library
-      - PROFILES_DYNAMO_TABLE_NAME=unabridged-profiles
-      - DOWNLOADS_DYNAMO_TABLE_NAME=unabridged-downloads
-      - CREATE_TABLES=true
     working_dir: /app
-    command: sh -c "npm i && npm run dev"
+    command: sh -c "npm i && npx prisma generate && npm run dev -- --host"
     ports:
       - 5173:5173
-    depends_on:
-      - mongo
-    links:
-      - mongo
     tty: true
     stdin_open: true
     # network_mode: "host"
-  mongo:
-    image: mongo:4
-    restart: unless-stopped
-    ports:
-      - 27017:27017
-    volumes:
-      - ./database/data:/data
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: password
-      MONGO_INITDB_DATABASE: unabridged
-  mongo-express:
-    image: mongo-express
-    restart: unless-stopped
-    ports:
-      - 8081:8081
-    environment:
-      - ME_CONFIG_MONGODB_SERVER=mongo
-      - ME_CONFIG_MONGODB_PORT=27017
-      - ME_CONFIG_MONGODB_ENABLE_ADMIN=false
-      - ME_CONFIG_MONGODB_AUTH_DATABASE=admin
-      - ME_CONFIG_MONGODB_AUTH_USERNAME=root
-      - ME_CONFIG_MONGODB_AUTH_PASSWORD=password
-      - ME_CONFIG_BASICAUTH_USERNAME=express
-      - ME_CONFIG_BASICAUTH_PASSWORD=password
-    depends_on:
-      - mongo
-    links:
-      - mongo
-
-  dynamodb:
-    image: amazon/dynamodb-local
-    hostname: dynamodb-local
-    container_name: unabridged-dynamodb-local
-    environment:
-      - AWS_ACCESS_KEY_ID=thisIsaCrazyKeyID
-      - AWS_SECRET_ACCESS_KEY=thisisawILdKeyc0d3
-    entrypoint: java
-    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /data"
-    restart: always
-    volumes:
-      - ./database/data:/data
-    ports:
-      - 8000:8000
 
 volumes:
   nodemodules-unabridged:

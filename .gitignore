@@ -6,6 +6,8 @@ app/package
 app/db.json
 app/build
 
+oldApp
+
 docker/database/data
 .audible/*
 .venv

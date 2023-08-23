@@ -1,0 +1,75 @@
+<script lang="ts">
+	import { Bullet } from "$lib/components/decorations";
+	import Rating from "$lib/components/decorations/Rating.svelte";
+	import type { Prisma } from "@prisma/client";
+
+
+
+  type Book = Prisma.BookGetPayload<{
+    include: {
+      authors: true,
+      genres: true,
+      narrators: true
+      cover: true
+    }
+  }>;
+  
+  export let book: Book;
+
+  let rating = book.rating as unknown as number;
+
+  let authors = book.authors.map((a) => a.name).join(', ');
+  let narrators = book.narrators.map((a) => a.name).join(', ');
+
+  let description = book.description ?? '';
+  // https://stackoverflow.com/questions/28385473/check-for-space-after-full-stop
+  description = description.replace(/\.([^\.\s])/g, '. $1').replaceAll('.  ', '. ').replaceAll('\n', ' ');
+  console.log(description);
+  // d news.The Ru
+
+  // style=" background-image: url('{book.cover?.url_500}'); background-size: contain; background-position: center;"
+
+</script>
+
+
+<div class="relative w-full flex flex-col ">
+  <div class="absolute left-0 right-0 top-0 bottom-0 shadow-md rounded-xl overflow-hidden bg-white">
+    <div class="absolute left-0 right-0 top-0 bottom-0 brightness-200 saturate-100 opacity-30" style=" background-color: {book.cover?.hex_dom};" />
+  </div>
+  <div class="relative flex w-full h-full pl-4">
+    <div class="flex-grow-0 hidden sm:block">
+      <div class="w-52 relative">
+        <div class="absolute -top-4 shadow-lg rounded-lg overflow-hidden">
+          <img class="" src="{book.cover?.url_1000}" alt="">
+        </div>
+      </div>
+    </div>
+    <div class="flex-grow w-[1%] p-4 flex flex-col">
+      <p class="text-black relative font-bold font-serif text-lg whitespace-nowrap">
+        <img class="inline-flex sm:hidden w-9 rounded-md mr-1" src="{book.cover?.url_100}" alt="">
+        {book.title}
+        <span class="text-xxs leading-7 font-sans font-normal text-gray-700 align-baseline ml-1">Book {book.series_sequence}</span>
+        <span class="absolute right-0">
+          <button class="px-1 py-1 text-gray-700 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100/70" >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+            </svg>
+          </button>
+        </span>
+      </p>
+      <p class="font-normal font-sans text-xxs text-gray-700">by {authors}, Narrated by {narrators}</p>
+      <Rating rating={rating} numReviews={book.num_ratings}/>
+      <p title="{description}" class="pt-0.5 text-xs h-[6.25rem] text-justify overflow-y-auto text-ellipsis">{description}</p>
+      <p class="flex space-x-1 pt-1 overflow-x-auto flex-nowrap select-none">
+        {#each book.genres as genre}
+          <span class="inline-flex whitespace-nowrap px-1.5 py-0.5 items-center text-xs font-normal rounded-full text-gray-800 gap-x-2 bg-white/60 dark:bg-gray-800">{genre.tag}</span>
+        {/each}
+      </p>
+    </div>
+  </div>
+  <!-- <div class="w-full h-10 mt-2 border-t border-gray-100 px-4 flex align-middle items-center justify-center">
+    <p>Menu</p>
+  </div> -->
+</div>
+
+
