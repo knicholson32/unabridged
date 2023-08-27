@@ -12,6 +12,9 @@ export default {
       blur: {
         '4xl': '128px',
       },
+      dropShadow: {
+        'xl-centered': '0 0px 25px rgba(0, 0, 0, 0.25)',
+      },
       gridTemplateColumns: {
         '30': 'repeat(30, minmax(0, 1fr))',
       },

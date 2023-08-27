@@ -6,10 +6,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { encodeURLAlert } from '$lib/components/alerts';
 import { icons } from '$lib/components';
 import * as serverHelpers from '$lib/server/helpers';
-import type { GenerateAlert, Issuer, ModalTheme } from '$lib/types';
+import type { GenerateAlert, Issuer, ModalTheme, ProgressAPI, ProgressStatus } from '$lib/types';
 
 /** @type {import('./$types').PageServerLoad} */
-export const load = async ({ params }) => {
+export const load = async ({ params, fetch }) => {
+
 
     const id = params.id;
 
@@ -36,9 +37,22 @@ export const load = async ({ params }) => {
     if (profile === null || profile === undefined) throw error(404, 'Not found');
 
     for (const book of profile.books) book.rating = book.rating.toNumber() as unknown as Decimal;
-    
+
+    const syncing = {
+        val: false,
+        progress: 0
+    }
+
+    const progressResp: ProgressAPI = await (await fetch(`/api/progress/${id}/sync`)).json() as ProgressAPI;        
+
+    if (progressResp.ok === true && progressResp.progress !== undefined) {
+        syncing.val = progressResp.progress.status === 'RUNNING' satisfies ProgressStatus;
+        syncing.progress = progressResp.progress.progress;
+    }
+
     return {
-        profile
+        profile,
+        syncing
     };
 
     // if (params.id === 'hello-world') {
@@ -57,7 +71,7 @@ export const actions = {
         const data = await request.formData();
         const id = data.get('id') as string;
         // Check that the ID was actually submitted
-        if (id === null || id === undefined) throw error(404, 'Not found');;
+        if (id === null || id === undefined) throw error(404, 'Not found');
 
         // Get the profile from the database
         const profile = await prisma.profile.findUnique({ where: { id } });

@@ -1,7 +1,13 @@
 <script lang="ts">
+	import Rating from '$lib/components/decorations/Rating.svelte';
 	import BookShowcase from '$lib/components/routeSpecific/series/BookShowcase.svelte';
+  import * as helpers from '$lib/helpers';
 
   export let data: import('./$types').PageData;
+
+
+  const coverHEX = data.series.books[0].cover?.hex_dom ?? '#FFFFFF';
+  const coverBright = data.series.books[0].cover?.hex_dom_bright ?? true;
 
 </script>
 
@@ -38,7 +44,7 @@
         <svg class="h-full w-6 flex-shrink-0 text-gray-200" viewBox="0 0 24 44" preserveAspectRatio="none" fill="currentColor" aria-hidden="true">
           <path d="M.293 0l22 22-22 22h1.414l22-22-22-22H.293z" />
         </svg>
-        <a href="/library/series/{data.series.title}" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700" aria-current="page">
+        <a href="/library/series/{data.series.id}" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700" aria-current="page">
           {data.series.title}
         </a>
       </div>
@@ -48,11 +54,26 @@
 
 <div class="">
 
-  <div class="relative h-48">
-    <div class="absolute left-0 right-0 top-0 h-48 overflow-hidden">
-      <div class="absolute left-0 right-0 top-0 h-48 blur-2xl">
-        <div class="absolute -left-24 -right-24 -top-24 h-96 brightness-100" style="background-color: {data.series.books[0].cover?.hex_dom};" />
-      </div>
+  <div class="relative flex flex-col p-4 {coverBright ? 'text-gray-800' : 'text-white'}" style="background-color: {coverHEX};">
+    <div class="absolute right-4 top-4 {coverBright ? '' : 'dark'}">
+      <button class="px-1 py-1 text-gray-700 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100/70 dark:hover:text-gray-700" >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+        </svg>
+      </button>
+    </div>
+    <div>
+      <h1 class="font-medium text-2xl uppercase tracking-widest font-serif">
+        {data.series.title}
+        <span class="block sm:inline-flex font-sans text-sm text-opacity-30">{data.series.books.length} {helpers.basicPlural('Book', data.series.books.length)}</span>
+      </h1>
+    </div>
+    <div class="text-xs opacity-80">By {data.authors.join(', ')} | Narrated By {data.narrators.join(', ')}</div>
+    <div class="text-xs opacity-80 mt-1">
+      about {new helpers.RunTime({min: data.runTimeMinutes}).toFormat()} long
+    </div>
+    <div>
+      <Rating fillColor={(coverBright ? '#000000' : '#ffffff')} ratingNumberColor={(coverBright ? 'text-gray-800' : 'text-white')} rating={data.weightedAvgRating.value} numReviews={data.weightedAvgRating.totalReviews} />
     </div>
   </div>
 
@@ -97,7 +118,7 @@
   <div class="flex items-center justify-end gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-8">
   </div> -->
 
-  <div class="grid grid-cols-1 lg:grid-cols-1 xl:grid-cols-2 p-4 gap-4 sm:gap-12">
+  <div class="mt-4 grid grid-cols-1 lg:grid-cols-1 xl:grid-cols-2 p-4 gap-4 sm:gap-12">
     {#each data.series.books as book}
       <BookShowcase book={book}/>
     {/each}

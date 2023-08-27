@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Bullet } from "$lib/components/decorations";
 	import Rating from "$lib/components/decorations/Rating.svelte";
+  import * as helpers from '$lib/helpers';
 	import type { Prisma } from "@prisma/client";
 
 
@@ -24,7 +25,6 @@
   let description = book.description ?? '';
   // https://stackoverflow.com/questions/28385473/check-for-space-after-full-stop
   description = description.replace(/\.([^\.\s])/g, '. $1').replaceAll('.  ', '. ').replaceAll('\n', ' ');
-  console.log(description);
   // d news.The Ru
 
   // style=" background-image: url('{book.cover?.url_500}'); background-size: contain; background-position: center;"
@@ -40,14 +40,18 @@
     <div class="flex-grow-0 hidden sm:block">
       <div class="w-52 relative">
         <div class="absolute -top-4 shadow-lg rounded-lg overflow-hidden">
-          <img class="" src="{book.cover?.url_1000}" alt="">
+          <a href="/library/books/{book.asin}">
+            <img class="" src="{book.cover?.url_1000}" alt="">
+          </a>
         </div>
       </div>
     </div>
     <div class="flex-grow w-[1%] p-4 flex flex-col">
       <p class="text-black relative font-bold font-serif text-lg whitespace-nowrap">
-        <img class="inline-flex sm:hidden w-9 rounded-md mr-1" src="{book.cover?.url_100}" alt="">
-        {book.title}
+        <a href="/library/books/{book.asin}">
+          <img class="inline-flex sm:hidden w-9 rounded-md mr-1" src="{book.cover?.url_100}" alt="">
+          {book.title}
+        </a>
         <span class="text-xxs leading-7 font-sans font-normal text-gray-700 align-baseline ml-1">Book {book.series_sequence}</span>
         <span class="absolute right-0">
           <button class="px-1 py-1 text-gray-700 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100/70" >
@@ -58,6 +62,9 @@
         </span>
       </p>
       <p class="font-normal font-sans text-xxs text-gray-700">by {authors}, Narrated by {narrators}</p>
+      {#if book.runtime_length_min !== null}
+        <p class="font-normal font-sans text-xxs text-gray-700">{new helpers.RunTime({min: book.runtime_length_min}).toFormat()} long</p>
+      {/if}
       <Rating rating={rating} numReviews={book.num_ratings}/>
       <p title="{description}" class="pt-0.5 text-xs h-[6.25rem] text-justify overflow-y-auto text-ellipsis">{description}</p>
       <p class="flex space-x-1 pt-1 overflow-x-auto flex-nowrap select-none">

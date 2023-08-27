@@ -27,7 +27,7 @@
 	let innerWidth: number;
 	let numCols = 6;
 
-	$: numCols = (innerWidth < 768) ? 5 : 6
+	$: numCols = (innerWidth < 768) ? 4 : (innerWidth < 1024) ? 5 : 6
 
 
 	$: {
@@ -371,7 +371,7 @@
 									<SortBy href={orderSortURL} selected={params.sortCategory === 'order'} direction={params.order}>Order</SortBy>
 								</th>
 
-								<th scope="col" class="{tableXPadding} py-3.5 text-sm font-normal text-center rtl:text-right text-gray-500 dark:text-gray-400">
+								<th scope="col" class="{tableXPadding} py-3.5 hidden lg:table-cell text-sm font-normal text-center rtl:text-right text-gray-500 dark:text-gray-400">
 									Genres
 								</th>
 
@@ -379,8 +379,8 @@
 									About
 								</th>
 
-								<th scope="col" class="{tableXPadding} py-3.5 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                  Users
+								<th scope="col" class="{tableXPadding} py-3.5 w-[1%] text-sm font-normal text-center rtl:text-right text-gray-500 dark:text-gray-400">
+                  Accounts
                 </th>
 
 								<th scope="col" class="relative py-3.5 {tableXPadding} w-10">
@@ -395,7 +395,7 @@
 								<thead class="bg-gray-50 dark:bg-gray-800 sticky top-[63px]">
 									<tr>
 										<th title="{series.title}" scope="col" colspan={numCols - 1} class="py-3.5 {tableXPaddingLeft} text-sm text-left rtl:text-right font-medium text-gray-800 dark:text-white">
-											<a href="/library/series/{series.title}">
+											<a href="/library/series/{series.id}">
 												{helpers.truncateString(series.title, 100)}
 											</a>
 											<span class="font-normal text-xs text-gray-400 dark:text-gray-500">

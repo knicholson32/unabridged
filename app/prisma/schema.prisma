@@ -77,7 +77,8 @@ model Genre {
 }
 
 model Series {
-  title String @id
+  id    String @id
+  title String
   books Book[]
 
   @@map("series")
@@ -91,7 +92,7 @@ model Book {
   subtitle           String?
   authors            Author[]
   narrators          Narrator[]
-  series             Series?    @relation(fields: [seriesTitle], references: [title])
+  series             Series?    @relation(fields: [seriesId], references: [id])
   series_sequence    Int?
   genres             Genre[]
   runtime_length_min Int?
@@ -102,7 +103,7 @@ model Book {
   search_description String?
   isbn               String?
   purchase_date      BigInt
-  seriesTitle        String?
+  seriesId           String?
 
   downloaded Boolean
   processed  Boolean
@@ -129,4 +130,17 @@ model Cover {
   url_isbn_s     String?
 
   @@map("covers")
+}
+
+model Progress {
+  id   String
+  type String
+
+  ref    String
+  status String
+
+  progress Float
+  message  String
+
+  @@id([id, type])
 }

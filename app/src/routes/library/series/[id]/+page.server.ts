@@ -5,13 +5,13 @@ import type { Decimal } from '@prisma/client/runtime/library.js';
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params }) => {
 
-  const title = params.title;
+  const id = params.id;
 
   // Check that the ID was actually submitted
-  if (title === null || title === undefined) throw error(404, 'Not found');
+  if (id === null || id === undefined) throw error(404, 'Not found');
 
   // Get the profile from the database
-  const series = await prisma.series.findUnique({ where: { title }, include: { 
+  const series = await prisma.series.findUnique({ where: { id }, include: { 
     books: {
       include: {
         authors: true,
@@ -33,8 +33,31 @@ export const load = async ({ params }) => {
     return a.title.localeCompare(b.title);
   });
 
+
+  let authors: string[] = [];
+  let narrators: string[] = [];
+  let runTimeMinutes = 0;
+  let ratingVal = 0;
+  let numReviews = 0;
+  for (const book of series.books) numReviews += book.num_ratings;
+
+  for (const book of series.books) {
+    runTimeMinutes += book.runtime_length_min ?? 0;
+    for (const author of book.authors) if (authors.find((a) => a === author.name) === undefined) authors.push(author.name);
+    for (const narrator of book.narrators) if (narrators.find((n) => n === narrator.name) === undefined) narrators.push(narrator.name);
+    const rating = book.rating as unknown as number;
+    ratingVal = ratingVal + ((rating * book.num_ratings) / numReviews);
+  }
+
   return {
-    series
+    series,
+    authors,
+    narrators,
+    weightedAvgRating: {
+      value: ratingVal,
+      totalReviews: numReviews
+    },
+    runTimeMinutes
   };
 
   // if (params.id === 'hello-world') {

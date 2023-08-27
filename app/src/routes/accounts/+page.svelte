@@ -14,6 +14,7 @@
 	import { icons } from '$lib/components/index.js';
 	import { Submit } from '$lib/components/buttons';
   import { Bullet } from '$lib/components/decorations';
+	import LoadingCircle from '$lib/components/decorations/LoadingCircle.svelte';
   export let data: import('./$types').PageData;
   export let form: ActionData;
 
@@ -198,6 +199,7 @@
           </svg>
         </div>
       </li>
+      <LoadingCircle id={data.profiles[i].id ?? ''} type={'sync'} />
     {/each}
   </ul>
 
@@ -329,7 +331,7 @@
                             <input required on:input={verifyCheckboxes} bind:this={nosharingCheckbox} id="nosharing" aria-describedby="comments-description" name="nosharing" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-green-600 focus:outline-none focus:ring-0">
                           </div>
                           <div class="ml-3 text-sm leading-6">
-                            <label for="nosharing" class="text-gray-500">I <span class="font-medium text-gray-900">don't</span> intend to <span class="font-medium text-gray-900">share these books with others</span></label>
+                            <label for="nosharing" class="font-medium text-gray-900">I don't intend to share these books with others</label>
                           </div>
                         </div>
                       </div>

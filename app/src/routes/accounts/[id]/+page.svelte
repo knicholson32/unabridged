@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getContext } from 'svelte';
+  import { getContext, onMount } from 'svelte';
   import { enhance } from '$app/forms';
   import { EscapeOrClickOutside } from '$lib/events';
   import { fade } from 'svelte/transition';
@@ -12,7 +12,7 @@
 	import { invalidate } from '$app/navigation';
   import { v4 as uuidv4 } from 'uuid';
   import icons from '$lib/components/icons';
-  import type { GenerateAlert, Issuer, ModalTheme } from '$lib/types';
+  import type { GenerateAlert, Issuer, ModalTheme, ProgressAPI } from '$lib/types';
   import * as alerts from '$lib/components/alerts';
   import * as helpers from '$lib/helpers';
   import { page } from '$app/stores';
@@ -123,6 +123,45 @@
   }
 
   // -----------------------------------------------------------------------------------------------
+  // Profile Sync
+  // -----------------------------------------------------------------------------------------------
+
+  let syncingInterval: number;
+  let syncingProgress: number = data.syncing.progress;
+  let profileSyncing: boolean = data.syncing.val;
+
+
+  const fetchSyncProgress = async () => {
+    let progressResp: ProgressAPI = await (await fetch(`/api/progress/${data.profile.id}/sync`)).json() as ProgressAPI;
+    if (progressResp.ok === true && progressResp.progress !== undefined) {
+      console.log(Date.now(), progressResp.progress.progress, progressResp.progress.message);
+      syncingProgress = progressResp.progress.progress;
+    };
+    if (syncingProgress === 1) syncingDone(true);
+  }
+
+  const syncingDone = (skipUpdate = false) => {
+    if(!skipUpdate) fetchSyncProgress();
+    profileSyncing = false;
+    clearInterval(syncingInterval);
+  }
+
+  const startSyncing = () => {
+    syncingProgress = 0;
+    profileSyncing = true;
+    console.log(`/api/progress/${data.profile.id}-sync`);
+    syncingInterval = setInterval(fetchSyncProgress, 250);
+    fetchSyncProgress();
+  }
+
+  onMount(() => {
+    if (data.syncing.val === true) {
+      startSyncing();
+    }
+    return () => syncingDone(true);
+  })
+
+  // -----------------------------------------------------------------------------------------------
   // Profile Data
   // -----------------------------------------------------------------------------------------------
 
@@ -133,7 +172,6 @@
   let country: HTMLSelectElement;
   let description: string;
   let profileSubmitting: boolean = false;
-  let profileSyncing: boolean = false;
   let profileDeleting: boolean = false;
   let profileSync: Submit;
   let profileAutoSync = data.profile.auto_sync;
@@ -347,14 +385,15 @@
                 </form>
                 <form class="pl-3" method="POST" action="?/sync" use:enhance={() => {
                     profileSyncing = true;
+                    startSyncing();
                     return async ({ update }) => {
-                        profileSyncing = false;
+                        syncingDone();
                         showAlert('Profile sync complete', {linger_ms: 4000, iconPath: icons.ok, iconColor: 'text-gray-400'});
                         await alerts.updateNotifications();
                         update();
                     };
                 }}>
-                  <Submit bind:this={profileSync} submitting={profileSyncing} failed={form?.success === false && form?.response === 'sync'} actionText={"Sync"} actionTextInProgress={"Syncing"}/>
+                  <Submit bind:this={profileSync} submitting={profileSyncing} progress={syncingProgress} failed={form?.success === false && form?.response === 'sync'} actionText={"Sync"} actionTextInProgress={"Syncing"}/>
                 </form>
               </div>
             </div>

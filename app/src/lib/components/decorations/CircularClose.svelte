@@ -6,7 +6,7 @@
 
 <button on:click type="button" class="group inline-flex rounded-md text-black/30 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
     <div class="inline-flex relative h-5 w-5 items-center justify-center">
-        <svg class="absolute w-8 h-8 text-black/10 group-hover:opacity-0" viewBox="-40 -40 80 80">
+        <svg class="absolute w-8 h-8 -rotate-90 text-black/10 group-hover:opacity-0" viewBox="-40 -40 80 80">
             <!-- <circle class="text-gray-100" stroke-width="10" stroke="currentColor" fill="transparent" r="30"/> -->
             <circle stroke-width="5" stroke-dasharray="{circumference}" stroke-dashoffset="{offset}" stroke-linecap="round" stroke="currentColor" fill="transparent" r="30" />
         </svg>

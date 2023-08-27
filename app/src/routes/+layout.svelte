@@ -323,7 +323,15 @@
                           <li>
                             <!-- Current: "bg-gray-800 text-white", Default: "text-gray-400 hover:text-white hover:bg-gray-800" -->
                             <a href="{element.href}" class="{$page.url.pathname===element.href ? subMenuActive : subMenuDefault} group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold">
-                              <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border  text-[0.625rem] font-medium text-gray-400 border-gray-700 bg-gray-800 group-hover:text-white">{element.miniTitle}</span>
+                              {#if element.miniTitle !== undefined}
+                                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[0.625rem] font-medium text-gray-400 border-gray-700 bg-gray-800 group-hover:text-white">{element.miniTitle}</span>
+                              {:else if element.iconURL !== undefined}
+                                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full overflow-hidden text-[0.625rem] font-medium text-gray-400 border-gray-700 bg-gray-800 group-hover:text-white">
+                                  <img src="{element.iconURL}" alt="{element.title} icon"/>
+                                </span>
+                              {:else}
+                                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[0.625rem] font-medium text-gray-400 border-gray-700 bg-gray-800 group-hover:text-white">{element.title.splice(0, 2)}</span>
+                              {/if}
                               <span class="truncate">{element.title}</span>
                             </a>
                           </li>
@@ -393,7 +401,15 @@
                     <li>
                       <!-- Current: "bg-gray-800 text-white", Default: "text-gray-400 hover:text-white hover:bg-gray-800" -->
                       <a href="{element.href}" class="{$page.url.pathname===element.href ? subMenuActive : subMenuDefault} group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold">
-                        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-[0.625rem] font-medium text-gray-400 group-hover:text-white">{element.miniTitle}</span>
+                        {#if element.miniTitle !== undefined}
+                        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[0.625rem] font-medium text-gray-400 border-gray-700 bg-gray-800 group-hover:text-white">{element.miniTitle}</span>
+                        {:else if element.iconURL !== undefined}
+                        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full overflow-hidden text-[0.625rem] font-medium text-gray-400 border-gray-700 bg-gray-800 group-hover:text-white">
+                          <img src="{element.iconURL}" alt="{element.title} icon"/>
+                        </span>
+                        {:else}
+                        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[0.625rem] font-medium text-gray-400 border-gray-700 bg-gray-800 group-hover:text-white">{element.title.splice(0, 2)}</span>
+                        {/if}
                         <span class="truncate">{element.title}</span>
                       </a>
                     </li>

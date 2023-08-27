@@ -57,7 +57,15 @@ export async function load({ url, depends }) {
       genres: true,
       series: true,
       narrators: true,
-      cover: true
+      cover: true,
+      profiles: {
+        select: {
+          first_name: true,
+          last_name: true,
+          profile_image_url: true,
+          id: true
+        }
+      }
     }
   }>;
 
@@ -71,7 +79,15 @@ export async function load({ url, depends }) {
       genres: true,
       series: true,
       narrators: true,
-      cover: true
+      cover: true,
+      profiles: {
+        select: {
+          first_name: true,
+          last_name: true,
+          profile_image_url: true,
+          id: true
+        }
+      }
     }
   });
   for (const book of singleBooks) book.rating = book.rating.toNumber() as unknown as Decimal;
@@ -118,7 +134,15 @@ export async function load({ url, depends }) {
             genres: true,
             series: true,
             narrators: true,
-            cover: true
+            cover: true,
+            profiles: {
+              select: {
+                first_name: true,
+                last_name: true,
+                profile_image_url: true,
+                id: true
+              }
+            }
           }
         }
       }
@@ -181,7 +205,9 @@ export async function load({ url, depends }) {
     }
 
 
+    // TODO: Make an actual series for these?
     const singleSeries: typeof seriesResults[0] = {
+      id: 'abc123',
       title: 'No Series',
       authors: [],
       narrators: [],
@@ -243,7 +269,15 @@ export async function load({ url, depends }) {
             genres: true,
             series: true,
             narrators: true,
-            cover: true
+            cover: true,
+            profiles: {
+              select: {
+                first_name: true,
+                last_name: true,
+                profile_image_url: true,
+                id: true
+              }
+            }
           }
         }
       }
@@ -284,7 +318,15 @@ export async function load({ url, depends }) {
             genres: true,
             series: true,
             narrators: true,
-            cover: true
+            cover: true,
+            profiles: {
+              select: {
+                first_name: true,
+                last_name: true,
+                profile_image_url: true,
+                id: true
+              }
+            }
           }
         }
       }

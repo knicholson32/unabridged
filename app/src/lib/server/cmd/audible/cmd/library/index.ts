@@ -1,5 +1,6 @@
 import * as child_process from 'node:child_process'; 
 import * as fs from 'fs'
+import { v4 as uuidv4 } from 'uuid';
 import type { Library, BookFromCLI } from '../../types';
 import { isLocked } from '../../';
 import prisma from '$lib/server/prisma';
@@ -115,10 +116,23 @@ const addGenres = async (tags: string[]) => {
     }
 }
 
-const addSeries = async (title: string) => {
+const addSeries = async (title: string): Promise<string> => {
     try {
-        await prisma.series.create({ data: { title } });
+        const series = await prisma.series.findFirst({ where: { title: title } });
+        if (series === null) {
+            const id = uuidv4();
+            await prisma.series.create({
+                data: {
+                    id,
+                    title
+                }
+            });
+            return id;
+        } else {
+            return series.id;
+        }
     } catch (e) {
+        return '';
         // The series already existed
     }
 }
@@ -129,6 +143,8 @@ const addSeries = async (title: string) => {
 // --------------------------------------------------------------------------------------------
 
 const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     // Get values for the DB from the book object
     const asin = book.asin;
@@ -197,8 +213,8 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
     }
     let seriesConnect = undefined;
     if (series_title !== '' && series_title !== undefined) {
-        await addSeries(series_title);
-        seriesConnect = { connect: { title: series_title } }
+        const seriesId = await addSeries(series_title);
+        seriesConnect = { connect: { id: seriesId } }
     };
 
 
@@ -297,14 +313,46 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
     // Make sure the config file is written
     await writeConfigFile();
 
+    // Delete any old progress info relating to this sync
+    try {
+        await prisma.progress.delete({ 
+            where: { id_type: { id, type: 'sync' } }
+        });
+    } catch(e) {
+        // Nothing to do
+    }
+
+    // Generate the ID for progress
+    await prisma.progress.create({
+        data: {
+            id: `${id}`,
+            type: 'sync',
+            progress: 0,
+            ref: 'audible.cmd.library.get',
+            message: '',
+            status: 'RUNNING'
+        }
+    })
+
     try {
         child_process.execSync(`audible -P ${id} library export --format json -o /tmp/${id}.library.json`);
         const library = JSON.parse(fs.readFileSync(`/tmp/${id}.library.json`).toString()) as Library;
         let numCreated = 0;
         let numUpdated = 0;
+        const totalNumBooks = library.length;
+        let numProcessed = 0;
         for (const book of library) {
-            if (await processBook(book, id)) numCreated++;
+            const res = await processBook(book, id);
+            if (res) numCreated++;
             else numUpdated++;
+            numProcessed++;
+            await prisma.progress.update({ where: { id_type: { id, type: 'sync' } },
+                data: {
+                    progress: numProcessed / totalNumBooks,
+                    message: book.title
+                }
+            });
+
         }
         try {
             fs.rmSync(`/tmp/${id}.library.json`, { recursive: true, force: true });
@@ -316,7 +364,9 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
             data: {
                 last_sync: Math.floor(new Date().getTime() / 1000)
             }
-        })
+        });
+
+        await prisma.progress.update({ where: { id_type: { id, type: 'sync'} }, data: { progress: 1, status: 'DONE' } });
 
         return { numCreated, numUpdated };
     } catch(e) {
@@ -325,6 +375,13 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
         const err = e as { stdout: Buffer };
         console.log(err);
         console.log(err.stdout.toString())
+        await prisma.progress.update({
+            where: { id_type: { id, type: 'sync' } },
+            data: {
+                status: 'ERROR',
+                message: 'Error during sync'
+            }
+        });
         try {
             fs.rmSync(`/tmp/${id}.library.json`, { recursive: true, force: true });
         } catch (e) { }

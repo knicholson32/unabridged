@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 
 
 export type CountryCode = 'us' | 'ca' | 'uk' | 'au' | 'fr' | 'de' | 'jp' | 'it' | 'in';
@@ -31,7 +32,8 @@ export type LinkMenuItem = {
     type: 'link',
     href: string,
     title: string,
-    miniTitle: string,
+    miniTitle?: string,
+    iconURL?: string,
     // buttonColor: string
 }
 
@@ -125,3 +127,32 @@ export type Images = {
     img128: Buffer,
     img56: Buffer,
 };
+
+
+// -------------------------------------------------------------------------------------------------
+// Progress
+// -------------------------------------------------------------------------------------------------
+
+export type Progress = Prisma.ProgressGetPayload<{
+    select: {
+        progress: true,
+        status: true,
+        message: true,
+        ref: true,
+        type: true
+    }
+}>;
+
+export type ProgressAPI = {
+    ok: boolean,
+    progress?: Progress,
+    status: number
+}
+
+export type ProgressStatus = 'RUNNING' | 'DONE' | 'ERROR'
+
+export type ProgressManyAPI = {
+    ok: boolean,
+    progress?: Progress[],
+    status: number
+}

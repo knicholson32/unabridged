@@ -16,6 +16,7 @@
 	export { clazz as class };
   export let submitting: boolean;
   export let failed: boolean = false;
+  export let progress: number = 0;
 
   export let disabled: boolean = false;
   export let actionText = 'Save';
@@ -48,6 +49,7 @@
   let themeClassesDone = '';
   let themeClassesFailed = '';
   let spinnerClasses = '';
+  let spinnerProgressClasses = '';
 
   // rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50
   switch (themeDefault) {
@@ -56,24 +58,28 @@
       themeClassesDefault = 'bg-green-600 text-white hover:bg-green-500 disabled:text-gray-200 disabled:bg-gray-800 disabled:hover:bg-gray-800 focus-visible:outline-green-500';
       themeClassesSubmitting = 'bg-green-600 text-white cursor-default';
       spinnerClasses = 'fill-white text-green-700';
+      spinnerProgressClasses = 'text-white';
       break
     case 'red':
       themeClassesStatic = '';
       themeClassesDefault = 'bg-red-600 text-white hover:bg-red-500 disabled:text-gray-200 disabled:bg-gray-800 disabled:hover:bg-gray-800 focus-visible:outline-red-500';
       themeClassesSubmitting = 'bg-red-600 text-white cursor-default';
       spinnerClasses = 'fill-white text-red-700';
+      spinnerProgressClasses = 'text-white';
       break
     case 'white':
       themeClassesStatic = 'ring-1 ring-inset ring-gray-300'
       themeClassesDefault = 'bg-white text-gray-800 hover:bg-gray-100 hover:text-gray-900 disabled:text-gray-200 disabled:bg-gray-800 disabled:hover:bg-gray-800 focus-visible:outline-grey-500';
       themeClassesSubmitting = 'bg-white text-gray-800 cursor-default';
       spinnerClasses = 'text-gray-100 fill-gray-800';
+      spinnerProgressClasses = 'text-gray-800';
       break
     default: // indigo
       themeClassesStatic = '';
       themeClassesDefault = 'bg-indigo-600 text-white hover:bg-indigo-500 disabled:text-gray-200 disabled:bg-gray-800 disabled:hover:bg-gray-800 focus-visible:outline-indigo-500';
       themeClassesSubmitting = 'bg-indigo-600 text-white cursor-default';
       spinnerClasses = 'fill-white text-indigo-700';
+      spinnerProgressClasses = 'text-white';
       break
   }
 
@@ -142,12 +148,16 @@
     };
   };
 
+  $: circumference = 70 * Math.PI;
+  $: offset = circumference - progress * circumference
+  // stroke-dasharray="{circumference}" stroke-dashoffset="{offset}" 
+
 </script>
 
-<button bind:this={button} disabled={disabled} type="submit" class="{clazz} select-none transition-colors flex justify-center px-3 py-2 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed {(done) ? '' : themeClassesStatic} {themeClasses}">
+<button title="{submitting && progress != 0 ? `${Math.round(progress * 100)}%` : ''}" bind:this={button} disabled={disabled} type="submit" class="{clazz} select-none transition-colors flex justify-center px-3 py-2 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed {(done) ? '' : themeClassesStatic} {themeClasses}">
   <span class="flex-none">{done ? (failed ? failedText : doneText) : (submitting ? actionTextInProgress : actionText)}</span>
   {#if submitting || done}
-    <div transition:reveal role="status" class="flex-none ml-2 w-5 h-5 align-middle overflow-hidden">
+    <div transition:reveal role="status" class="relative flex-none ml-2 w-5 h-5 align-middle overflow-hidden">
       {#if done && !failed && !skipDoneMessage}
         <svg aria-hidden="true" class="block w-full h-full" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
@@ -158,6 +168,14 @@
           <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
         </svg>
         <span class="sr-only">Failed</span>
+      {:else if submitting && progress != 0}
+        <svg class="absolute w-5 h-5 -rotate-90 {spinnerProgressClasses}" viewBox="-40 -40 80 80">
+            <circle stroke-width="7" stroke-dasharray="{circumference}" stroke-dashoffset="{offset}" stroke-linecap="round" stroke="currentColor" fill="transparent" r="35"/>
+        </svg>
+        <svg aria-hidden="true" class="block w-full h-full {spinnerClasses}" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+        </svg>
+        <span class="sr-only">Loading... {Math.floor(progress * 100)}%</span>
       {:else if submitting && !skipLoadingSpinner}
         <svg aria-hidden="true" class="block w-full h-full animate-spin {spinnerClasses}" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
