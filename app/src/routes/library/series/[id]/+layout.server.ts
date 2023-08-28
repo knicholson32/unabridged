@@ -46,7 +46,7 @@ export async function load({ params }) {
   for (const book of series.books) {
     const menuItem: LinkMenuItem = {
       type: 'link',
-      title: book.series_sequence + ': ' + book.title,
+      title: book.title,
       iconURL: book.cover?.url_50,
       href: '/library/books/' + book.asin
     }

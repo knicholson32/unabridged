@@ -45,7 +45,9 @@
       <img src="{book.cover?.url_100}" class="h-10 rounded-sm" alt="Book cover for {book.title}" />
     </a>
     <div class="{maxWidthTitle.text} truncate">
-      <h2 title="{book.title}" class="font-medium text-gray-800 text-ellipsis overflow-hidden dark:text-white">{helpers.truncateString(book.title, truncateNum)}</h2>
+      <a href="/library/books/{book.asin}">
+        <h2 title="{book.title}" class="font-medium text-gray-800 text-ellipsis overflow-hidden dark:text-white">{helpers.truncateString(book.title, truncateNum)}</h2>
+      </a>
       {#if subTitle === 'runtime'}
         {#if book.runtime_length_min !== null}
           <p title="Playback time of {new helpers.RunTime({min: book.runtime_length_min}).toDirectFormat()}" class="text-sm font-normal text-gray-600 text-ellipsis overflow-hidden dark:text-gray-400">

@@ -395,9 +395,13 @@
 								<thead class="bg-gray-50 dark:bg-gray-800 sticky top-[63px]">
 									<tr>
 										<th title="{series.title}" scope="col" colspan={numCols - 1} class="py-3.5 {tableXPaddingLeft} text-sm text-left rtl:text-right font-medium text-gray-800 dark:text-white">
-											<a href="/library/series/{series.id}">
+											{#if series.id !== 'no-series-placeholder'}
+												<a href="/library/series/{series.id}">
+													{helpers.truncateString(series.title, 100)}
+												</a>
+											{:else}
 												{helpers.truncateString(series.title, 100)}
-											</a>
+											{/if}
 											<span class="font-normal text-xs text-gray-400 dark:text-gray-500">
 												<span title="{series.authors.join(', ')}">{helpers.joinWithLimit(series.authors, 2)}</span> | 
 												{series.numBooks} 
@@ -468,7 +472,7 @@
 								</thead>
 								<tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-900">
 									{#each author.books as book}
-										<Book book={book} subTitle={'series'} tableXPadding={tableXPadding} tableXPaddingLeft={tableXPaddingLeft} groupBy={'author'}/>
+										<Book book={book} groupBy={'author'} subTitle={'series'} tableXPadding={tableXPadding} tableXPaddingLeft={tableXPaddingLeft} />
 									{/each}
 								</tbody>
 							{/each}

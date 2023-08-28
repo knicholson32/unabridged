@@ -207,7 +207,7 @@ export async function load({ url, depends }) {
 
     // TODO: Make an actual series for these?
     const singleSeries: typeof seriesResults[0] = {
-      id: 'abc123',
+      id: 'no-series-placeholder',
       title: 'No Series',
       authors: [],
       narrators: [],

@@ -109,6 +109,9 @@ model Book {
   processed  Boolean
   progress   Int
   cover      Cover?
+  branding   Branding?
+  chapters   Chapter[]
+  Media      Media[]
 
   @@map("books")
 }
@@ -130,6 +133,37 @@ model Cover {
   url_isbn_s     String?
 
   @@map("covers")
+}
+
+// Things like PDFs and other files associated with a book
+// NOTE: Risk of de-sync if this entry gets deleted and the file does not
+model Media {
+  id           String @id
+  book         Book   @relation(fields: [bookAsin], references: [asin])
+  content_type String
+  extension    String
+  title        String
+  bookAsin     String
+
+  @@map("media")
+}
+
+model Branding {
+  asin              String @id
+  book              Book   @relation(fields: [asin], references: [asin], onDelete: Cascade)
+  intro_duration_ms Int
+  outro_duration_ms Int
+}
+
+model Chapter {
+  id              String @id
+  book            Book   @relation(fields: [id], references: [asin], onDelete: Cascade)
+  sequence        Int
+  title           String
+  length_ms       Int
+  start_offset_ms Int
+
+  @@map("chapters")
 }
 
 model Progress {
