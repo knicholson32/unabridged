@@ -139,7 +139,9 @@ export class RunTime {
     }
 
     public compareDuration(r: RunTime): number {
-        return this._value_s / r._value_s;
+        const res = this._value_s / r._value_s;
+        if (isNaN(res)) return 0
+        else return res;
     }
 
     public get hours(): number {
@@ -297,6 +299,7 @@ export const extensionLogo = (ext: string): string => {
         case 'gif':
             return icons.image;
         case 'aaxc':
+        case 'm4b':
             return icons.book;
         default:
             return icons.doc

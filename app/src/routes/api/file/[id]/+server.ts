@@ -2,6 +2,7 @@ import prisma from '$lib/server/prisma';
 import { error, json } from '@sveltejs/kit';
 import * as helpers from '$lib/helpers';
 import * as fs from 'node:fs';
+import * as media from '$lib/server/media';
 import { MEDIA_FOLDER } from '$env/static/private';
 import type { NotificationAPI, Notification, ModalTheme, Issuer } from '$lib/types';
 
@@ -24,29 +25,35 @@ export const GET = async ({ setHeaders, params, url }) => {
   // Check if the data is stored in the DB
   if (file.data === null) {
     // The data is stored in a file
-    const filePath = `${MEDIA_FOLDER}/${id}`;
-    const stat = fs.statSync(filePath);
-    const readStream = fs.createReadStream(filePath);
-
+    let filePath = `${MEDIA_FOLDER}/${id}`;
+    if (file.path !== null) filePath = file.path;
     try {
-      if (attachment) {
-        setHeaders({
-          'Content-Type': 'application/octet-stream',
-          "Content-Disposition": `attachment; filename=${file.title}.${file.extension}`,
-          'Content-Length': stat.size.toString()
-        });
-      } else {
-        setHeaders({
-          'Content-Type': file.content_type,
-          "Content-Disposition": `filename=${file.title}.${file.extension}`,
-          'Content-Length': stat.size.toString()
-        });
+      const stat = fs.statSync(filePath);
+      const readStream = fs.createReadStream(filePath);
+
+      try {
+        if (attachment) {
+          setHeaders({
+            'Content-Type': 'application/octet-stream',
+            "Content-Disposition": `attachment; filename=${file.title}.${file.extension}`,
+            'Content-Length': stat.size.toString()
+          });
+        } else {
+          setHeaders({
+            'Content-Type': file.content_type,
+            "Content-Disposition": `filename=${file.title}.${file.extension}`,
+            'Content-Length': stat.size.toString()
+          });
+        }
+        // NOTE: This is NOT a correct typecast. This works, but typescript doesn't agree.
+        // https://kit.svelte.dev/docs/routing#server
+        return new Response(readStream as unknown as string);
+      } catch (e) {
+        throw error(500, "Internal server error")
       }
-      // NOTE: This is NOT a correct typecast. This works, but typescript doesn't agree.
-      // https://kit.svelte.dev/docs/routing#server
-      return new Response(readStream as unknown as string);
-    } catch (e) {
-      throw error(500, "Internal server error")
+    } catch(e) {
+      await media.clean();
+      throw error(404, "File not found")
     }
   } else {
     // The data is stored in the DB

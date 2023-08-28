@@ -26,6 +26,7 @@ export const GET = async ({ params }) => {
       title: true,
       bookAsin: true,
       data: false,
+      path: false,
       size_b: true,
       description: true
     }

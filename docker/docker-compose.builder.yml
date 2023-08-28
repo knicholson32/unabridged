@@ -3,7 +3,7 @@
 version: '2'
 services:
   base:
-    image: node:20.5.0-alpine
+    image: unabridged-dev
     container_name: unabridged-builder
     volumes:
       - nodemodules-unabridged:/app/node_modules

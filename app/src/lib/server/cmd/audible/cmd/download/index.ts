@@ -4,11 +4,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { isLocked } from '../../';
 import prisma from '$lib/server/prisma';
 import * as helpers from '$lib/helpers';
+import * as aax from '$lib/server/cmd/AAXtoMP3';
 import * as media from '$lib/server/media';
 import * as path from 'node:path';
 import { BookDownloadError } from '../../types';
 import type { AmazonChapterData } from '../../types';
 import type { Issuer, ModalTheme, ProgressStatus } from '$lib/types';
+import { ConversionError } from '$lib/server/cmd/AAXtoMP3/types';
 
 // --------------------------------------------------------------------------------------------
 // Download helpers
@@ -27,7 +29,8 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
   const book = await prisma.book.findUnique({ 
     where: { asin },
     include: {
-      profiles: true
+      profiles: true,
+      cover: true
     }
   });
 
@@ -35,12 +38,22 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
   if (book === null) return BookDownloadError.BOOK_NOT_FOUND;
   if (book.profiles.length === 0) return BookDownloadError.NO_PROFILE;
 
+  let profileID: string | undefined = undefined;
+  for (const profile of book.profiles) {
+    if (profile.activation_bytes !== null) {
+      profileID = profile.id
+      break;
+    }
+  }
+
+  if (profileID === undefined) return BookDownloadError.NO_PROFILE_WITH_AUTHCODE;
+
   // Create a temp directory for this library
   const tmpDir = `/tmp/${asin}`;
 
   // Remove the temp folder and files
   try {
-    if (fs.existsSync(tmpDir)) fs.rmdirSync(tmpDir, { recursive: true });
+    if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
   } catch (e) {
     // Nothing to do if this fails
     console.log('unlink', tmpDir, e);
@@ -71,7 +84,7 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
 
   // Create the audible child_process
   // audible -P 175aaff6-4f92-4a2c-b592-6758e1b54e5f download -o /app/db/download/skunk -a B011LR4PW4 --aaxc --pdf --cover --cover-size 1215 --chapter --annotation
-  const audible = child_process.spawn('audible', ['-P', book.profiles[0].id, 'download', '-o', tmpDir, '-a', asin, '--aaxc', '--pdf', '--cover', '--cover-size', '1215', '--chapter', '--annotation']);
+  const audible = child_process.spawn('audible', ['-P', profileID, 'download', '-o', tmpDir, '-a', asin, '--aaxc', '--pdf', '--cover', '--cover-size', '1215', '--chapter', '--annotation']);
 
   // Wrap this in a promise so we can respond from this function
   const promise = new Promise<BookDownloadError>((resolve, reject) => {
@@ -136,7 +149,7 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
       // New pdf files: 1\n
       // New voucher files: 1\n
       const regex = /(?<percent>[0-9]+)%\|[█▉▊▋▌▍▎▏\s]+\| (?<downloaded>[0-9.]+)[MG]\/(?<total>[0-9.]+)[MG] \[.+ (?<speed>[0-9.]+)[a-zA-Z]+\/s]/;
-      
+
       type RegexMatchGroups = { percent: string, downloaded: string, total: string, speed: string };
 
       const groups: RegexMatchGroups = data.match(regex)?.groups as RegexMatchGroups;
@@ -196,13 +209,13 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
           }
         });
       } catch(e) {
-        // Nothing to do  
+        // Nothing to do
       }
       resolve(BookDownloadError.NO_ERROR);
     });
   });
 
-  // Wait for the download to finish
+  // // Wait for the download to finish
   const results = await promise;
 
   // Check that there were no errors
@@ -232,9 +245,8 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
           break;
         case '.aax':
         case '.aaxc':
-          title = book.asin
-          description = 'Raw semi-encrypted audio book format from Audible';
-          break;
+          // We will skip the protected files, as we will later save the processed one instead
+          continue;
         case '.voucher':
           title = book.asin
           description = 'Voucher specifying permission to own this audio book';
@@ -302,13 +314,36 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
       }
     });
 
+    // Process the book
+    let results: ConversionError | undefined = undefined;
+    
+    try {
+      results = await aax.cmd.convert.exec(book.asin);
+    } catch(e) {
+      // Nothing to do
+      console.log('Conversion crash', e);
+    }
+
+    if (results !== ConversionError.NO_ERROR) {
+      // Remove the temp folder and files
+      console.log('conversion failure', results);
+      try {
+        if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
+      } catch (e) {
+        // Nothing to do if this fails
+        console.log('unlink', tmpDir, e);
+      }
+      return BookDownloadError.CONVERSION_ERROR;
+    }
+
     console.log('Create notification');
     await prisma.notification.create({
       data: {
         id: uuidv4(),
         issuer: 'audible.download' satisfies Issuer,
+        identifier: book.cover?.url_100,
         theme: 'info' satisfies ModalTheme,
-        text: '\'' + book.title + '\' Downloaded',
+        text: `<a href="/library/books/${book.asin}">${book.title}</a> <span class="text-gray-600">Downloaded</span>`,
         sub_text: new Date().toISOString(),
         linger_time: 10000,
         needs_clearing: true,
@@ -319,7 +354,7 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
 
   // Remove the temp folder and files
   try {
-    if (fs.existsSync(tmpDir)) fs.rmdirSync(tmpDir, { recursive: true });
+    if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
   } catch(e) {
     // Nothing to do if this fails
     console.log('unlink', tmpDir, e);

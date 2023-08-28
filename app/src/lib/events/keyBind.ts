@@ -24,8 +24,6 @@ export default function keyBind(element: HTMLElement, options: KeyBindOptions) {
 
         // With our dynamic lookup, we've greatly simplified from a switch-case.
         if (lookup.has(event.key)) {
-            event.preventDefault();
-
             lookup.set(event.key, true);
         }
 
@@ -34,9 +32,11 @@ export default function keyBind(element: HTMLElement, options: KeyBindOptions) {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const [key, flag] of lookup) {
             // If any flag is `false`, we just early return to skip.
-            if (!flag) return;
+            if (!flag) {
+                return;
+            }
         }
-
+        event.preventDefault();
         on_bind();
     }
 

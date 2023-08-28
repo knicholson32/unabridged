@@ -87,6 +87,7 @@ export type NotificationSettings = {
     linger_ms?: number,
     iconPath?: string,
     iconColor?: string,
+    iconURL?: string,
     theme?: ModalTheme,
     id?: string,
     deleteOnlyAfterClose: boolean

@@ -138,10 +138,11 @@ model Cover {
 // NOTE: Risk of de-sync if this entry gets deleted and the file does not
 model Media {
   id           String  @id
-  book         Book    @relation(fields: [bookAsin], references: [asin])
+  book         Book    @relation(fields: [bookAsin], references: [asin], onDelete: Cascade)
   bookAsin     String
   data         Bytes?
   is_file      Boolean
+  path         String?
   content_type String
   description  String?
   extension    String

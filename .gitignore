@@ -11,6 +11,5 @@ oldApp
 docker/database/data
 .audible/*
 .venv
-.env
-.env.*
 !.env.example
+library

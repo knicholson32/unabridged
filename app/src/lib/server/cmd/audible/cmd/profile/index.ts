@@ -11,6 +11,7 @@ import type { CountryCode } from '$lib/types';
 import * as crypto from 'crypto';
 import prisma from '$lib/server/prisma';
 import * as media from '$lib/server/media';
+import { LIBRARY_FOLDER } from '$env/static/private';
 
 const ENTER = '\n';
 
@@ -547,13 +548,39 @@ export const remove = async (id: string): Promise<boolean> => {
                         clearTimeout(watchdog);
                         // Remove the data from the DB.
                         try {
-                            await prisma.profile.delete({ where: { id }, include: { books: true } });
+                            await prisma.profile.delete({ where: { id: profile.id } });
+                        } catch (e) {
+                            // Nothing to do if it didn't exist anyway
+                        }
+                        try {
+                            const books = await prisma.book.findMany({
+                                where: { profiles: { none: {} } },
+                                include: { authors: true }
+                            });
                             await prisma.book.deleteMany({ where: { profiles: { none: {} } } });
+                            const authors = await prisma.author.findMany({ where: { books: { none: {} } } });
                             await prisma.series.deleteMany({ where: { books: { none: {} } } });
                             await prisma.author.deleteMany({ where: { books: { none: {} } } });
                             await prisma.narrator.deleteMany({ where: { books: { none: {} } } });
                             await prisma.genre.deleteMany({ where: { books: { none: {} } } });
                             await prisma.progress.deleteMany({ where: { id } });
+
+                            // Delete all the physical files that are associated with books that just got deleted
+                            for (const book of books) {
+                                try {
+                                    fs.rmSync(LIBRARY_FOLDER + '/' + book.authors[0].name + '/' + book.title, { recursive: true, force: true });
+                                } catch (e) {
+                                    // Nothing to do if it didn't exist anyway
+                                }
+                            }
+                            // Delete all the physical files that are associated with authors that just got deleted
+                            for (const author of authors) {
+                                try {
+                                    fs.rmSync(LIBRARY_FOLDER + '/' + author.name, { recursive: true, force: true });
+                                } catch (e) {
+                                    // Nothing to do if it didn't exist anyway
+                                }
+                            }
                             await media.clean();
                         } catch (e) {
                             // Nothing to do if it didn't exist anyway

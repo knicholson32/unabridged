@@ -1,2 +1,1 @@
-
-export const TEST = 'aaxtomp3';
+export * as cmd from './cmd';

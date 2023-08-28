@@ -16,7 +16,7 @@ export type Media = Prisma.MediaGetPayload<{}>;
  * @param title the title of the file to save (optional)
  * @returns the ID of the saved file
  */
-export const saveFile = async (srcPath: string, asin: string, options?: { description?: string, title?: string }): Promise<string> => {
+export const saveFile = async (srcPath: string, asin: string, options?: { description?: string, title?: string, noCopy?: boolean }): Promise<string> => {
   // Create an ID for this file
   const id = uuidv4();
 
@@ -28,13 +28,18 @@ export const saveFile = async (srcPath: string, asin: string, options?: { descri
   const stat = fs.statSync(srcPath);
   let data: Buffer | undefined = undefined;
 
-  if (stat.size > 1000000) {
-    // Copy the file using the system cp
-    child_process.execSync(`/bin/cp -f "${srcPath}" "${MEDIA_FOLDER}/${id}"`);
-    console.log('Added via file!');
+  if (options.noCopy === true) {
+    console.log('Added via path!');
   } else {
-    data = fs.readFileSync(srcPath);
-    console.log('Added via db!');
+    if (stat.size > 1000000) {
+      // Copy the file using the system cp
+      if (!fs.existsSync(MEDIA_FOLDER)) fs.mkdirSync(MEDIA_FOLDER, { recursive: true });
+      child_process.execSync(`/bin/cp -f "${srcPath}" "${MEDIA_FOLDER}/${id}"`);
+      console.log('Added via file!');
+    } else {
+      data = fs.readFileSync(srcPath);
+      console.log('Added via db!');
+    }
   }
 
   if (options.title === undefined) options.title = path.basename(srcPath, extension);
@@ -46,6 +51,7 @@ export const saveFile = async (srcPath: string, asin: string, options?: { descri
       extension,
       title: options.title,
       data,
+      path: options.noCopy === true ? srcPath : undefined,
       size_b: stat.size,
       description: options.description,
       is_file: data === undefined,
@@ -78,9 +84,13 @@ export const clean = async () => {
   const dbFiles = (await prisma.media.findMany({
     select: {
       id: true,
-      is_file: true
+      is_file: true,
+      path: true
     }
   }));
+
+  // Create the media folder if it doesn't exist
+  if (!fs.existsSync(MEDIA_FOLDER)) fs.mkdirSync(MEDIA_FOLDER, { recursive: true });
 
   // Get the files that are actually in the folder
   const presentFiles = fs.readdirSync(MEDIA_FOLDER);
@@ -89,7 +99,11 @@ export const clean = async () => {
   // TODO: Delete db entries that don't have a file
   const dbToRemove: string[] = [];
   for (const f of presentFiles) if (dbFiles.findIndex((e) => e.id === f) === -1) fs.unlinkSync(MEDIA_FOLDER + '/' + f);
-  for (const f of dbFiles) if (f.is_file === true && !presentFiles.includes(f.id)) dbToRemove.push(f.id);
+  for (const f of dbFiles) {
+    if (f.path !== null) {
+      if (!fs.existsSync(f.path)) dbToRemove.push(f.id);
+    } else if (f.is_file === true && !presentFiles.includes(f.id)) dbToRemove.push(f.id);
+  }
 
   await prisma.media.deleteMany({ where: { id: { in: dbToRemove } } });
 }
