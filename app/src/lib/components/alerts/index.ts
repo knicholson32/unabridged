@@ -2,6 +2,7 @@ import type { NotificationAPI, Notification, URLAlert } from '$lib/types';
 import * as base64  from 'base-64';
 import { writable } from 'svelte/store';
 import type { default as Alerts } from './Alerts.svelte';
+import * as dateFns from 'date-fns'
 
 export { default as Alert } from './Alert.svelte';
 export { default as Alerts } from './Alerts.svelte';
@@ -40,6 +41,17 @@ export const showNotifications = async (alertsComponent: Alerts, notifications: 
     if (urgentOnly && notification.auto_open === false) continue;
     if (alertsComponent.isShowingID(notification.id)) continue;
     switch (notification.issuer) {
+      case 'audible.download':
+        alertsComponent.showNotification(notification.text, {
+          id: notification.id,
+          iconPath: notification.icon_path ?? undefined,
+          iconColor: notification.icon_color ?? undefined,
+          theme: notification.theme,
+          subText: notification.sub_text !== null ? dateFns.formatDistance(new Date(notification.sub_text), Date.now(), { includeSeconds: true, addSuffix: true }) : undefined,
+          deleteOnlyAfterClose: notification.needs_clearing,
+          linger_ms: (notification.linger_time <= 0) ? undefined : notification.linger_time,
+        });
+        break;
       case 'general':
         alertsComponent.showNotification(notification.text, {
           id: notification.id,

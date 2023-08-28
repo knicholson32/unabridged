@@ -99,7 +99,7 @@ export type URLAlert = {
     settings?: AlertSettings
 }
 
-export type Issuer = 'general';
+export type Issuer = 'general' | 'audible.download';
 export type Notification = {
   id:             string,
   icon_path:      string | null,
@@ -135,11 +135,15 @@ export type Images = {
 
 export type Progress = Prisma.ProgressGetPayload<{
     select: {
+        id: false,
+        type: true,
         progress: true,
         status: true,
         message: true,
         ref: true,
-        type: true
+        speed_mb_s: true,
+        total_mb: true,
+        downloaded_mb: true
     }
 }>;
 
@@ -155,4 +159,22 @@ export type ProgressManyAPI = {
     ok: boolean,
     progress?: Progress[],
     status: number
+}
+
+
+// -------------------------------------------------------------------------------------------------
+// Library
+// -------------------------------------------------------------------------------------------------
+
+export type DownloadAPI = {
+    ok: boolean,
+    message?: string,
+    status: number
+}
+
+export type DownloadStatusAPI = {
+    ok: boolean,
+    status: number
+    inProgress: boolean,
+    progress?: Progress
 }

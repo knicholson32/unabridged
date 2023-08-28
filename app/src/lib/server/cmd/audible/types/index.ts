@@ -108,3 +108,63 @@ export type AmazonAcctData = {
     postal_code: string,
     email: string
 }
+
+
+export type AmazonChapterData = {
+    content_metadata: {
+        chapter_info: {
+            brandIntroDurationMs: number,
+            brandOutroDurationMs: number,
+            chapters: {
+                length_ms: number,
+                start_offset_ms: number,
+                start_offset_sec: number,
+                title: string
+            }[],
+            is_accurate: true,
+            runtime_length_ms: number,
+            runtime_length_sec: number
+        },
+        content_reference: {
+            acr: string,
+            asin: string,
+            codec: string,
+            content_format: string,
+            content_size_in_bytes: number,
+            file_version: string,
+            marketplace: string,
+            sku: string,
+            tempo: string,
+            version: string
+        },
+        last_position_heard: {
+            last_updated: string,
+            position_ms: number,
+            status: string
+        }
+    },
+    response_groups: ('alwaysreturned' | 'last_position_heard' | 'chapter_info' | 'content_reference')[]
+}
+
+
+export enum BookDownloadError {
+    NO_ERROR = 'NO_ERROR',
+    AUDIBLE_LOCKED = 'AUDIBLE_LOCKED',
+    BOOK_NOT_FOUND = 'BOOK_NOT_FOUND',
+    NO_PROFILE = 'NO_PROFILE',
+}
+
+export const bookDownloadErrorToString = (e: BookDownloadError): string => {
+    switch (e) {
+        case BookDownloadError.NO_ERROR:
+            return 'No error';
+        case BookDownloadError.AUDIBLE_LOCKED:
+            return 'The audible CLI is locked';
+        case BookDownloadError.BOOK_NOT_FOUND:
+            return 'The audible book does not exist';
+        case BookDownloadError.NO_PROFILE:
+            return 'No profile exists to download this book';
+        default:
+            return 'An unknown error occurred';
+    }
+}

@@ -10,6 +10,7 @@ import type { AudibleConfig, AmazonAcctData } from '../../types';
 import type { CountryCode } from '$lib/types';
 import * as crypto from 'crypto';
 import prisma from '$lib/server/prisma';
+import * as media from '$lib/server/media';
 
 const ENTER = '\n';
 
@@ -552,6 +553,8 @@ export const remove = async (id: string): Promise<boolean> => {
                             await prisma.author.deleteMany({ where: { books: { none: {} } } });
                             await prisma.narrator.deleteMany({ where: { books: { none: {} } } });
                             await prisma.genre.deleteMany({ where: { books: { none: {} } } });
+                            await prisma.progress.deleteMany({ where: { id } });
+                            await media.clean();
                         } catch (e) {
                             // Nothing to do if it didn't exist anyway
                         }

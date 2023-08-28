@@ -1,6 +1,8 @@
 import prisma from '$lib/server/prisma';
 import { error, redirect } from '@sveltejs/kit';
 import type { Decimal } from '@prisma/client/runtime/library.js';
+import * as audible from '$lib/server/cmd/audible';
+import { BookDownloadError, bookDownloadErrorToString } from '$lib/server/cmd/audible/types/index.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params }) => {
@@ -17,7 +19,17 @@ export const load = async ({ params }) => {
     genres: true,
     series: true,
     profiles: true,
-    cover: true
+    cover: true,
+    media: {
+      select: {
+        id: true,
+        extension: true,
+        title: true,
+        size_b: true,
+        description: true
+      }
+    },
+    chapters: true
   }});
 
   // Return if the profile was not found
@@ -68,8 +80,8 @@ export const actions = {
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
-      await prisma.book.update({ 
-        where: { asin }, 
+      await prisma.book.update({
+        where: { asin },
         data: {
           subtitle,
           description,
@@ -77,8 +89,32 @@ export const actions = {
         }
       });
       return { success: true, response: 'update' };
-    } catch(e) {
+    } catch (e) {
       return { success: false, response: 'update' };
     }
+  },
+  download: async ({ request, params }) => {
+    const asin = params.asin;
+
+    // Check that the ID was actually submitted
+    if (asin === null || asin === undefined) throw error(404, 'Not found');
+
+    // Get the profile from the database
+    const book = await prisma.book.findUnique({
+      where: { asin }, include: {
+        authors: true,
+        narrators: true,
+        genres: true,
+        series: true,
+        profiles: true,
+        cover: true
+      }
+    });
+
+    // Return if the profile was not found
+    if (book === null || book === undefined) throw error(404, 'Not found');
+
+    const res = await audible.cmd.download.download(book.asin);
+    return { success: res === BookDownloadError.NO_ERROR, response: 'download', message: bookDownloadErrorToString(res) };
   }
 }

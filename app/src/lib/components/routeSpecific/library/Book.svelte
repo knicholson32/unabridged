@@ -1,4 +1,5 @@
 <script lang="ts">
+	import icons from '$lib/components/icons';
   import * as helpers from '$lib/helpers';
   import type { Prisma } from "@prisma/client";
 
@@ -99,6 +100,19 @@
         </p>
       {/if}
     </div>
+  </td>
+  <td class="{tableXPadding} py-2 text-sm whitespace-nowrap text-center">
+    {#if book.downloaded}
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+        {@html icons.ok}
+      </svg>
+    {:else}
+      <button type="button" on:click={() => {console.log(fetch(`/api/library/download/${book.asin}`))}}>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+          {@html icons.download}
+        </svg>
+      </button>
+    {/if}
   </td>
   <td class="{tableXPadding} py-2 text-sm whitespace-nowrap text-center">
     <div class="flex items-center justify-center">

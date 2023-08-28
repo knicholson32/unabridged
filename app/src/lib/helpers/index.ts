@@ -1,6 +1,7 @@
 import { browser } from '$app/environment'; 
 import * as https from 'https';
 import * as dateFns from 'date-fns'
+import icons from '$lib/components/icons'
 
 
 /**
@@ -279,3 +280,50 @@ export const deepCopy = <T>(obj: T): T => {
 export const clamp = (val: number, min: number, max: number): number => {
     return Math.min(Math.max(val, min), max);
 };
+
+
+/**
+ * Get an icon for an extension
+ * @param ext the extension
+ * @returns the icon
+ */
+export const extensionLogo = (ext: string): string => {
+    let extension = ext;
+    if (ext.charAt(0) === '.') extension = ext.substring(1);
+
+    switch (extension) {
+        case 'jpg':
+        case 'png':
+        case 'gif':
+            return icons.image;
+        case 'aaxc':
+            return icons.book;
+        default:
+            return icons.doc
+    }
+}
+
+
+/**
+ * Convert a number of bytes to a more readable format
+ * @param bytes the bytes to convert to string
+ * @returns the string
+ */
+export const numBytesToString = (bytes: number): string => {
+    const sizeKB = bytes / 1024;
+    const sizeMB = sizeKB / 1024;
+    const sizeGB = sizeMB / 1024;
+    if (sizeGB < 0.5) {
+        if (sizeMB < 0.5) {
+            if (sizeKB < 0.5) {
+                return bytes.toPrecision(3) + ' B';
+            } else {
+                return sizeKB.toPrecision(3) + ' KB';
+            }
+        } else {
+            return sizeMB.toPrecision(3) + ' MB';
+        }
+    } else {
+        return sizeGB.toPrecision(3) + ' GB';
+    }
+}

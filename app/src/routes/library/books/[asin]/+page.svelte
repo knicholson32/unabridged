@@ -10,6 +10,8 @@
 	import TextArea from '$lib/components/input/selectable/TextArea.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import TextInput from '$lib/components/input/selectable/TextInput.svelte';
+	import LoadingCircle from '$lib/components/decorations/LoadingCircle.svelte';
+  import * as alerts from '$lib/components/alerts';
 
   export let data: import('./$types').PageData;
   export let form: import('./$types').ActionData;
@@ -18,16 +20,22 @@
     
   let updatesSubmitting: boolean = false;
 
+  let voucherURL: string | undefined = undefined;
+
   $: {
     if (form !== undefined && form !== null) {
       if (form.success === true) {
         if (form.response === 'update') {
           discardChanges();
+        } else if (form.response === 'download') {
+          showAlert('Book downloaded');
         }
       } else {
         console.log('Form failure!');
-        if (form?.response === 'update') {
+        if (form.response === 'update') {
           showAlert('Book could not be updated', { theme: 'error'});
+        } else if (form.response === 'download') {
+          showAlert('Book could not be downloaded', { theme: 'error', subText: form.message});
         }
       }
     }
@@ -36,6 +44,9 @@
   const rowClass = 'odd:bg-gray-100'
   const dataTitleClass = 'text-gray-800/70 align-baseline w-[1%] pr-5 pl-2 py-2 text-right';
   const dataValueClass = 'py-2 pr-2';
+
+  const fileTitleClass = 'bg-white text-gray-800/70 align-baseline pr-5 pl-2 py-2 text-center';
+  const fileDataClass = 'pr-5 pl-2 py-2'
 
   const coverHEX = data.book.cover?.hex_dom ?? '#FFFFFF';
   const coverBright = data.book.cover?.hex_dom_bright ?? true;
@@ -57,6 +68,14 @@
 
   $: {
     data.book;
+    if (data.book.downloaded === true) {
+    for (const f of data.book.media) {
+      if (f.extension === 'voucher') {
+        voucherURL = '/api/file/' + f.id;
+        break;
+      }
+    }
+  }
     discardChanges();
   }
 
@@ -106,6 +125,8 @@
     values = values;
   }
 
+
+
 </script>
 
 <nav class="flex border-b border-gray-200 bg-white" aria-label="Breadcrumb">
@@ -150,7 +171,7 @@
 </nav>
 
 <div class="relative w-full p-6 {coverBright ? 'text-gray-800' : 'text-white'} flex flex-col align-middle items-center sm:flex-row gap-6 shadow-black/10" style="background-color: {coverHEX};">
-  <div class="absolute top-6 right-6">
+  <div class="absolute top-6 right-6 flex flex-col gap-1">
     <a href="https://www.audible.com/pd/{data.book.asin}" target="_blank" class="group">
       <span class="inline-flex h-8 w-8 align-bottom rounded-full bg-[#FF9800]">
         <svg class="h-5 w-5 ml-1.5 mt-1.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="audible">
@@ -160,6 +181,21 @@
         </svg>
       </span>
     </a>
+    {#if voucherURL !== undefined}
+      <a href="{voucherURL}" title="Download voucher" class="group">
+        <span class="relative inline-flex h-8 w-8 align-bottom rounded-full {data.book.cover?.hex_dom_bright ? 'text-gray-800': 'text-white'} group-hover:text-[#FF9800]">
+          <!-- <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 12L11 14L15 10M12 3L13.9101 4.87147L16.5 4.20577L17.2184 6.78155L19.7942 7.5L19.1285 10.0899L21 12L19.1285 13.9101L19.7942 16.5L17.2184 17.2184L16.5 19.7942L13.9101 19.1285L12 21L10.0899 19.1285L7.5 19.7942L6.78155 17.2184L4.20577 16.5L4.87147 13.9101L3 12L4.87147 10.0899L4.20577 7.5L6.78155 6.78155L7.5 4.20577L10.0899 4.87147L12 3Z" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg> -->
+          <svg viewBox="0 0 800 800" class="absolute h-10 w-10 -left-1" fill="currentColor" stroke="{data.book.cover?.hex_dom}" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="410,100 473.7,162.4 560,140.2 583.9,226.1 669.8,250 647.6,336.3 710,400 647.6,463.7 669.8,550 583.9,573.9 
+            560,659.8 473.7,637.6 410,700 346.3,637.6 260,659.8 236.1,573.9 150.2,550 172.4,463.7 110,400 172.4,336.3 150.2,250 
+            236.1,226.1 260,140.2 346.3,162.4 "/>
+            <path class="st0" stroke-width="70" stroke-linecap="round" d="M310,400l66.7,66.7L510,333.3"/>
+          </svg>
+        </span>
+      </a>
+    {/if}
   </div>
   <div class="h-72 shrink-0">
     <img src="{data.book.cover?.url_500}" class="h-full rounded-lg drop-shadow-xl-centered" alt=""/>
@@ -326,6 +362,18 @@
           <td class="{dataValueClass}" title="{purchaseDateObj.toLocaleDateString()}">{purchaseDate}</td>
         </tr>
         <tr class="{rowClass}">
+          <td class="{dataTitleClass} whitespace-nowrap">Chapters</td>
+          <td class="{dataValueClass}">{data.book.downloaded ? data.book.chapters.length : 'Unknown'}</td>
+        </tr>
+        <tr class="{rowClass}">
+          <td class="{dataTitleClass} whitespace-nowrap">Downloaded</td>
+          <td class="{dataValueClass}">{data.book.downloaded ? 'Yes' : 'No'}</td>
+        </tr>
+        <tr class="{rowClass}">
+          <td class="{dataTitleClass} whitespace-nowrap">Processed</td>
+          <td class="{dataValueClass}">{data.book.processed ? 'Yes' : 'No'}</td>
+        </tr>
+        <tr class="{rowClass}">
           <td class="{dataTitleClass} whitespace-nowrap">ISBN{edited.isbn ? '*' : ''}</td>
           <td class="{dataValueClass}">
             <div class="inline-flex">
@@ -347,42 +395,87 @@
   </div>
 </div>
 
-
-<form method="POST" action="?/update" class="bg-white" use:enhance={() => {
-  updatesSubmitting = true;
-  return async ({ update }) => {
-    updatesSubmitting = false;
-    showAlert(`Book modified`, {linger_ms: 4000, iconPath: icons.ok, iconColor: 'text-gray-400'});
-    update();
-  };
-}}>
-  <!-- <div class="px-4 py-6 sm:p-8">
-    <div class="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-
-      <div class="col-span-full">
-        <label for="description" class="block text-sm font-medium leading-6 text-gray-900">Description</label>
-        <div class="mt-2">
-          <textarea id="description" name="description" rows="5" value="{data.book.description}" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"></textarea>
-        </div>
-        <p class="mt-3 text-sm leading-6 text-gray-600">Edit this description if corrections are required</p>
+{#if data.book.downloaded === true}
+  <div class="bg-white flex flex-col gap-4 py-4">
+    <div class="mx-6 text-xl font-medium">Files / Attachments</div>
+    <div class="border mx-3 rounded-lg">
+      <div class="rounded-lg overflow-hidden">
+        <table class="text-sm">
+          <thead>
+            <tr class="{rowClass} border-b border-gray-300 bg-white">
+              <th class="{fileTitleClass} w-[1%]">Icon</th>
+              <th class="{fileTitleClass} !text-left">Name</th>
+              <th class="{fileTitleClass} hidden md:table-cell !text-left">Description</th>
+              <th class="{fileTitleClass} hidden md:table-cell">Size</th>
+              <th class="{fileTitleClass}">Download</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-300">
+            {#each data.book.media as file}
+              <tr class="{rowClass}">
+                <td class="{fileDataClass} w-[1%] whitespace-nowrap">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                    {@html helpers.extensionLogo(file.extension)}
+                  </svg>
+                </td>
+                <td class="{fileDataClass} italic font-mono text-xs">{file.title}.{file.extension}</td>
+                <td class="{fileDataClass} hidden md:table-cell text-left">{file.description}</td>
+                <td class="{fileDataClass} hidden md:table-cell text-center">{helpers.numBytesToString(file.size_b)}</td>
+                <td class="{fileDataClass} w-[1%] text-center">
+                  <a href="/api/file/{file.id}?attachment">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 m-auto">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V2.25" />
+                    </svg>
+                  </a>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
       </div>
-
-      <div class="col-span-full">
-        <label for="description" class="block text-sm font-medium leading-6 text-gray-900">Description</label>
-        <div class="mt-2">
-          <textarea id="description" name="description" rows="5" value="{data.book.description}" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"></textarea>
-        </div>
-        <p class="mt-3 text-sm leading-6 text-gray-600">Edit this description if corrections are required</p>
-      </div>
-
     </div>
-  </div> -->
-  <input type="hidden" name="subtitle" value="{values.subtitle}"/>
-  <input type="hidden" name="description" value="{values.description}"/>
-  <input type="hidden" name="isbn" value="{values.isbn}"/>
-  <div class="flex items-center justify-end gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-8">
+  </div>
+{/if}
+
+<div class="flex items-center justify-end gap-x-6 border-t bg-white border-gray-900/10 px-4 py-4 sm:px-8">
+  <form method="POST" action="?/download" class="flex items-center justify-end gap-x-6" use:enhance>
+    <LoadingCircle id={data.book.asin} type={'download'} />
+    <button class="text-sm font-semibold leading-6 text-gray-900">Download</button>
+  </form>
+  <form method="POST" action="?/update" class="flex items-center justify-end gap-x-6" use:enhance={() => {
+    updatesSubmitting = true;
+    return async ({ update }) => {
+      updatesSubmitting = false;
+      await alerts.updateNotifications();
+      update();
+    };
+  }}>
+    <!-- <div class="px-4 py-6 sm:p-8">
+      <div class="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+
+        <div class="col-span-full">
+          <label for="description" class="block text-sm font-medium leading-6 text-gray-900">Description</label>
+          <div class="mt-2">
+            <textarea id="description" name="description" rows="5" value="{data.book.description}" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"></textarea>
+          </div>
+          <p class="mt-3 text-sm leading-6 text-gray-600">Edit this description if corrections are required</p>
+        </div>
+
+        <div class="col-span-full">
+          <label for="description" class="block text-sm font-medium leading-6 text-gray-900">Description</label>
+          <div class="mt-2">
+            <textarea id="description" name="description" rows="5" value="{data.book.description}" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"></textarea>
+          </div>
+          <p class="mt-3 text-sm leading-6 text-gray-600">Edit this description if corrections are required</p>
+        </div>
+
+      </div>
+    </div> -->
+    <input type="hidden" name="subtitle" value="{values.subtitle}"/>
+    <input type="hidden" name="description" value="{values.description}"/>
+    <input type="hidden" name="isbn" value="{values.isbn}"/>
     <button type="button" on:click={discardChanges} class="text-sm font-semibold leading-6 text-gray-900">Discard Changes</button>
     <!-- <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Save</button> -->
     <Submit submitting={updatesSubmitting} disabled={!hasEdits} actionText={"Update"} actionTextInProgress={"Updating"}/>
-  </div>
-</form>
+  </form>
+</div>

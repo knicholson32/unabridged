@@ -32,7 +32,10 @@ export const GET = async ({ params }) => {
   if (progress === null || progress === undefined) return json({ ok: false, status: 404 } satisfies ProgressAPI)
 
   // Delete this progress if it is done
-  if (progress.status === 'DONE' satisfies ProgressStatus || progress.status === 'ERROR' satisfies ProgressStatus) await prisma.progress.delete({ where: { id_type: { id, type } } });
+  if (progress.status === 'DONE' satisfies ProgressStatus || progress.status === 'ERROR' satisfies ProgressStatus) {
+    console.log('DELETE', progress);
+    await prisma.progress.delete({ where: { id_type: { id, type } } });
+  }
 
   return json({ ok: true, progress: progress, status: 200 } satisfies ProgressAPI);
 }

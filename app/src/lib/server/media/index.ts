@@ -1,8 +1,9 @@
 import type { Prisma } from '@prisma/client';
 import { MEDIA_FOLDER } from '$env/static/private';
+import * as child_process from 'node:child_process';
 import prisma from '$lib/server/prisma';
 import * as mime from 'mime-types';
-import * as fs from 'node:fs/promises';
+import * as fs from 'node:fs';
 import * as path from 'node:path'
 import { v4 as uuidv4 } from 'uuid';
 
@@ -15,21 +16,39 @@ export type Media = Prisma.MediaGetPayload<{}>;
  * @param title the title of the file to save (optional)
  * @returns the ID of the saved file
  */
-export const saveFile = async (srcPath: string, asin: string, title?: string): Promise<string> => {
+export const saveFile = async (srcPath: string, asin: string, options?: { description?: string, title?: string }): Promise<string> => {
   // Create an ID for this file
   const id = uuidv4();
 
-  const extension = path.extname(srcPath);
-  await fs.copyFile(srcPath, MEDIA_FOLDER + '/' + id);
+  if (options === undefined) options = {};
 
-  if (title === undefined) title = path.basename(srcPath);
+  let extension = path.extname(srcPath);
+  if (extension.charAt(0) == '.') extension = extension.substring(1);
+
+  const stat = fs.statSync(srcPath);
+  let data: Buffer | undefined = undefined;
+
+  if (stat.size > 1000000) {
+    // Copy the file using the system cp
+    child_process.execSync(`/bin/cp -f "${srcPath}" "${MEDIA_FOLDER}/${id}"`);
+    console.log('Added via file!');
+  } else {
+    data = fs.readFileSync(srcPath);
+    console.log('Added via db!');
+  }
+
+  if (options.title === undefined) options.title = path.basename(srcPath, extension);
 
   await prisma.media.create({
     data: {
       id,
       bookAsin: asin,
       extension,
-      title,
+      title: options.title,
+      data,
+      size_b: stat.size,
+      description: options.description,
+      is_file: data === undefined,
       content_type: mime.contentType(extension) || 'application/octet-stream'
     }
   });
@@ -58,21 +77,19 @@ export const clean = async () => {
   // While we are here, prune the media folder
   const dbFiles = (await prisma.media.findMany({
     select: {
-      id: true
+      id: true,
+      is_file: true
     }
-  })).map((f) => f.id);
+  }));
 
   // Get the files that are actually in the folder
-  const presentFiles = await fs.readdir(MEDIA_FOLDER);
+  const presentFiles = fs.readdirSync(MEDIA_FOLDER);
 
   // Delete files that aren't supposed to be there
   // TODO: Delete db entries that don't have a file
-  const promises: Promise<void>[] = [];
   const dbToRemove: string[] = [];
-  for (const f of presentFiles) if (!dbFiles.includes(f)) promises.push(fs.unlink(MEDIA_FOLDER + '/' + f));
-  for (const f of dbFiles) if (!presentFiles.includes(f)) dbToRemove.push(f);
+  for (const f of presentFiles) if (dbFiles.findIndex((e) => e.id === f) === -1) fs.unlinkSync(MEDIA_FOLDER + '/' + f);
+  for (const f of dbFiles) if (f.is_file === true && !presentFiles.includes(f.id)) dbToRemove.push(f.id);
 
-  // Wait for all the files to be deleted
-  await Promise.allSettled(promises);
   await prisma.media.deleteMany({ where: { id: { in: dbToRemove } } });
 }

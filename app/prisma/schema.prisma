@@ -107,11 +107,10 @@ model Book {
 
   downloaded Boolean
   processed  Boolean
-  progress   Int
   cover      Cover?
   branding   Branding?
   chapters   Chapter[]
-  Media      Media[]
+  media      Media[]
 
   @@map("books")
 }
@@ -138,12 +137,16 @@ model Cover {
 // Things like PDFs and other files associated with a book
 // NOTE: Risk of de-sync if this entry gets deleted and the file does not
 model Media {
-  id           String @id
-  book         Book   @relation(fields: [bookAsin], references: [asin])
+  id           String  @id
+  book         Book    @relation(fields: [bookAsin], references: [asin])
+  bookAsin     String
+  data         Bytes?
+  is_file      Boolean
   content_type String
+  description  String?
   extension    String
   title        String
-  bookAsin     String
+  size_b       Int
 
   @@map("media")
 }
@@ -157,7 +160,8 @@ model Branding {
 
 model Chapter {
   id              String @id
-  book            Book   @relation(fields: [id], references: [asin], onDelete: Cascade)
+  book            Book   @relation(fields: [bookAsin], references: [asin], onDelete: Cascade)
+  bookAsin        String
   sequence        Int
   title           String
   length_ms       Int
@@ -173,8 +177,12 @@ model Progress {
   ref    String
   status String
 
-  progress Float
-  message  String
+  progress      Float
+  downloaded_mb Float?
+  total_mb      Float?
+  speed_mb_s    Float?
+
+  message String
 
   @@id([id, type])
 }

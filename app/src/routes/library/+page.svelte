@@ -8,6 +8,7 @@
 	export let data: import('./$types').PageData;
 	import Book from '$lib/components/routeSpecific/library/Book.svelte';
 	import SortBy from '$lib/components/routeSpecific/library/SortBy.svelte';
+	import icons from '$lib/components/icons';
 
 
 	let params: Table.Params;
@@ -27,7 +28,7 @@
 	let innerWidth: number;
 	let numCols = 6;
 
-	$: numCols = (innerWidth < 768) ? 4 : (innerWidth < 1024) ? 5 : 6
+	$: numCols = (innerWidth < 768) ? 5 : (innerWidth < 1024) ? 6 : 7
 
 
 	$: {
@@ -378,6 +379,12 @@
 								<th scope="col" class="{tableXPadding} py-3.5 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
 									About
 								</th>
+
+								<th scope="col" class="{tableXPadding} py-3.5 w-[1%] text-sm font-normal text-center rtl:text-right text-gray-500 dark:text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+										{@html icons.ok}
+									</svg>
+                </th>
 
 								<th scope="col" class="{tableXPadding} py-3.5 w-[1%] text-sm font-normal text-center rtl:text-right text-gray-500 dark:text-gray-400">
                   Accounts
