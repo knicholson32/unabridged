@@ -8,7 +8,6 @@ services:
     volumes:
       - nodemodules-unabridged:/app/node_modules
       - ../app:/app
-      - ../.audible:/root/.audible
       - ../app/db:/db
       - ../library:/library
     

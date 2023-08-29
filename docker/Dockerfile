@@ -129,7 +129,7 @@ WORKDIR /app
 
 # Install node modules
 RUN echo "---- INSTALL NODE MODULES ----" \
-  && cd /app/ && npm i
+  && cd /app/ && npm i && npx prisma generate
 
 # Build the SvelteKit project
 RUN echo "---- BUILD SERVER ----" \
@@ -158,6 +158,8 @@ ARG SERVER_PORT
 ENV AAXtoMP3_VERSION=${AAXtoMP3_VERSION}
 ENV TONE_VERSION=${TONE_VERSION}
 ENV PORT=${SERVER_PORT}
+ENV DATABSE_URL="file:/db/unabridged.db?connection_limit=1"
+ENV ORIGIN="http://localhost:3000"
 
 # Install production dependancies
 RUN echo "---- INSTALL DEPENDENCIES ----" \
@@ -181,8 +183,9 @@ RUN echo "---- INSTALL AUDIBLE-CLI ----" \
 
 # Copy artifacts from the previous stage (base & node)
 COPY --from=dependancies "${USR_LOCAL_EXPORT}/" "/usr/local/"
-COPY --from=dependancies "${ROOT_EXPORT}/" "/"
+# COPY --from=dependancies "${ROOT_EXPORT}/" "/"
 COPY --from=build "/app/build/" "/app/"
+COPY --from=build "/app/prisma/" "/app/prisma"
 COPY --from=build "/app/package.json" "/app/package.json"
 COPY --from=build "/app/package-lock.json" "/app/package-lock.json"
 
@@ -191,8 +194,12 @@ RUN echo "---- Install Production Dependancies ----" \
   && cd /app \
   && npm ci --omit dev
 
+# Prepare the DB
+RUN echo "---- Prepare the Database ----" \
+  && cd /app \
+  && npx prisma generate
 
 # Set Docker command entry point and expose the proper port
 EXPOSE ${SERVER_PORT}/tcp
-CMD ["/usr/local/bin/node", "app"]
-# ENTRYPOINT ["/init"]
+CMD ["sh","-c","cd /app && DATABASE_URL=${DATABSE_URL} npx prisma migrate deploy && DATABASE_URL=${DATABSE_URL} ORIGIN=${ORIGIN} /usr/local/bin/node /app"]
+# ENTRYPOINT ["/init"]app

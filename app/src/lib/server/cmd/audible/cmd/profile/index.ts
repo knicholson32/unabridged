@@ -11,12 +11,12 @@ import type { CountryCode } from '$lib/types';
 import * as crypto from 'crypto';
 import prisma from '$lib/server/prisma';
 import * as media from '$lib/server/media';
-import { LIBRARY_FOLDER } from '$env/static/private';
+import { LIBRARY_FOLDER, AUDIBLE_FOLDER } from '$lib/server/env';
 
 const ENTER = '\n';
 
 export const listProfiles = () => {
-    const profileResult = child_process.execSync('audible manage profile list').toString();
+    const profileResult = child_process.execSync('audible manage profile list', { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }).toString();
     console.log(profileResult);
 }
 
@@ -31,7 +31,7 @@ export const writeConfigFile = async () => {
     // Write the config.toml file
     // Delete it if it exists
     try {
-        fs.unlinkSync(path.join(process.env.AUDIBLE_FOLDER ?? '/audible/', 'config.toml'));
+        fs.unlinkSync(path.join(AUDIBLE_FOLDER, 'config.toml'));
     } catch (e) {
         // Nothing to do if it fails
     }
@@ -43,7 +43,12 @@ export const writeConfigFile = async () => {
         let configFile = `title = "Audible Config File"\n\n[APP]\nprimary_profile = "${profiles[0].id}"\n\n`
         for (const profile of profiles) configFile += `[profile.${profile.id}]\nauth_file = "${profile.id}.json"\ncountry_code = "${profile.locale_code}"\n\n`
         try {
-            fs.writeFileSync(path.join(process.env.AUDIBLE_FOLDER ?? '/audible/', 'config.toml'), configFile);
+            fs.mkdirSync(path.join(AUDIBLE_FOLDER), { recursive: true });
+        } catch(e){
+            // Nothing to do if this fails
+        }
+        try {
+            fs.writeFileSync(path.join(AUDIBLE_FOLDER, 'config.toml'), configFile);
         } catch (e) {
             console.error(e);
         }
@@ -66,7 +71,7 @@ export const getAuthFile = async (id: string): Promise<AudibleConfig | undefined
     if (profile === null || profile === undefined || isLocked()) return;
 
     try {
-        const fileBuffer = fs.readFileSync(path.join(process.env.AUDIBLE_FOLDER ?? '/audible/', profile.id + '.json'));
+        const fileBuffer = fs.readFileSync(path.join(AUDIBLE_FOLDER ?? '/audible/', profile.id + '.json'));
         return JSON.parse(fileBuffer.toString()) as AudibleConfig;
     } catch (e) {
         return;
@@ -88,9 +93,12 @@ export const fetchMetadata = async (id: string): Promise<string | undefined> => 
     // Return if the profile was not found
     if (profile === null || profile === undefined || isLocked()) return;
 
+    // Make sure the config file is there
+    await writeConfigFile();
+
     try {
         // Have the audible-cli get the activation bytes
-        child_process.execSync(`audible -P ${profile.id} activation-bytes`)
+        child_process.execSync(`/usr/local/bin/audible -P ${profile.id} activation-bytes`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } });
         // Get the auth file associated with this profile
         const authFile = await getAuthFile(id);
         // Make sure the file exists and the bytes are present
@@ -158,11 +166,13 @@ export const fetchMetadata = async (id: string): Promise<string | undefined> => 
 
         console.log('Account ' + id + 'added');
 
-
         // Return the bytes
         return authFile.activation_bytes;
     } catch (e) {
         // Something went wrong. No bytes.
+        console.log('NO BYTES!', e);
+        console.log(e.stdout);
+        console.log(e.stderr);
         return;
     }
 }
@@ -207,7 +217,7 @@ export const add = async (countryCode: CountryCode = 'us'): Promise<string> => {
     // Step 1: Lock out audible usage because we have to delete the config to allow quickstart usage for more than 1 account
     lock();
     try {
-        fs.unlinkSync(path.join(process.env.AUDIBLE_FOLDER ?? '/audible/', 'config.toml'));
+        fs.unlinkSync(path.join(AUDIBLE_FOLDER ?? '/audible/', 'config.toml'));
     } catch(e) {
         // Nothing to do if it fails
     }
@@ -220,7 +230,11 @@ export const add = async (countryCode: CountryCode = 'us'): Promise<string> => {
     }
 
     // Create the audible child_process
-    audible = child_process.spawn('audible', ['quickstart']);
+    audible = child_process.spawn(
+        'audible',
+        ['quickstart'],
+        { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }
+    );
 
     // Attach to the exit event
     audible?.on('exit', async () => {
@@ -351,7 +365,7 @@ export const add = async (countryCode: CountryCode = 'us'): Promise<string> => {
         watchdog = setTimeout(() => {
             audible?.kill();
             reject(ProfileCreationError.CLI_TIMEOUT);
-        }, 500);
+        }, 7500);
 
         // Attach the data processor to the output of the command
         audible?.stdout.on('data', dataProcessor)
@@ -462,7 +476,7 @@ export const submitURL = (url: string): { e: Promise<ProfileCreationError>, id?:
         watchdog = setTimeout(() => {
             audible?.kill();
             reject(ProfileCreationError.CLI_TIMEOUT);
-        }, 1500);
+        }, 15000);
 
         // Attach the data processor to the output of the command
         audible?.stdout.on('data', dataProcessor)
@@ -498,7 +512,11 @@ export const remove = async (id: string): Promise<boolean> => {
     // Haley's 17th Audible for iPhone deregistered
 
     // Create the audible child_process
-    let audible = child_process.spawn('audible', ['manage', 'auth-file', 'remove']);
+    let audible = child_process.spawn(
+        'audible',
+        ['manage', 'auth-file', 'remove'],
+        { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }
+    );
 
     // Attach to the exit event
     audible?.on('exit', async () => {
@@ -604,7 +622,7 @@ export const remove = async (id: string): Promise<boolean> => {
         watchdog = setTimeout(() => {
             audible?.kill();
             resolve(false);
-        }, 5000);
+        }, 15000);
 
         // Attach the data processor to the output of the command
         audible?.stdout.on('data', dataProcessor)

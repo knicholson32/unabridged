@@ -8,6 +8,7 @@ import { writeConfigFile } from '$lib/server/cmd/audible/cmd/profile';
 import { saveGoogleAPIDetails } from '$lib/server/lookup';
 import * as helpers from '$lib/helpers';
 import { getAverageColor } from 'fast-average-color-node';
+import { AUDIBLE_FOLDER } from '$lib/server/env';
 
 // --------------------------------------------------------------------------------------------
 // Library helpers
@@ -334,7 +335,7 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
     })
 
     try {
-        child_process.execSync(`audible -P ${id} library export --format json -o /tmp/${id}.library.json`);
+        child_process.execSync(`/usr/local/bin/audible -P ${id} library export --format json -o /tmp/${id}.library.json`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } });
         const library = JSON.parse(fs.readFileSync(`/tmp/${id}.library.json`).toString()) as Library;
         let numCreated = 0;
         let numUpdated = 0;

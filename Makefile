@@ -4,7 +4,7 @@
 # 	docker -H tcp://192.168.1.100:2375 build --push --file ./Dockerfile.base -t keenanrnicholson/audible-plex-base .
 create:
 	docker build --file ./docker/Dockerfile --target prod -t keenanrnicholson/unabridged:latest .
-	# docker push keenanrnicholson/unabridged
+	docker push keenanrnicholson/unabridged
 create-all:
 	# docker buildx create --name mybuilder --platform linux/arm64,linux/amd64
 	docker buildx build --builder mybuilder --file ./docker/Dockerfile --push --target prod --platform linux/arm64,linux/amd64 --tag keenanrnicholson/unabridged:latest .

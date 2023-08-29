@@ -59,8 +59,6 @@
 
   const profileMenu = [
     [{href: '#', newTab: false, title: 'View Profile'}, {href: '#', newTab: false, title: 'Settings'}, {href: '#', newTab: false, title: 'Notifications'}],
-    [{href: 'https://slack.com/apps/', newTab: true, title: 'Slack App Directory'}, {href: 'https://jaunt.entalon.com/docs/', newTab: true, title: 'Documentation'}],
-    // [{href: '/logout', newTab: false, title: 'Logout'}, {href: `https://gitlab.com/entalon/jaunt/frontend/-/commit/${PUBLIC_COMMIT}`, newTab: true, title: 'Version'}],
   ] as ProfileMenu;
 
   // -----------------------------------------------------------------------------------------------

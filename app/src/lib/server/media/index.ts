@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { MEDIA_FOLDER } from '$env/static/private';
+import { MEDIA_FOLDER } from '$lib/server/env';
 import * as child_process from 'node:child_process';
 import prisma from '$lib/server/prisma';
 import * as mime from 'mime-types';

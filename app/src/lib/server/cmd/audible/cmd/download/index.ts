@@ -11,6 +11,8 @@ import { BookDownloadError } from '../../types';
 import type { AmazonChapterData } from '../../types';
 import type { Issuer, ModalTheme, ProgressStatus } from '$lib/types';
 import { ConversionError } from '$lib/server/cmd/AAXtoMP3/types';
+import { writeConfigFile } from '../profile';
+import { AUDIBLE_FOLDER } from '$lib/server/env';
 
 // --------------------------------------------------------------------------------------------
 // Download helpers
@@ -61,6 +63,9 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
   // Create the temp folder
   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 
+  // Make sure the config file is written
+  await writeConfigFile();
+
   // Delete any old progress info relating to this sync
   try {
     await prisma.progress.delete({
@@ -84,7 +89,11 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
 
   // Create the audible child_process
   // audible -P 175aaff6-4f92-4a2c-b592-6758e1b54e5f download -o /app/db/download/skunk -a B011LR4PW4 --aaxc --pdf --cover --cover-size 1215 --chapter --annotation
-  const audible = child_process.spawn('audible', ['-P', profileID, 'download', '-o', tmpDir, '-a', asin, '--aaxc', '--pdf', '--cover', '--cover-size', '1215', '--chapter', '--annotation']);
+  const audible = child_process.spawn(
+    'audible',
+    ['-P', profileID, 'download', '-o', tmpDir, '-a', asin, '--aaxc', '--pdf', '--cover', '--cover-size', '1215', '--chapter', '--annotation'],
+    { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }
+  );
 
   // Wrap this in a promise so we can respond from this function
   const promise = new Promise<BookDownloadError>((resolve, reject) => {

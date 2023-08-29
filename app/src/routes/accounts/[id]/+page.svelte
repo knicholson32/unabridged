@@ -416,7 +416,7 @@
             <p class="ml-2 flex items-baseline text-sm font-semibold text-gray-400">
               of {data.profile.books.length}
               <span class="inline-flex ml-2 text-xs items-baseline rounded-full px-2.5 py-0.5 font-medium bg-green-100 text-green-800 md:mt-2 lg:mt-0">
-                {downloaded.compareDuration(total).toPrecision(3)}%
+                {downloaded.compareDuration(total).toPrecision(2)}%
               </span>
             </p>
             <div class="absolute inset-x-0 bottom-0 bg-gray-50 px-4 py-4 sm:px-6">

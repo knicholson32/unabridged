@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import prisma from '$lib/server/prisma';
 import * as helpers from '$lib/helpers';
 import * as media from '$lib/server/media';
-import { LIBRARY_FOLDER } from '$env/static/private';
+import { LIBRARY_FOLDER } from '$lib/server/env';
 import * as path from 'node:path';
 import type { Issuer, ModalTheme, ProgressStatus } from '$lib/types';
 import { ConversionError } from '../../types';

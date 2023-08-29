@@ -1,18 +1,3 @@
-// ============================================================================
-// | lib/events/escape.ts :: Entalon Jaunt                      |
-// |                          _                   _                           |
-// |                         | |                 | |                          |
-// |                         | | __ _ _   _ _ __ | |_                         |
-// |                     _   | |/ _` | | | | '_ \| __|                        |
-// |                    | |__| | (_| | |_| | | | | |_                         |
-// |                     \____/ \__,_|\__,_|_| |_|\__|                        |
-// |                                                                          |
-// | Copyright (C) Entalon, LLC - All Rights Reserved                         |
-// | Unauthorized copying of this file, via any medium is strictly prohibited |
-// | Proprietary and confidential                                             |
-// | Written by Keenan Nicholson <keenan@entalon.com>, March 2023             |
-// ============================================================================
-
 export type EscapeOptions = {
     callback: () => void
 }
