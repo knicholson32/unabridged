@@ -5,18 +5,19 @@ import * as helpers from '$lib/helpers';
 import * as serverHelpers from '$lib/server/helpers';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as tools from '$lib/server/cmd/tools';
 import { ProfileCreationError } from '../../types';
 import type { AudibleConfig, AmazonAcctData } from '../../types';
 import type { CountryCode } from '$lib/types';
 import * as crypto from 'crypto';
 import prisma from '$lib/server/prisma';
 import * as media from '$lib/server/media';
-import { LIBRARY_FOLDER, AUDIBLE_FOLDER } from '$lib/server/env';
+import { LIBRARY_FOLDER, AUDIBLE_FOLDER, AUDIBLE_CMD } from '$lib/server/env';
 
 const ENTER = '\n';
 
 export const listProfiles = () => {
-    const profileResult = child_process.execSync('audible manage profile list', { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }).toString();
+    const profileResult = child_process.execSync(AUDIBLE_CMD + ' manage profile list', { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }).toString();
     console.log(profileResult);
 }
 
@@ -83,7 +84,7 @@ export const getAuthFile = async (id: string): Promise<AudibleConfig | undefined
  * @param id the profile
  * @returns the bytes
  */
-export const fetchMetadata = async (id: string): Promise<string | undefined> => {
+export const fetchMetadata = async (id: string, includeProfile = true): Promise<string | undefined> => {
     // Check that the ID was actually submitted
     if (id === null || id === undefined) return;
 
@@ -98,7 +99,7 @@ export const fetchMetadata = async (id: string): Promise<string | undefined> => 
 
     try {
         // Have the audible-cli get the activation bytes
-        child_process.execSync(`/usr/local/bin/audible -P ${profile.id} activation-bytes`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } });
+        child_process.execSync(`${AUDIBLE_CMD} -P ${profile.id} activation-bytes`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } });
         // Get the auth file associated with this profile
         const authFile = await getAuthFile(id);
         // Make sure the file exists and the bytes are present
@@ -114,42 +115,47 @@ export const fetchMetadata = async (id: string): Promise<string | undefined> => 
             const acctData = JSON.parse(acctDataStr) as AmazonAcctData;
             console.log(acctData);
             email = acctData.email;
-            const hash = crypto.createHash('md5').update(email.trim().toLocaleLowerCase()).digest('hex');
             profile_image_url = '/api/image/' + id;
         } catch(e) {
             // Could not parse and therefore can't get the email address
         }
 
-        const image = await (await fetch('https://www.gravatar.com/avatar/${hash}?s=300&d=identicon')).arrayBuffer();
-        const images = await serverHelpers.cropImages(image);
-        console.log(images);
+        let first_name: string | undefined = undefined;
+        let last_name: string | undefined = undefined;
 
-        // Delete any old profile images
-        try {
-            await prisma.profileImage.delete({ where: { id } });
-        } catch (e) {
-            // Nothing to do
+        if (includeProfile) {
+            const hash = (email === undefined) ? '00000000000000000000000000000000' : crypto.createHash('md5').update(email.trim().toLocaleLowerCase()).digest('hex');
+            const image = await (await fetch(`https://www.gravatar.com/avatar/${hash}?s=300&d=identicon`)).arrayBuffer();
+            const images = await serverHelpers.cropImages(image);
+            console.log(images);
+
+            // Delete any old profile images
+            try {
+                await prisma.profileImage.delete({ where: { id } });
+            } catch (e) {
+                // Nothing to do
+            }
+
+            // Store the profile image
+            await prisma.profileImage.create({
+                data: {
+                    full: images.full,
+                    i512: images.img512,
+                    i256: images.img256,
+                    i128: images.img128,
+                    i56: images.img56,
+                    content_type: 'image/png',
+                    id: id
+                },
+            });
+
+            // Calculate names
+            const nameArr = authFile.customer_info.name.split(' ');
+            first_name = authFile.customer_info.given_name;
+            const firstNameIndex = nameArr.indexOf(first_name);
+            nameArr.splice(firstNameIndex, 1);
+            last_name = nameArr.join(' ');
         }
-
-        // Store the profile image
-        await prisma.profileImage.create({
-            data: {
-                full: images.full,
-                i512: images.img512,
-                i256: images.img256,
-                i128: images.img128,
-                i56: images.img56,
-                content_type: 'image/png',
-                id: id
-            },
-        });
-
-        // Calculate names
-        const nameArr = authFile.customer_info.name.split(' ');
-        const first_name = authFile.customer_info.given_name;
-        const firstNameIndex = nameArr.indexOf(first_name);
-        nameArr.splice(firstNameIndex, 1);
-        const last_name = nameArr.join(' ');
 
         // Update the DB with the bytes
         await prisma.profile.update({
@@ -231,7 +237,7 @@ export const add = async (countryCode: CountryCode = 'us'): Promise<string> => {
 
     // Create the audible child_process
     audible = child_process.spawn(
-        'audible',
+        AUDIBLE_CMD,
         ['quickstart'],
         { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }
     );
@@ -513,7 +519,7 @@ export const remove = async (id: string): Promise<boolean> => {
 
     // Create the audible child_process
     let audible = child_process.spawn(
-        'audible',
+        AUDIBLE_CMD,
         ['manage', 'auth-file', 'remove'],
         { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }
     );
@@ -565,44 +571,7 @@ export const remove = async (id: string): Promise<boolean> => {
                         // login URL. Start by clearing the watchdog.
                         clearTimeout(watchdog);
                         // Remove the data from the DB.
-                        try {
-                            await prisma.profile.delete({ where: { id: profile.id } });
-                        } catch (e) {
-                            // Nothing to do if it didn't exist anyway
-                        }
-                        try {
-                            const books = await prisma.book.findMany({
-                                where: { profiles: { none: {} } },
-                                include: { authors: true }
-                            });
-                            await prisma.book.deleteMany({ where: { profiles: { none: {} } } });
-                            const authors = await prisma.author.findMany({ where: { books: { none: {} } } });
-                            await prisma.series.deleteMany({ where: { books: { none: {} } } });
-                            await prisma.author.deleteMany({ where: { books: { none: {} } } });
-                            await prisma.narrator.deleteMany({ where: { books: { none: {} } } });
-                            await prisma.genre.deleteMany({ where: { books: { none: {} } } });
-                            await prisma.progress.deleteMany({ where: { id } });
-
-                            // Delete all the physical files that are associated with books that just got deleted
-                            for (const book of books) {
-                                try {
-                                    fs.rmSync(LIBRARY_FOLDER + '/' + book.authors[0].name + '/' + book.title, { recursive: true, force: true });
-                                } catch (e) {
-                                    // Nothing to do if it didn't exist anyway
-                                }
-                            }
-                            // Delete all the physical files that are associated with authors that just got deleted
-                            for (const author of authors) {
-                                try {
-                                    fs.rmSync(LIBRARY_FOLDER + '/' + author.name, { recursive: true, force: true });
-                                } catch (e) {
-                                    // Nothing to do if it didn't exist anyway
-                                }
-                            }
-                            await media.clean();
-                        } catch (e) {
-                            // Nothing to do if it didn't exist anyway
-                        }
+                        await tools.deleteAccount(profile.id);
                         resolve(true);
                     } else if (audibleData.indexOf('Aborted!') !== -1) {
                         // Start by clearing the watchdog

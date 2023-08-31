@@ -5,6 +5,8 @@
 create:
 	docker build --file ./docker/Dockerfile --target prod -t keenanrnicholson/unabridged:latest .
 	docker push keenanrnicholson/unabridged
+create-local:
+	docker build --file ./docker/Dockerfile --target prod -t keenanrnicholson/unabridged:latest .
 create-all:
 	# docker buildx create --name mybuilder --platform linux/arm64,linux/amd64
 	docker buildx build --builder mybuilder --file ./docker/Dockerfile --push --target prod --platform linux/arm64,linux/amd64 --tag keenanrnicholson/unabridged:latest .
@@ -16,7 +18,11 @@ setup:
 install:
 	docker-compose -f ./docker/docker-compose.builder.yml -p unabridged run --rm install
 dev:
+	docker-compose -f ./docker/docker-compose.install.yml -p unabridged up --remove-orphans
 	docker-compose -f ./docker/docker-compose.yml -p unabridged up --remove-orphans
+preview:
+	docker-compose -f ./docker/docker-compose.build.yml -p unabridged up --remove-orphans
+	docker-compose -f ./docker/docker-compose.preview.yml -p unabridged up --remove-orphans
 # test:
 # 	docker-compose -f ./docker/docker-compose.tester.yml run --rm test
 # test-single:

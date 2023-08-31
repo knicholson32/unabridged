@@ -22,10 +22,13 @@ export const saveFile = async (srcPath: string, asin: string, options?: { descri
 
   if (options === undefined) options = {};
 
+  srcPath = `${srcPath.replaceAll('"', '')}`;
+
   let extension = path.extname(srcPath);
   if (extension.charAt(0) == '.') extension = extension.substring(1);
 
   const stat = fs.statSync(srcPath);
+  console.log('Made it here!');
   let data: Buffer | undefined = undefined;
 
   if (options.noCopy === true) {
@@ -101,7 +104,9 @@ export const clean = async () => {
   for (const f of presentFiles) if (dbFiles.findIndex((e) => e.id === f) === -1) fs.unlinkSync(MEDIA_FOLDER + '/' + f);
   for (const f of dbFiles) {
     if (f.path !== null) {
-      if (!fs.existsSync(f.path)) dbToRemove.push(f.id);
+      if (!fs.existsSync(f.path)) {
+        dbToRemove.push(f.id);
+      }
     } else if (f.is_file === true && !presentFiles.includes(f.id)) dbToRemove.push(f.id);
   }
 

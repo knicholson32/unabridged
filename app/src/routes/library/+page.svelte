@@ -28,7 +28,7 @@
 	let innerWidth: number;
 	let numCols = 6;
 
-	$: numCols = (innerWidth < 768) ? 5 : (innerWidth < 1024) ? 6 : 7
+	$: numCols = (innerWidth < 768) ? 3 : (innerWidth < 1024) ? 4 : 5
 
 
 	$: {
@@ -421,6 +421,28 @@
 											</span>
 										</th>
 										<td class="{tableXPadding} py-2 text-sm whitespace-nowrap">
+											{#if series.books.every((b) => b.downloaded && b.processed)}
+												<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+													{@html icons.ok}
+												</svg>
+											{:else}
+												<button type="button" on:click={() => {console.log(fetch(`/api/library/download/series/${series.id}`))}}>
+													<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+														{@html icons.download}
+													</svg>
+												</button>
+											{/if}
+										</td>
+										<td class="{tableXPadding} py-2 text-sm whitespace-nowrap">
+											<div class="flex items-center justify-center">
+												{#each series.books.flatMap((b) => b.profiles).filter((e, p, s) => s.findIndex((e2) => e.id === e2.id) === p) as profile}
+													<a href="/accounts/{profile.id}" class="object-cover w-6 h-6 -mx-1 border-2 border-white rounded-full overflow-hidden dark:border-gray-700 shrink-0">
+														<img src="{profile.profile_image_url}/128" alt="" />
+													</a>
+												{/each}
+											</div>
+										</td>
+										<td class="{tableXPadding} py-2 text-sm whitespace-nowrap">
 											<button class="px-1 py-1 text-gray-500 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100" >
 												<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
 													<path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
@@ -455,7 +477,7 @@
 							{#each data.authors as author}
 								<thead class="bg-gray-50 dark:bg-gray-800 sticky top-[63px]">
 									<tr>
-										<th title="{author.name}" scope="col" colspan={numCols - 1} class="py-3.5 {tableXPaddingLeft} text-sm text-left rtl:text-right font-medium text-gray-800 dark:text-white">
+										<th title="{author.name}" scope="col" colspan={numCols + 1} class="py-3.5 {tableXPaddingLeft} text-sm text-left rtl:text-right font-medium text-gray-800 dark:text-white">
 											{helpers.truncateString(author.name, 100)}
 											<span class="font-normal text-xs text-gray-400 dark:text-gray-500">
 												<!-- <span title="{series.authors.join(', ')}">{helpers.joinWithLimit(series.authors, 2)}</span> | 

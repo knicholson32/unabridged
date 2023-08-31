@@ -8,4 +8,5 @@ export async function load({ fetch }) {
     return {
         notifications: nData.notifications ?? [],
     };
+
 }

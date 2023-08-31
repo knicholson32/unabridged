@@ -312,7 +312,8 @@ export const extensionLogo = (ext: string): string => {
  * @param bytes the bytes to convert to string
  * @returns the string
  */
-export const numBytesToString = (bytes: number): string => {
+export const numBytesToString = (bytes: bigint | number): string => {
+    if (typeof bytes === 'bigint') bytes = Number(bytes);
     const sizeKB = bytes / 1024;
     const sizeMB = sizeKB / 1024;
     const sizeGB = sizeMB / 1024;

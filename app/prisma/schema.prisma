@@ -105,12 +105,13 @@ model Book {
   purchase_date      BigInt
   seriesId           String?
 
-  downloaded Boolean
-  processed  Boolean
-  cover      Cover?
-  branding   Branding?
-  chapters   Chapter[]
-  media      Media[]
+  downloaded   Boolean
+  processed    Boolean
+  cover        Cover?
+  branding     Branding?
+  chapters     Chapter[]
+  media        Media[]
+  ProcessQueue ProcessQueue?
 
   @@map("books")
 }
@@ -147,7 +148,7 @@ model Media {
   description  String?
   extension    String
   title        String
-  size_b       Int
+  size_b       BigInt
 
   @@map("media")
 }
@@ -169,6 +170,16 @@ model Chapter {
   start_offset_ms Int
 
   @@map("chapters")
+}
+
+model ProcessQueue {
+  id             String  @id
+  book           Book    @relation(fields: [bookAsin], references: [asin], onDelete: Cascade)
+  bookAsin       String  @unique
+  in_progress    Boolean @default(false)
+  try_after_time BigInt?
+
+  @@map("processQueue")
 }
 
 model Progress {

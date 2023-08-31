@@ -4,21 +4,35 @@ import { v4 as uuidv4 } from 'uuid';
 import prisma from '$lib/server/prisma';
 import * as helpers from '$lib/helpers';
 import * as media from '$lib/server/media';
-import { LIBRARY_FOLDER } from '$lib/server/env';
+import { AAXtoMP3_COMMAND, LIBRARY_FOLDER } from '$lib/server/env';
 import * as path from 'node:path';
 import type { Issuer, ModalTheme, ProgressStatus } from '$lib/types';
 import { ConversionError } from '../../types';
+import sanitize from 'sanitize-filename';
 
 // --------------------------------------------------------------------------------------------
 // Download helpers
 // --------------------------------------------------------------------------------------------
 
+const cancelMap: {
+  [key: string]: {
+    canceled: boolean,
+    proc: child_process.ChildProcessWithoutNullStreams
+  }
+} = {}
+
+export const cancel = async (asin: string) => {
+  if (asin in cancelMap) {
+    cancelMap[asin].canceled = true;
+    cancelMap[asin].proc.kill();
+  }
+}
 
 // --------------------------------------------------------------------------------------------
 // Download Functions
 // --------------------------------------------------------------------------------------------
 
-export const exec = async (asin: string): Promise<ConversionError> => {
+export const exec = async (asin: string, tmpDir: string): Promise<ConversionError> => {
   // Get the book from the DB
   const book = await prisma.book.findUnique({
     where: { asin },
@@ -32,11 +46,8 @@ export const exec = async (asin: string): Promise<ConversionError> => {
   if (book === null) return ConversionError.BOOK_NOT_FOUND;
   if (book.profiles.length === 0) return ConversionError.NO_PROFILE;
 
-  // Create a temp directory for this library
-  const tmpDir = `/tmp/${asin}`;
-
   // Create the temp folder
-  if (!fs.existsSync(tmpDir)) return ConversionError.FILES_DONT_EXIST;
+  if (!fs.existsSync(tmpDir)) return ConversionError.NO_FOLDER;
 
   let authCode: string | undefined = undefined;
   let profileID: string | undefined = undefined;
@@ -52,7 +63,8 @@ export const exec = async (asin: string): Promise<ConversionError> => {
   if (authCode === undefined || profileID === undefined) return ConversionError.NO_PROFILE_WITH_AUTHCODE;
 
   // Delete this book from the downloaded library if it exists
-  const destinationFolder = LIBRARY_FOLDER + '/' + book.authors[0].name + '/' + book.title + '/';
+  const destinationFolder = `${LIBRARY_FOLDER}/${sanitize(book.authors[0].name)}/${sanitize(book.title)}`;
+  console.log('removing', destinationFolder);
   try {
     fs.rmSync(destinationFolder, { recursive: true, force: true});
   } catch(e) {
@@ -82,10 +94,10 @@ export const exec = async (asin: string): Promise<ConversionError> => {
   });
 
   // AAXtoMP3 -e:m4b -s --author "Martha Wells" --authcode 4165af03 --dir-naming-scheme '$artist/$title' --file-naming-scheme '$title' --use-audible-cli-data -t /app/db/export ./*.aaxc
-  const args = ['-e:m4b', '-s', '--author', `"${book.authors[0].name}"`, '--authcode', authCode, '--dir-naming-scheme', `'${book.authors[0].name}/${book.title}'`, '--file-naming-scheme', `'${book.title}'`, '--use-audible-cli-data', '-t', LIBRARY_FOLDER, './*.aaxc']
-  console.log(`AAXtoMP3 ${args.join(' ')}`);
+  const args = ['-e:m4b', '-s', '--author', `"${book.authors[0].name}"`, '--authcode', authCode, '--dir-naming-scheme', `"${sanitize(book.authors[0].name)}"/"${sanitize(book.title)}"`, '--file-naming-scheme', `"${sanitize(book.title)}"`, '--use-audible-cli-data', '-t', LIBRARY_FOLDER, './*.aaxc']
+  console.log(`${AAXtoMP3_COMMAND} ${args.join(' ')}`);
   const aax = child_process.spawn(
-    'AAXtoMP3',
+    AAXtoMP3_COMMAND,
     args,
     { 
       cwd: tmpDir,
@@ -93,6 +105,12 @@ export const exec = async (asin: string): Promise<ConversionError> => {
       shell: true
     }
   );
+
+  // Assign cancel map
+  cancelMap[asin] = {
+    proc: aax,
+    canceled: false
+  }
 
   // Wrap this in a promise so we can respond from this function
   const promise = new Promise<ConversionError>((resolve, reject) => {
@@ -104,10 +122,12 @@ export const exec = async (asin: string): Promise<ConversionError> => {
 
       if (data.indexOf('ERROR') !== -1) {
         console.error(data);
-        reject(ConversionError.CONVERSION_ERROR)
+        aax.kill();
+        reject(ConversionError.CONVERSION_ERROR);
+      } else {
+        console.log(data.replaceAll('\n', '\\n\n').replaceAll('\r', '\\r\n'));
       }
 
-      console.log(data.replaceAll('\n', '\\n\n').replaceAll('\r', '\\r\n'));
 
     }
 
@@ -154,43 +174,77 @@ export const exec = async (asin: string): Promise<ConversionError> => {
 
     // Attach to the exit event
     aax.on('exit', async () => {
-      try {
-        await prisma.progress.update({
-          where: {
-            id_type: {
-              id: book.asin,
-              type: 'process'
+      if (cancelMap[asin].canceled === true) {
+        try {
+          await prisma.progress.update({
+            where: {
+              id_type: {
+                id: book.asin,
+                type: 'process'
+              }
+            },
+            data: {
+              progress: 0,
+              status: 'ERROR' satisfies ProgressStatus
             }
-          },
-          data: {
-            progress: 1,
-            status: 'DONE' satisfies ProgressStatus
-          }
-        });
-      } catch (e) {
-        // Nothing to do  
+          });
+        } catch (e) {
+          // Nothing to do  
+        }
+        resolve(ConversionError.CANCELED);
+      } else {
+        try {
+          await prisma.progress.update({
+            where: {
+              id_type: {
+                id: book.asin,
+                type: 'process'
+              }
+            },
+            data: {
+              progress: 1,
+              status: 'DONE' satisfies ProgressStatus
+            }
+          });
+        } catch (e) {
+          // Nothing to do  
+        }
+        resolve(ConversionError.NO_ERROR);
       }
-      resolve(ConversionError.NO_ERROR);
     });
   });
 
   // Wait for the download to finish
   const results = await promise;
 
-  // Add the converted file to the media attachments
-  await media.saveFile(destinationFolder + '/' + book.title + '.m4b', book.asin, {
-    description: 'Playable audio book file',
-    title: book.title,
-    noCopy: true,
-  });
 
-  // Assign the book as processed
-  await prisma.book.update({
-    where: { asin: book.asin },
-    data: {
-      processed: true
+  if (results === ConversionError.NO_ERROR) {
+    try {
+      // Add the converted file to the media attachments
+      await media.saveFile(`${destinationFolder}/${sanitize(book.title)}.m4b`, book.asin, {
+        description: 'Playable audio book file',
+        title: book.title,
+        noCopy: true,
+      });
+
+      // Assign the book as processed
+      await prisma.book.update({
+        where: { asin: book.asin },
+        data: {
+          processed: true
+        }
+      });
+    } catch(e) {
+      console.log('Conversion error', e);
+      return ConversionError.COULD_NOT_SAVE;
     }
-  });
+  } else {
+    // Assign the book as downloaded
+    await prisma.book.update({
+      where: { asin: book.asin },
+      data: { processed: false }
+    });
+  }
 
   return results;
 }

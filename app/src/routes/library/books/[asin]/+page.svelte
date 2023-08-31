@@ -443,6 +443,10 @@
     <LoadingCircle id={data.book.asin} type={'process'} />
     <button class="text-sm font-semibold leading-6 text-gray-900">Download</button>
   </form>
+  <button type="button" on:click={() => {console.log(fetch(`/api/library/cancel/book/${data.book.asin}`))}} class="text-sm font-semibold leading-6 text-gray-900">Cancel</button>
+  {#if data.book.downloaded}
+    <button type="button" on:click={() => {console.log(fetch(`/api/library/remove/book/${data.book.asin}`))}} class="text-sm font-semibold leading-6 text-gray-900">Remove</button>
+  {/if}
   <form method="POST" action="?/update" class="flex items-center justify-end gap-x-6" use:enhance={() => {
     updatesSubmitting = true;
     return async ({ update }) => {

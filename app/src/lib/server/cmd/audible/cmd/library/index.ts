@@ -8,17 +8,11 @@ import { writeConfigFile } from '$lib/server/cmd/audible/cmd/profile';
 import { saveGoogleAPIDetails } from '$lib/server/lookup';
 import * as helpers from '$lib/helpers';
 import { getAverageColor } from 'fast-average-color-node';
-import { AUDIBLE_FOLDER } from '$lib/server/env';
+import { AUDIBLE_CMD, AUDIBLE_FOLDER } from '$lib/server/env';
 
 // --------------------------------------------------------------------------------------------
 // Library helpers
 // --------------------------------------------------------------------------------------------
-
-const fuzzyAuthor = (arr: { name: string }[], str: string) => {
-    const con = str.toLocaleLowerCase().replaceAll(' ', '').trim();
-    for (const s of arr) if (s.name.toLocaleLowerCase().replaceAll(' ', '').trim() === con) return true
-    return false;
-}
 
 type Correction = {
     s: string,
@@ -144,8 +138,6 @@ const addSeries = async (title: string): Promise<string> => {
 // --------------------------------------------------------------------------------------------
 
 const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
-
-    await new Promise((resolve) => setTimeout(resolve, 50));
 
     // Get values for the DB from the book object
     const asin = book.asin;
@@ -335,7 +327,7 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
     })
 
     try {
-        child_process.execSync(`/usr/local/bin/audible -P ${id} library export --format json -o /tmp/${id}.library.json`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } });
+        child_process.execSync(`${AUDIBLE_CMD} -P ${id} library export --format json -o /tmp/${id}.library.json`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } });
         const library = JSON.parse(fs.readFileSync(`/tmp/${id}.library.json`).toString()) as Library;
         let numCreated = 0;
         let numUpdated = 0;

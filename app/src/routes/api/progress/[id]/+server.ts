@@ -19,6 +19,9 @@ export const GET = async ({ params }) => {
       status: true,
       message: true,
       ref: true,
+      speed_mb_s: true,
+      total_mb: true,
+      downloaded_mb: true
     }
   });
 

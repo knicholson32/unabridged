@@ -3,6 +3,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Decimal } from '@prisma/client/runtime/library.js';
 import * as audible from '$lib/server/cmd/audible';
 import { BookDownloadError, bookDownloadErrorToString } from '$lib/server/cmd/audible/types/index.js';
+import { LibraryManager } from '$lib/server/cmd/index.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params }) => {
@@ -114,7 +115,8 @@ export const actions = {
     // Return if the profile was not found
     if (book === null || book === undefined) throw error(404, 'Not found');
 
-    const res = await audible.cmd.download.download(book.asin);
-    return { success: res === BookDownloadError.NO_ERROR, response: 'download', message: bookDownloadErrorToString(res) };
+    // const res = await audible.cmd.download.download(book.asin);
+    await LibraryManager.queueBook(book.asin);
+    return { success: true, response: 'download' };
   }
 }

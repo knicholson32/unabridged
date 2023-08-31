@@ -59,3 +59,7 @@ You can preview the production build with `npm run preview`.
 ### Browse Local Library
 * Be able to browse the local library and sort by lots of params
 * Be able to change params for a book or set of books
+
+
+### ToDo
+[ ] Allow an account to be re-authenticated, so if there is an issue you don't lose all the books

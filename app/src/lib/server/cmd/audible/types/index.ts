@@ -152,8 +152,8 @@ export enum BookDownloadError {
     AUDIBLE_LOCKED = 'AUDIBLE_LOCKED',
     NO_PROFILE_WITH_AUTHCODE = 'NO_PROFILE_WITH_AUTHCODE',
     BOOK_NOT_FOUND = 'BOOK_NOT_FOUND',
-    NO_PROFILE = 'NO_PROFILE',
-    CONVERSION_ERROR = 'CONVERSION_ERROR',
+    CANCELED = 'CANCELED',
+    NO_PROFILE = 'NO_PROFILE'
 }
 
 export const bookDownloadErrorToString = (e: BookDownloadError): string => {
@@ -166,10 +166,10 @@ export const bookDownloadErrorToString = (e: BookDownloadError): string => {
             return 'None of the profiles have authcodes downloaded';
         case BookDownloadError.BOOK_NOT_FOUND:
             return 'The audible book does not exist';
+        case BookDownloadError.CANCELED:
+            return 'The book download process was canceled';
         case BookDownloadError.NO_PROFILE:
             return 'No profile exists to download this book';
-        case BookDownloadError.CONVERSION_ERROR:
-            return 'There was an error converting the book';
         default:
             return 'An unknown error occurred';
     }

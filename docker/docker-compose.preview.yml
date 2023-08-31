@@ -2,25 +2,24 @@
 
 version: '2'
 services:
-  base:
+  preview:
     image: unabridged-dev
-    container_name: unabridged-builder
+    container_name: unabridged-preview
     volumes:
       - nodemodules-unabridged:/app/node_modules
       - ../app:/app
+      - ../app/db:/db
+      - ../library:/library
+
+    stop_signal: SIGKILL
     working_dir: /app
-  install:
-    extends:
-      service: base
-    command: npm i
-  # build:
-  #   extends:
-  #     service: install
-  #   command: npm run build-db
-  # create-bundles:
-  #   extends:
-  #     service: base
-  #   command: npm run create-bundles
+    command: npm run preview -- --host
+    init: true
+    ports:
+      - 4173:4173
+    tty: true
+    stdin_open: true
+    # network_mode: "host"
 volumes:
   nodemodules-unabridged:
     external: true

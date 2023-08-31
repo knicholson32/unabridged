@@ -133,7 +133,7 @@ RUN echo "---- INSTALL NODE MODULES ----" \
 
 # Build the SvelteKit project
 RUN echo "---- BUILD SERVER ----" \
-  && npm run build
+  && ORIGIN=${ORIGIN} PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host npm run build
 
 ######### Production Stage #########################################################################
 FROM python:3.11.4-alpine3.18 as prod
@@ -199,7 +199,8 @@ RUN echo "---- Prepare the Database ----" \
   && cd /app \
   && npx prisma generate
 
+STOPSIGNAL SIGKILL
 # Set Docker command entry point and expose the proper port
 EXPOSE ${SERVER_PORT}/tcp
-CMD ["sh","-c","cd /app && DATABASE_URL=${DATABSE_URL} npx prisma migrate deploy && DATABASE_URL=${DATABSE_URL} ORIGIN=${ORIGIN} /usr/local/bin/node /app"]
+CMD ["sh","-c","cd /app && DATABASE_URL=${DATABSE_URL} npx prisma migrate deploy && DATABASE_URL=${DATABSE_URL} ORIGIN=${ORIGIN} PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host /usr/local/bin/node /app"]
 # ENTRYPOINT ["/init"]app

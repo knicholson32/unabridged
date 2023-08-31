@@ -2,24 +2,18 @@
 
 version: '3'
 services:
-  dev:
+  install:
     image: unabridged-dev
-    container_name: unabridged-dev
+    container_name: unabridged-dev-build
     volumes:
       - nodemodules-unabridged:/app/node_modules
       - ../app:/app
-      - ../app/db:/db
-      - ../library:/library
     
-    stop_signal: SIGKILL
     working_dir: /app
-    command: npm run dev -- --host
+    command: sh -c "npm i && npx prisma generate && npm run build"
     init: true
-    ports:
-      - 5173:5173
     tty: true
     stdin_open: true
-    # network_mode: "host"
 
 volumes:
   nodemodules-unabridged:

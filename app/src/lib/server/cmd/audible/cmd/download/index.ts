@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { isLocked } from '../../';
 import prisma from '$lib/server/prisma';
 import * as helpers from '$lib/helpers';
+import * as tools from '$lib/server/cmd/tools';
 import * as aax from '$lib/server/cmd/AAXtoMP3';
 import * as media from '$lib/server/media';
 import * as path from 'node:path';
@@ -12,7 +13,7 @@ import type { AmazonChapterData } from '../../types';
 import type { Issuer, ModalTheme, ProgressStatus } from '$lib/types';
 import { ConversionError } from '$lib/server/cmd/AAXtoMP3/types';
 import { writeConfigFile } from '../profile';
-import { AUDIBLE_FOLDER } from '$lib/server/env';
+import { AUDIBLE_FOLDER, AUDIBLE_CMD } from '$lib/server/env';
 
 // --------------------------------------------------------------------------------------------
 // Download helpers
@@ -23,7 +24,19 @@ import { AUDIBLE_FOLDER } from '$lib/server/env';
 // Download Functions
 // --------------------------------------------------------------------------------------------
 
-export const download = async (asin: string): Promise<BookDownloadError> => {
+const cancelMap: { [key: string]: {
+  canceled: boolean,
+  proc: child_process.ChildProcessWithoutNullStreams
+} } = {}
+
+export const cancel = async (asin: string) => {
+  if (asin in cancelMap) {
+    cancelMap[asin].canceled = true;
+    cancelMap[asin].proc.kill();
+  }
+}
+
+export const download = async (asin: string, tmpDir: string): Promise<BookDownloadError> => {
   // Check if audible is locked
   if (isLocked()) return BookDownloadError.AUDIBLE_LOCKED;
 
@@ -49,19 +62,6 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
   }
 
   if (profileID === undefined) return BookDownloadError.NO_PROFILE_WITH_AUTHCODE;
-
-  // Create a temp directory for this library
-  const tmpDir = `/tmp/${asin}`;
-
-  // Remove the temp folder and files
-  try {
-    if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
-  } catch (e) {
-    // Nothing to do if this fails
-    console.log('unlink', tmpDir, e);
-  }
-  // Create the temp folder
-  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 
   // Make sure the config file is written
   await writeConfigFile();
@@ -90,10 +90,16 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
   // Create the audible child_process
   // audible -P 175aaff6-4f92-4a2c-b592-6758e1b54e5f download -o /app/db/download/skunk -a B011LR4PW4 --aaxc --pdf --cover --cover-size 1215 --chapter --annotation
   const audible = child_process.spawn(
-    'audible',
+    AUDIBLE_CMD,
     ['-P', profileID, 'download', '-o', tmpDir, '-a', asin, '--aaxc', '--pdf', '--cover', '--cover-size', '1215', '--chapter', '--annotation'],
     { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }
   );
+
+  // Assign cancel map
+  cancelMap[asin] = {
+    proc: audible,
+    canceled: false
+  }
 
   // Wrap this in a promise so we can respond from this function
   const promise = new Promise<BookDownloadError>((resolve, reject) => {
@@ -103,33 +109,7 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
       // Convert the buffer data to a string
       const data = d.toString();
 
-      // Chapter file saved to /tmp/B011LR4PW4/Skunk_Works_A_Personal_Memoir_of_My_Years_of_Lockheed-chapters.json.\n
-      //
-      // File /tmp/B011LR4PW4/Skunk_Works_A_Personal_Memoir_of_My_Years_of_Lockheed_(1215).jpg downloaded in 0:00:00.208721.\n
-      //
-      // Voucher file saved to /tmp/B011LR4PW4/Skunk_Works_A_Personal_Memoir_of_My_Years_of_Lockheed-AAX_22_64.voucher.\n
-      //
-      // Annotation file saved to /tmp/B011LR4PW4/Skunk_Works_A_Personal_Memoir_of_My_Years_of_Lockheed-annotations.json.\n
-      //
-      // File /tmp/B011LR4PW4/Skunk_Works_A_Personal_Memoir_of_My_Years_of_Lockheed.pdf downloaded in 0:00:09.566029.\n
-      //
-      // File /tmp/B011LR4PW4/Skunk_Works_A_Personal_Memoir_of_My_Years_of_Lockheed-AAX_22_64.aaxc downloaded in 0:00:23.590630.\n
-      //
-      // The download ended with the following result:\n
-      // New aaxc files: 1\n
-      // New annotation files: 1\n
-      // New chapter files: 1\n
-      // New cover files: 1\n
-      // New pdf files: 1\n
-      // New voucher files: 1\n
       console.log(data.replaceAll('\n', '\\n\n').replaceAll('\r', '\\r\n'));
-
-      // // Add the data from the audible-cli to the running audibleData string
-      // audibleData += data;
-
-      // // Keep track of the state so we can see if it changes during this function. This is used
-      // // to automatically clear the audibleData string when the state changes
-      // const lastState = profileState;
 
     }
 
@@ -138,25 +118,6 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
       // Convert the buffer data to a string
       const data = d.toString();
 
-      // Chapter file saved to /tmp/B011LR4PW4/Skunk_Works_A_Personal_Memoir_of_My_Years_of_Lockheed-chapters.json.\n
-      //
-      // File /tmp/B011LR4PW4/Skunk_Works_A_Personal_Memoir_of_My_Years_of_Lockheed_(1215).jpg downloaded in 0:00:00.208721.\n
-      //
-      // Voucher file saved to /tmp/B011LR4PW4/Skunk_Works_A_Personal_Memoir_of_My_Years_of_Lockheed-AAX_22_64.voucher.\n
-      //
-      // Annotation file saved to /tmp/B011LR4PW4/Skunk_Works_A_Personal_Memoir_of_My_Years_of_Lockheed-annotations.json.\n
-      //
-      // File /tmp/B011LR4PW4/Skunk_Works_A_Personal_Memoir_of_My_Years_of_Lockheed.pdf downloaded in 0:00:09.566029.\n
-      //
-      // File /tmp/B011LR4PW4/Skunk_Works_A_Personal_Memoir_of_My_Years_of_Lockheed-AAX_22_64.aaxc downloaded in 0:00:23.590630.\n
-      //
-      // The download ended with the following result:\n
-      // New aaxc files: 1\n
-      // New annotation files: 1\n
-      // New chapter files: 1\n
-      // New cover files: 1\n
-      // New pdf files: 1\n
-      // New voucher files: 1\n
       const regex = /(?<percent>[0-9]+)%\|[█▉▊▋▌▍▎▏\s]+\| (?<downloaded>[0-9.]+)[MG]\/(?<total>[0-9.]+)[MG] \[.+ (?<speed>[0-9.]+)[a-zA-Z]+\/s]/;
 
       type RegexMatchGroups = { percent: string, downloaded: string, total: string, speed: string };
@@ -189,13 +150,6 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
         }
       }
 
-      // // Add the data from the audible-cli to the running audibleData string
-      // audibleData += data;
-
-      // // Keep track of the state so we can see if it changes during this function. This is used
-      // // to automatically clear the audibleData string when the state changes
-      // const lastState = profileState;
-
     }
 
     // Attach the data processor to the output of the command
@@ -204,23 +158,45 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
 
     // Attach to the exit event
     audible.on('exit', async () => {
-      try {
-        await prisma.progress.update({
-          where: {
-            id_type: {
-              id: book.asin,
-              type: 'download'
+      if (cancelMap[asin].canceled === true) {
+        try {
+          await prisma.progress.update({
+            where: {
+              id_type: {
+                id: book.asin,
+                type: 'download'
+              }
+            },
+            data: {
+              progress: 1,
+              status: 'ERROR' satisfies ProgressStatus
             }
-          },
-          data: {
-            progress: 1,
-            status: 'DONE' satisfies ProgressStatus
-          }
-        });
-      } catch(e) {
-        // Nothing to do
+          });
+        } catch(e) {
+          // Nothing to do
+        }
+        resolve(BookDownloadError.CANCELED);
+      } else {
+        try {
+          await prisma.progress.update({
+            where: {
+              id_type: {
+                id: book.asin,
+                type: 'download'
+              }
+            },
+            data: {
+              progress: 1,
+              status: 'DONE' satisfies ProgressStatus
+            }
+          });
+        } catch (e) {
+          // Nothing to do
+        }
+        resolve(BookDownloadError.NO_ERROR);
       }
-      resolve(BookDownloadError.NO_ERROR);
+
+      delete cancelMap[asin];
     });
   });
 
@@ -322,53 +298,14 @@ export const download = async (asin: string): Promise<BookDownloadError> => {
         downloaded: true
       }
     });
-
-    // Process the book
-    let results: ConversionError | undefined = undefined;
-    
-    try {
-      results = await aax.cmd.convert.exec(book.asin);
-    } catch(e) {
-      // Nothing to do
-      console.log('Conversion crash', e);
-    }
-
-    if (results !== ConversionError.NO_ERROR) {
-      // Remove the temp folder and files
-      console.log('conversion failure', results);
-      try {
-        if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
-      } catch (e) {
-        // Nothing to do if this fails
-        console.log('unlink', tmpDir, e);
-      }
-      return BookDownloadError.CONVERSION_ERROR;
-    }
-
-    console.log('Create notification');
-    await prisma.notification.create({
-      data: {
-        id: uuidv4(),
-        issuer: 'audible.download' satisfies Issuer,
-        identifier: book.cover?.url_100,
-        theme: 'info' satisfies ModalTheme,
-        text: `<a href="/library/books/${book.asin}">${book.title}</a> <span class="text-gray-600">Downloaded</span>`,
-        sub_text: new Date().toISOString(),
-        linger_time: 10000,
-        needs_clearing: true,
-        auto_open: true
-      }
+  } else {
+    // Assign the book as downloaded
+    await prisma.book.update({
+      where: { asin: book.asin },
+      data: { downloaded: false, processed: false }
     });
   }
 
-  // Remove the temp folder and files
-  try {
-    if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
-  } catch(e) {
-    // Nothing to do if this fails
-    console.log('unlink', tmpDir, e);
-  }
-
-  return BookDownloadError.NO_ERROR;
+  return results;
 
 }

@@ -42,6 +42,7 @@
 		"fast-average-color-node": "^2.6.0",
 		"fuse.js": "^6.6.2",
 		"mime-types": "^2.1.35",
+		"sanitize-filename": "^1.6.3",
 		"sharp": "^0.32.5",
 		"svelte-inview": "^4.0.1",
 		"uuid": "^9.0.0"

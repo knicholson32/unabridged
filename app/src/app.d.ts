@@ -7,6 +7,12 @@ declare global {
 		// interface PageData {}
 		// interface Platform {}
 	}
+	declare namespace globalThis {
+		declare namespace manager {
+			let interval: NodeJS.Interval | undefined;
+			let runProcess: () => void;
+		}
+	}
 }
 
 export {};

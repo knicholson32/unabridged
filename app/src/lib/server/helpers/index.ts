@@ -1,6 +1,8 @@
 import type { Images } from '$lib/types';
 import sharp from 'sharp';
 import * as helpers from '$lib/helpers';
+import sanitize from 'sanitize-filename';
+import * as path from 'node:path';
 
 export const cropImages = async (image: ArrayBuffer): Promise<Images> => {
   const imageBuffer = helpers.toBuffer(image);
