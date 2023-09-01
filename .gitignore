@@ -12,4 +12,4 @@ docker/database/data
 .audible/*
 .venv
 !.env.example
-library
+./library
