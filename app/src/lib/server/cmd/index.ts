@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { BookDownloadError } from './audible/types';
 import type { Issuer, ModalTheme } from '$lib/types';
 import { ConversionError } from './AAXtoMP3/types';
+import { ProcessError } from './types';
 
 enum ProcessState {
   NOT_STARTED = 'NOT_STARTED',
@@ -89,17 +90,40 @@ export namespace LibraryManager {
    * @param id the entry to adjust
    * @param cooldown the cooldown in seconds
    */
-  const tryAgainLater = async (id: string, cooldown: number) => {
+  const tryAgainLater = async (id: string, cooldown: number, result: ProcessError) => {
     // There are. We need to try this entry again in a bit
     await prisma.processQueue.update({
       where: { id },
       data: {
         in_progress: false,
-        try_after_time: Date.now() + cooldown
+        is_done: false,
+        process_progress: 0,
+        download_progress: 0,
+        speed: null,
+        total_mb: null,
+        downloaded_mb: null,
+        try_after_time: Date.now() + cooldown,
+        result
       }
     });
     // In a bit, restart the processors just in case none of them are running by then
     setTimeout(global.manager.runProcess, cooldown + 100);
+  }
+
+  const processFailed = async (id: string, result: ProcessError, downloadProgress: number, processProgress: number) => {
+    await prisma.processQueue.update({ where: { id },
+      data: {
+        in_progress: false,
+        is_done: true,
+        result: result,
+        download_progress: downloadProgress,
+        process_progress: processProgress,
+        speed: null,
+        total_mb: null,
+        downloaded_mb: null,
+        try_after_time: null
+      }
+    });
   }
 
   const getQueueFinder = () => {
@@ -113,7 +137,8 @@ export namespace LibraryManager {
               { try_after_time: { lte: Date.now() } }
             ]
           },
-          { in_progress: false }
+          { in_progress: false },
+          { is_done: false }
         ]
       }
     }
@@ -125,7 +150,6 @@ export namespace LibraryManager {
   let processorPromises: (Promise<void> | undefined)[] = Array.from({ length: CONCURRENT_PROCESSES }, (_, i) => undefined);
 
   const processFunc = async (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
-    console.log('Processor started!');
     // Get the next element from the queue
     await lockProcessQueue();
     let queueEntry = await prisma.processQueue.findFirst(getQueueFinder());
@@ -133,7 +157,16 @@ export namespace LibraryManager {
     while (queueEntry !== null) {
       // Steps to download and process a book
       // 1. Select this entry as in-progress
-      await prisma.processQueue.update({ where: { id: queueEntry.id }, data: { in_progress: true } });
+      await prisma.processQueue.update({ where: { id: queueEntry.id }, data: {
+        in_progress: true,
+        is_done: false,
+        process_progress: 0,
+        download_progress: 0,
+        downloaded_mb: null,
+        total_mb: null,
+        speed: null,
+        result: null
+      }});
       unlockProcessQueue();
       let tmpDir: string | undefined = undefined;
       try {
@@ -143,7 +176,7 @@ export namespace LibraryManager {
         // Delete present files relating to this book if they exist, but don't delete the book in the DB
         await tools.cleanBook(queueEntry.book.asin);
         // 2. Download the book, updating the book progress as required
-        const bookDownload = await audible.cmd.download.download(queueEntry.book.asin, tmpDir);
+        const bookDownload = await audible.cmd.download.download(queueEntry.book.asin, queueEntry.id,tmpDir);
         console.log(bookDownload);
         switch (bookDownload) {
           case BookDownloadError.NO_ERROR:
@@ -151,21 +184,21 @@ export namespace LibraryManager {
             break;
           case BookDownloadError.AUDIBLE_LOCKED:
             // Audible is locked. We need to try again in a bit. Give this one a delay of a few seconds
-            await tryAgainLater(queueEntry.id, ATTEMPT_COOLDOWN);
+            await tryAgainLater(queueEntry.id, ATTEMPT_COOLDOWN, ProcessError.AUDIBLE_LOCKED);
             break;
           case BookDownloadError.BOOK_NOT_FOUND:
             // The book could not be found. We can just delete this entry
-            await prisma.processQueue.delete({ where: { id: queueEntry.id } });
+            await processFailed(queueEntry.id, ProcessError.BOOK_NOT_FOUND, 0, 0);
             break;
           case BookDownloadError.CANCELED:
             // The user has canceled. We can just delete this entry
-            await prisma.processQueue.delete({ where: { id: queueEntry.id } });
+            await processFailed(queueEntry.id, ProcessError.CANCELED, 0, 0);
             break;
           case BookDownloadError.NO_PROFILE:
             // This book has no account that owns it. It should be deleted.
             await tools.deleteBook(queueEntry.book.asin);
             // Delete this entry
-            await prisma.processQueue.delete({ where: { id: queueEntry.id } });
+            await processFailed(queueEntry.id, ProcessError.NO_PROFILE, 0, 0);
             break;
           case BookDownloadError.NO_PROFILE_WITH_AUTHCODE:
             // The profiles need metadata pulled
@@ -181,39 +214,40 @@ export namespace LibraryManager {
               for (const p of book.profiles) if (p.activation_bytes !== null) bytes = true;
               // Check if there are bytes
               if (bytes === true) {
-                await tryAgainLater(queueEntry.id, ATTEMPT_COOLDOWN_SHORT);
+                await tryAgainLater(queueEntry.id, ATTEMPT_COOLDOWN_SHORT, ProcessError.NO_PROFILE_WITH_AUTHCODE);
                 break;
               }
             }
             // Delete this queued entry
-            await prisma.processQueue.delete({ where: { id: queueEntry.id } });
+            await processFailed(queueEntry.id, ProcessError.NO_PROFILE_WITH_AUTHCODE, 0, 0);
             break;
           default:
             console.log('ERROR: Unexpected BookDownloadError:', bookDownload);
             // Delete this queued entry
-            await prisma.processQueue.delete({ where: { id: queueEntry.id } });
+            await processFailed(queueEntry.id, bookDownload as unknown as ProcessError, 0, 0);
             break;
         }
         // Only continue if there was no error
         if (bookDownload === BookDownloadError.NO_ERROR) {
+          // Update the progress to show the download done
+          await prisma.processQueue.update({ where: { id: queueEntry.id }, data: { download_progress: 1, result: null } });
           // 3. Process the book, updating the book progress as required
-          const bookProcess = await AAXtoMP3.cmd.convert.exec(queueEntry.book.asin, tmpDir);
-          console.log(bookProcess);
+          const bookProcess = await AAXtoMP3.cmd.convert.exec(queueEntry.book.asin, queueEntry.id, tmpDir);
           switch (bookProcess) {
             case ConversionError.NO_ERROR:
               // Nothing to do, this is the success case
               break;
             case ConversionError.BOOK_NOT_FOUND:
               // Delete this queued entry
-              await prisma.processQueue.delete({ where: { id: queueEntry.id } });
+              await processFailed(queueEntry.id, ProcessError.BOOK_NOT_FOUND, 1, 0);
               break;
             case ConversionError.CANCELED:
               // The user has canceled. We can just delete this entry
-              await prisma.processQueue.delete({ where: { id: queueEntry.id } });
+              await processFailed(queueEntry.id, ProcessError.CANCELED, 1, 0);
               break;
             case ConversionError.NO_FOLDER:
               // Delete this queued entry
-              await prisma.processQueue.delete({ where: { id: queueEntry.id } });
+              await processFailed(queueEntry.id, ProcessError.NO_FOLDER, 1, 0);
               // The download must have failed. Set the book as not downloaded
               // Assign the book as downloaded
               await prisma.book.update({
@@ -235,40 +269,51 @@ export namespace LibraryManager {
                 for (const p of book.profiles) if (p.activation_bytes !== null) bytes = true;
                 // Check if there are bytes
                 if (bytes === true) {
-                  await tryAgainLater(queueEntry.id, ATTEMPT_COOLDOWN_SHORT);
+                  await tryAgainLater(queueEntry.id, ATTEMPT_COOLDOWN_SHORT, ProcessError.NO_PROFILE_WITH_AUTHCODE);
                   break;
                 }
               }
               // Delete this queued entry
-              await prisma.processQueue.delete({ where: { id: queueEntry.id } });
+              await processFailed(queueEntry.id, ProcessError.NO_PROFILE_WITH_AUTHCODE, 1, 0);
               break;
             case ConversionError.NO_PROFILE:
               // This book has no account that owns it. It should be deleted.
               await tools.deleteBook(queueEntry.book.asin);
               // Delete this entry
-              await prisma.processQueue.delete({ where: { id: queueEntry.id } });
+              await processFailed(queueEntry.id, ProcessError.NO_PROFILE, 1, 0);
               break;
             case ConversionError.CONVERSION_ERROR:
               // We had a general error during the conversion process. This could be one of many issues
               // Delete this entry
-              await prisma.processQueue.delete({ where: { id: queueEntry.id } });
+              await processFailed(queueEntry.id, ProcessError.CONVERSION_ERROR, 1, 0);
               break;
             case ConversionError.COULD_NOT_SAVE:
               // Delete this entry
-              await prisma.processQueue.delete({ where: { id: queueEntry.id } });
+              await processFailed(queueEntry.id, ProcessError.COULD_NOT_SAVE, 1, 0);
               break;
             default:
               console.log('ERROR: Unexpected ConversionError:', bookDownload);
               // Delete this queued entry
-              await prisma.processQueue.delete({ where: { id: queueEntry.id } });
+              await processFailed(queueEntry.id, bookDownload as unknown as ProcessError, 1, 0);
               break;
           }
 
           // Check if the conversion succeeded
           if (bookProcess === ConversionError.NO_ERROR) {
-            // Delete this queued entry, as we are done with it
-            await prisma.processQueue.delete({ where: { id: queueEntry.id } });
-            console.log('BOOK PROCESSED!', queueEntry);
+            // Update this queued entry
+            await prisma.processQueue.update({
+              where: { id: queueEntry.id },
+              data: {
+                in_progress: false,
+                is_done: true,
+                process_progress: 1,
+                download_progress: 1,
+                speed: null,
+                total_mb: null,
+                downloaded_mb: null,
+                result: ProcessError.NO_ERROR
+              }
+            });
             // Send a notification
             await prisma.notification.create({
               data: {
@@ -299,16 +344,14 @@ export namespace LibraryManager {
         await lockProcessQueue();
         queueEntry = await prisma.processQueue.findFirst(getQueueFinder());
       } finally {
-        if (tmpDir !== undefined) tools.clearDir(tmpDir);
+        // if (tmpDir !== undefined) tools.clearDir(tmpDir);
       }
     }
     unlockProcessQueue();
-    console.log('Processor done!');
     resolve();
   };
 
   const runProcess = () => {
-    console.log(processorPromises);
     for (let i = 0; i < processorPromises.length; i++) {
       if (processorPromises[i] === undefined) {
         const p = new Promise(processFunc).then(() => processorPromises[i] = undefined);
@@ -324,13 +367,22 @@ export namespace LibraryManager {
   /**
    * Start the LibraryManager event loop
    */
-  export const start = () => {
+  export const start = async () => {
     console.log('start event loop');
+    
+    await prisma.processQueue.updateMany({
+      where: { in_progress: true },
+      data: { in_progress: false }
+    });
+
+    console.log(await prisma.processQueue.findMany());
+
     if (global.manager === undefined) global.manager = { interval: undefined, runProcess: runProcess };
     global.manager.runProcess = runProcess;
     if (global.manager.interval !== undefined) stop();
     global.manager.interval = setInterval(eventLoop, EVENT_LOOP_RATE);
     global.manager.interval.unref();
+    global.manager.runProcess();
   }
 
   /**
@@ -414,7 +466,8 @@ export namespace LibraryManager {
       await prisma.processQueue.delete({ 
         where: { 
           bookAsin: asin,
-          in_progress: false
+          in_progress: false,
+          is_done: false,
         }
       });
       // The book was found and removed
@@ -437,7 +490,8 @@ export namespace LibraryManager {
         bookAsin: {
           in: asins
         },
-        in_progress: false
+        in_progress: false,
+        is_done: false
       }
     });
     return removals.count;

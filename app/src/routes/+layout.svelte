@@ -19,6 +19,13 @@
   import * as alerts from '$lib/components/alerts';
 	import { browser } from '$app/environment';
   export let data;
+  
+  $: {
+    let update = $page.url.searchParams.get('update');
+    if (update !== null && browser) {
+      alerts.updateNotifications();
+    }
+  }
 
   let innerWidth: number;
 

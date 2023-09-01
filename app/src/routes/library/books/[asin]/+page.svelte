@@ -12,6 +12,7 @@
 	import TextInput from '$lib/components/input/selectable/TextInput.svelte';
 	import LoadingCircle from '$lib/components/decorations/LoadingCircle.svelte';
   import * as alerts from '$lib/components/alerts';
+	import LoadingCircleProgress from '$lib/components/decorations/LoadingCircleProgress.svelte';
 
   export let data: import('./$types').PageData;
   export let form: import('./$types').ActionData;
@@ -439,8 +440,7 @@
 
 <div class="flex items-center justify-end gap-x-6 border-t bg-white border-gray-900/10 px-4 py-4 sm:px-8">
   <form method="POST" action="?/download" class="flex items-center justify-end gap-x-6" use:enhance>
-    <LoadingCircle id={data.book.asin} type={'download'} />
-    <LoadingCircle id={data.book.asin} type={'process'} />
+    <LoadingCircleProgress id={data.book.asin} />
     <button class="text-sm font-semibold leading-6 text-gray-900">Download</button>
   </form>
   <button type="button" on:click={() => {console.log(fetch(`/api/library/cancel/book/${data.book.asin}`))}} class="text-sm font-semibold leading-6 text-gray-900">Cancel</button>

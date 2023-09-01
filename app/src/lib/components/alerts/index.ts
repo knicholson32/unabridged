@@ -94,8 +94,9 @@ export const updateNotifications = async (response?: Response) => {
   let nData: NotificationAPI;
   if (response !== undefined)
     nData = await response.json() as NotificationAPI;
-  else
+  else {
     nData = await (await fetch('/api/notification')).json() as NotificationAPI;
+  }
   notificationAPIStore.set(nData);
 }
 

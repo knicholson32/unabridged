@@ -148,9 +148,23 @@ export type Progress = Prisma.ProgressGetPayload<{
     }
 }>;
 
+export type ProcessProgress = Prisma.ProcessQueueGetPayload<{}>;
+
 export type ProgressAPI = {
     ok: boolean,
     progress?: Progress,
+    status: number
+}
+
+export type ProcessProgressesAPI = {
+    ok: boolean,
+    progresses?: ProcessProgress[],
+    status: number
+}
+
+export type ProcessProgressAPI = {
+    ok: boolean,
+    progress?: ProcessProgress,
     status: number
 }
 

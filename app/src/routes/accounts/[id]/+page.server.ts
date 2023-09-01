@@ -3,7 +3,7 @@ import prisma from '$lib/server/prisma';
 import { error, redirect } from '@sveltejs/kit';
 import type { Decimal } from '@prisma/client/runtime/library.js';
 import { v4 as uuidv4 } from 'uuid';
-import { encodeURLAlert } from '$lib/components/alerts';
+import { createNotification, encodeURLAlert } from '$lib/components/alerts';
 import { icons } from '$lib/components';
 import * as serverHelpers from '$lib/server/helpers';
 import type { GenerateAlert, Issuer, ModalTheme, ProgressAPI, ProgressStatus } from '$lib/types';
@@ -67,7 +67,7 @@ export const load = async ({ params, fetch }) => {
 
 
 export const actions = {
-    deregister: async ({ request }) => {
+    deregister: async ({ request, fetch }) => {
         const data = await request.formData();
         const id = data.get('id') as string;
         // Check that the ID was actually submitted
@@ -82,15 +82,20 @@ export const actions = {
         // Remove the profile
         const success = await audible.cmd.profile.remove(id);
         if (success) {
-            throw redirect(307, `/accounts?alert=${encodeURLAlert({
+            await prisma.notification.create({ data: {
+                id: uuidv4(),
+                icon_path: icons.fingerPrint,
+                icon_color: 'text-red-400',
+                theme: 'info',
                 text: 'Account deleted',
-                settings: {
-                    linger_ms: 15000,
-                    iconPath: icons.fingerPrint,
-                    iconColor: 'text-red-400',
-                    subText: `The Audible account for <span class="text-gray-400">${profile.first_name} ${profile.last_name}</span> has been removed.`
-                }
-            })}`);
+                sub_text: `The Audible account for <span class="text-gray-400">${profile.first_name} ${profile.last_name}</span> has been removed.`,
+                linger_time: 15000,
+                needs_clearing: true,
+                auto_open: true,
+                issuer: 'general',
+                identifier: null
+            }});
+            throw redirect(307, `/accounts?update`);
         }
         else
             return { response: 'deregister', success: false, message: 'Could not delete the account' };

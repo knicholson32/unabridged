@@ -173,11 +173,18 @@ model Chapter {
 }
 
 model ProcessQueue {
-  id             String  @id
-  book           Book    @relation(fields: [bookAsin], references: [asin], onDelete: Cascade)
-  bookAsin       String  @unique
-  in_progress    Boolean @default(false)
-  try_after_time BigInt?
+  id                String  @id
+  book              Book    @relation(fields: [bookAsin], references: [asin], onDelete: Cascade)
+  bookAsin          String  @unique
+  in_progress       Boolean @default(false)
+  is_done           Boolean @default(false)
+  result            String?
+  try_after_time    BigInt?
+  download_progress Float   @default(0)
+  process_progress  Float   @default(0)
+  downloaded_mb     Float?
+  total_mb          Float?
+  speed             Float?
 
   @@map("processQueue")
 }

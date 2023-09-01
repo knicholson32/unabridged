@@ -29,3 +29,11 @@ export const cropImages = async (image: ArrayBuffer): Promise<Images> => {
     img56
   }
 }
+
+export const sanitizeFile = (file: string) => {
+  return sanitize(file).replaceAll(/[()\[\]'"!@#$%^&*`]/g, '');
+}
+
+// export const dirsSanitizeNested = (dirs: string[]): string => {
+//   return '\'"' + dirs.map((d) => sanitize(d)).join('/').replaceAll('\"', '\'').replaceAll('\'', '\'"\'"\'') + '"\'';
+// }

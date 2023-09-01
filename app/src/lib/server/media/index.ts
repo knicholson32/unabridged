@@ -20,6 +20,8 @@ export const saveFile = async (srcPath: string, asin: string, options?: { descri
   // Create an ID for this file
   const id = uuidv4();
 
+  console.log('Saving', srcPath, asin);
+
   if (options === undefined) options = {};
 
   srcPath = `${srcPath.replaceAll('"', '')}`;

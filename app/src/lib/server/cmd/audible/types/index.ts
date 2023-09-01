@@ -119,7 +119,13 @@ export type AmazonChapterData = {
                 length_ms: number,
                 start_offset_ms: number,
                 start_offset_sec: number,
-                title: string
+                title: string,
+                chapters?: {
+                    length_ms: number,
+                    start_offset_ms: number,
+                    start_offset_sec: number,
+                    title: string,
+                }[]
             }[],
             is_accurate: true,
             runtime_length_ms: number,

@@ -63,3 +63,4 @@ You can preview the production build with `npm run preview`.
 
 ### ToDo
 [ ] Allow an account to be re-authenticated, so if there is an issue you don't lose all the books
+[ ] Process parts as well as chapters (See Bobiverse: We Are Legion)

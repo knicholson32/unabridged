@@ -36,7 +36,7 @@ export const cancel = async (asin: string) => {
   }
 }
 
-export const download = async (asin: string, tmpDir: string): Promise<BookDownloadError> => {
+export const download = async (asin: string, processID: string, tmpDir: string): Promise<BookDownloadError> => {
   // Check if audible is locked
   if (isLocked()) return BookDownloadError.AUDIBLE_LOCKED;
 
@@ -66,26 +66,20 @@ export const download = async (asin: string, tmpDir: string): Promise<BookDownlo
   // Make sure the config file is written
   await writeConfigFile();
 
-  // Delete any old progress info relating to this sync
-  try {
-    await prisma.progress.delete({
-      where: { id_type: { id: asin, type: 'download' } }
-    });
-  } catch (e) {
-    // Nothing to do
-  }
+  // Update process progress for download to 0
+  await prisma.processQueue.update({ where: { id: processID }, data: { download_progress: 0 } });
 
-  // Create the progress entry
-  await prisma.progress.create({
-    data: {
-      id: book.asin,
-      type: 'download',
-      progress: 0,
-      status: 'RUNNING' satisfies ProgressStatus,
-      ref: 'audible.cmd.download.download',
-      message: ''
-    }
-  });
+  // // Create the progress entry
+  // await prisma.progress.create({
+  //   data: {
+  //     id: book.asin,
+  //     type: 'download',
+  //     progress: 0,
+  //     status: 'RUNNING' satisfies ProgressStatus,
+  //     ref: 'audible.cmd.download.download',
+  //     message: ''
+  //   }
+  // });
 
   // Create the audible child_process
   // audible -P 175aaff6-4f92-4a2c-b592-6758e1b54e5f download -o /app/db/download/skunk -a B011LR4PW4 --aaxc --pdf --cover --cover-size 1215 --chapter --annotation
@@ -131,18 +125,27 @@ export const download = async (asin: string, tmpDir: string): Promise<BookDownlo
         const speed = parseFloat(groups.speed);
 
         try{
-          await prisma.progress.update({
-            where: {
-              id_type: {
-                id: book.asin,
-                type: 'download'
-              }
-            },
-            data: {
-              progress: isNaN(progress) ? undefined : progress,
-              downloaded_mb: isNaN(downloaded) ? undefined : downloaded,
-              total_mb: isNaN(total) ? undefined : total,
-              speed_mb_s: isNaN(speed) ? undefined : speed
+          // await prisma.progress.update({
+          //   where: {
+          //     id_type: {
+          //       id: book.asin,
+          //       type: 'download'
+          //     }
+          //   },
+          //   data: {
+          //     progress: isNaN(progress) ? undefined : progress,
+          //     downloaded_mb: isNaN(downloaded) ? undefined : downloaded,
+          //     total_mb: isNaN(total) ? undefined : total,
+          //     speed_mb_s: isNaN(speed) ? undefined : speed
+          //   }
+          // });
+          await prisma.processQueue.update({ 
+            where: { id: processID },
+            data: { 
+              download_progress: isNaN(progress) ? 0 : progress,
+              downloaded_mb: isNaN(downloaded) ? null : downloaded,
+              total_mb: isNaN(total) ? null : total,
+              speed: isNaN(speed) ? null : speed
             }
           });
         } catch(e) {
@@ -159,44 +162,13 @@ export const download = async (asin: string, tmpDir: string): Promise<BookDownlo
     // Attach to the exit event
     audible.on('exit', async () => {
       if (cancelMap[asin].canceled === true) {
-        try {
-          await prisma.progress.update({
-            where: {
-              id_type: {
-                id: book.asin,
-                type: 'download'
-              }
-            },
-            data: {
-              progress: 1,
-              status: 'ERROR' satisfies ProgressStatus
-            }
-          });
-        } catch(e) {
-          // Nothing to do
-        }
+        delete cancelMap[asin];
         resolve(BookDownloadError.CANCELED);
       } else {
-        try {
-          await prisma.progress.update({
-            where: {
-              id_type: {
-                id: book.asin,
-                type: 'download'
-              }
-            },
-            data: {
-              progress: 1,
-              status: 'DONE' satisfies ProgressStatus
-            }
-          });
-        } catch (e) {
-          // Nothing to do
-        }
+        delete cancelMap[asin];
         resolve(BookDownloadError.NO_ERROR);
       }
 
-      delete cancelMap[asin];
     });
   });
 
@@ -268,21 +240,42 @@ export const download = async (asin: string, tmpDir: string): Promise<BookDownlo
 
           let sequence = 0;
           for (const chapter of chapterObj.content_metadata.chapter_info.chapters) {
-            try {
-              await prisma.chapter.create({
-                data: {
-                  id: uuidv4(),
-                  bookAsin: book.asin,
-                  start_offset_ms: chapter.start_offset_ms,
-                  sequence,
-                  title: chapter.title,
-                  length_ms: chapter.length_ms
+            if (chapter.chapters !== undefined) {
+              // TODO: Process the top-level of chapters as "Parts". See Bobiverse "We Are Legion"
+              for (const chapterNested of chapter.chapters) {
+                try {
+                  await prisma.chapter.create({
+                    data: {
+                      id: uuidv4(),
+                      bookAsin: book.asin,
+                      start_offset_ms: chapterNested.start_offset_ms,
+                      sequence,
+                      title: chapterNested.title,
+                      length_ms: chapterNested.length_ms
+                    }
+                  })
+                } catch (e) {
+                  console.log('chapter create', e);
                 }
-              })
-            } catch(e) {
-              console.log('chapter create', e);
+                sequence++;
+              }
+            } else {
+              try {
+                await prisma.chapter.create({
+                  data: {
+                    id: uuidv4(),
+                    bookAsin: book.asin,
+                    start_offset_ms: chapter.start_offset_ms,
+                    sequence,
+                    title: chapter.title,
+                    length_ms: chapter.length_ms
+                  }
+                })
+              } catch (e) {
+                console.log('chapter create', e);
+              }
+              sequence++;
             }
-            sequence++;
           }
         }
       } catch(e){
@@ -298,6 +291,7 @@ export const download = async (asin: string, tmpDir: string): Promise<BookDownlo
         downloaded: true
       }
     });
+
   } else {
     // Assign the book as downloaded
     await prisma.book.update({
@@ -305,6 +299,17 @@ export const download = async (asin: string, tmpDir: string): Promise<BookDownlo
       data: { downloaded: false, processed: false }
     });
   }
+
+  // Assign progress
+  await prisma.processQueue.update({
+    where: { id: processID },
+    data: {
+      download_progress: 1,
+      downloaded_mb: null,
+      total_mb: null,
+      speed: null
+    }
+  });
 
   return results;
 
