@@ -88,7 +88,8 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
   // });
 
   // AAXtoMP3 -e:m4b -s --author "Martha Wells" --authcode 4165af03 --dir-naming-scheme '$artist/$title' --file-naming-scheme '$title' --use-audible-cli-data -t /app/db/export ./*.aaxc
-  const args = ['-e:m4b', '-s', '--author', `"${book.authors[0].name}"`, '--authcode', authCode, '--dir-naming-scheme', `'"${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}"'`, '--file-naming-scheme', `'"${sanitizeFile(book.title)}"'`, '--use-audible-cli-data', '-t', LIBRARY_FOLDER, './*.aaxc']
+  // '--debug', `--audible-cli-library-file`, `"/db/audible/${profileID}.library.tsv"`
+  const args = ['-e:m4b', `-L`, `/db/audible/${profileID}.library.tsv`, '-s', '--author', `"${book.authors[0].name}"`, '--authcode', authCode, '--dir-naming-scheme', `'"${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}"'`, '--file-naming-scheme', `'"${sanitizeFile(book.title)}"'`, '--use-audible-cli-data', '-t', LIBRARY_FOLDER, './*.aaxc']
   console.log(`${AAXtoMP3_COMMAND} ${args.join(' ')}`);
   const aax = child_process.spawn(
     AAXtoMP3_COMMAND,

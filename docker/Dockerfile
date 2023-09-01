@@ -58,10 +58,17 @@ RUN echo "---- COMPILE SANDREAS MP4V2 (for sort-title, sort-album and sort-autho
   make -j4 && \
   make install && make distclean
 
+# # Install AAXtoMP3
+# RUN echo "---- INSTALL AAXtoMP3 ----" \
+#   && wget https://github.com/KrumpetPirate/AAXtoMP3/releases/download/v${AAXtoMP3_VERSION}/AAXtoMP3-v${AAXtoMP3_VERSION}.tar.gz -O - | tar -xz \
+#   && cp -vn ./AAXtoMP3/AAXtoMP3 ${USR_LOCAL_EXPORT}/bin/AAXtoMP3
+
+# # Install AAXtoMP3
+# RUN echo "---- INSTALL AAXtoMP3 ----" \
+#   && wget -O ${USR_LOCAL_EXPORT}/bin/AAXtoMP3 https://raw.githubusercontent.com/KrumpetPirate/AAXtoMP3/master/AAXtoMP3
+
 # Install AAXtoMP3
-RUN echo "---- INSTALL AAXtoMP3 ----" \
-  && wget https://github.com/KrumpetPirate/AAXtoMP3/releases/download/v${AAXtoMP3_VERSION}/AAXtoMP3-v${AAXtoMP3_VERSION}.tar.gz -O - | tar -xz \
-  && cp -vn ./AAXtoMP3/AAXtoMP3 ${USR_LOCAL_EXPORT}/bin/AAXtoMP3
+COPY ./bin/AAXtoMP3 ${USR_LOCAL_EXPORT}/bin/AAXtoMP3
 
 # Remove build dependancies and packages
 RUN echo "---- REMOVE BUILD DEPENDENCIES (to keep image small) ----" \

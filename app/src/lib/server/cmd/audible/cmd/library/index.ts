@@ -328,6 +328,7 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
 
     try {
         child_process.execSync(`${AUDIBLE_CMD} -P ${id} library export --format json -o /tmp/${id}.library.json`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } });
+        child_process.execSync(`${AUDIBLE_CMD} -P ${id} library export --format tsv -o /db/audible/${id}.library.tsv`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } });
         const library = JSON.parse(fs.readFileSync(`/tmp/${id}.library.json`).toString()) as Library;
         let numCreated = 0;
         let numUpdated = 0;
