@@ -23,4 +23,4 @@ audible quick-start
 ## TODO
 - [X] Remove beets-audible items from this project and set Docker to make the required changes / installation as apart of the build process
 - [ ] Consider moving to stand-alone `audible-cli` install so Python is not required at all. What would the speed implications be?
-- [ ] Compile all dependencies for `audible-cli` in the build stage and export the compiled wheels to the prod and dev stages
+- [X] Compile all dependencies for `audible-cli` in the build stage and export the compiled wheels to the prod and dev stages
