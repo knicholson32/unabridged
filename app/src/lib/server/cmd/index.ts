@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { BookDownloadError } from './audible/types';
 import type { Issuer, ModalTheme } from '$lib/types';
 import { ConversionError } from './AAXtoMP3/types';
-import { ProcessError } from './types';
+import { ProcessError } from '$lib/types';
 
 enum ProcessState {
   NOT_STARTED = 'NOT_STARTED',
@@ -59,7 +59,7 @@ export namespace LibraryManager {
   // ---------------------------------------------------------------------------------------------
 
   // let eventLoopInterval: NodeJS.Timeout | undefined = undefined;
-  const eventLoop = () => {
+  export const eventLoop = () => {
     global.manager.runProcess();
   }
 
@@ -335,7 +335,22 @@ export namespace LibraryManager {
         queueEntry = await prisma.processQueue.findFirst(getQueueFinder());
       } catch(e) {
         try {
-          if (queueEntry !== null) await prisma.processQueue.delete({ where: { id: queueEntry.id }});
+          if (queueEntry !== null) {
+            // Update this queued entry
+            await prisma.processQueue.update({
+              where: { id: queueEntry.id },
+              data: {
+                in_progress: false,
+                is_done: true,
+                process_progress: 0,
+                download_progress: 0,
+                speed: null,
+                total_mb: null,
+                downloaded_mb: null,
+                result: 'UNKNOWN' as ProcessError
+              }
+            });
+          }
         } catch(e) {
           // Nothing to do if this fails
         }
@@ -363,6 +378,7 @@ export namespace LibraryManager {
   // ---------------------------------------------------------------------------------------------
   // Public Functions
   // ---------------------------------------------------------------------------------------------
+
 
   /**
    * Start the LibraryManager event loop
@@ -412,7 +428,7 @@ export namespace LibraryManager {
   export const cancelBook = async (asin: string) => {
     audible.cmd.download.cancel(asin);
     AAXtoMP3.cmd.convert.cancel(asin);
-    await removeBook(asin);
+    await removeBook(asin, ProcessError.CANCELED);
   }
 
   /**
@@ -459,15 +475,20 @@ export namespace LibraryManager {
    * @param asin the book to remove
    * @returns true if it was removed, false if it is already in progress
    */
-  export const removeBook = async (asin: string): Promise<boolean> => {
+  export const removeBook = async (asin: string, result?: ProcessError): Promise<boolean> => {
     // Find the book in the queue
     try {
+      console.log('REMOVE QUEUE', asin);
       // Find by the ASIN and the in_progress tag
-      await prisma.processQueue.delete({ 
+      await prisma.processQueue.update({ 
         where: { 
           bookAsin: asin,
           in_progress: false,
-          is_done: false,
+          is_done: false
+        },
+        data: {
+          is_done: true,
+          result
         }
       });
       // The book was found and removed
@@ -485,13 +506,17 @@ export namespace LibraryManager {
    */
   export const removeBooks = async (asins: string[]): Promise<number> => {
     // Remove all books that have the asin and are not in progress yet
-    const removals = await prisma.processQueue.deleteMany({
+    console.log('REMOVE QUEUEs', asins);
+    const removals = await prisma.processQueue.updateMany({
       where: {
         bookAsin: {
           in: asins
         },
         in_progress: false,
         is_done: false
+      },
+      data: {
+        is_done: true
       }
     });
     return removals.count;

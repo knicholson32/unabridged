@@ -7,7 +7,7 @@
   import { page, navigating } from '$app/stores';
   import { onMount } from 'svelte';
   import { setContext, } from 'svelte';
-  import type { PrimaryMenu, ProfileMenu, ProfileMenuWithID, GenerateAlert, AlertSettings, NotificationAPI, Notification } from '$lib/types';
+  import type { PrimaryMenu, ProfileMenu, ProfileMenuWithID, GenerateAlert, AlertSettings, NotificationAPI, Notification, ProcessProgress, UpdateProgress, ProcessProgressAPI, ProcessProgressesAPI, PageNeedsProgress } from '$lib/types';
   import CircularClose from '$lib/components/decorations/CircularClose.svelte';
   import { EscapeOrClickOutside, KeyBind, UpDownEnter } from '$lib/events';
   import { fade, scale } from 'svelte/transition';
@@ -18,7 +18,13 @@
 	import { afterNavigate, invalidate } from '$app/navigation';
   import * as alerts from '$lib/components/alerts';
 	import { browser } from '$app/environment';
+	import { writable } from 'svelte/store';
+	import StatusBar from '$lib/components/routeSpecific/layout/StatusBar.svelte';
+	import QueuedBook from '$lib/components/routeSpecific/layout/QueuedBook.svelte';
+	import FinishedBook from '$lib/components/routeSpecific/layout/FinishedBook.svelte';
+	import { flip } from 'svelte/animate';
   export let data;
+
   
   $: {
     let update = $page.url.searchParams.get('update');
@@ -67,6 +73,79 @@
   const profileMenu = [
     [{href: '#', newTab: false, title: 'View Profile'}, {href: '#', newTab: false, title: 'Settings'}, {href: '#', newTab: false, title: 'Notifications'}],
   ] as ProfileMenu;
+
+
+  // -----------------------------------------------------------------------------------------------
+  // Status Menu
+  // -----------------------------------------------------------------------------------------------
+
+  let statusMenuVisible = false;
+  let showStatusButton: HTMLButtonElement;
+
+  const progress = writable<ProcessProgress[]>();
+  progress.set(data.progresses);  
+
+  const updateProgress: UpdateProgress = async () => {
+    console.log('Progress Update');
+    const p = await (await fetch('/api/progress')).json() as ProcessProgressesAPI;
+    if (p.progresses !== undefined) progress.set(p.progresses);
+  }
+
+  let pageNeedsProgress = false;
+  const setPageNeedsProgressData: PageNeedsProgress = () => {
+    console.log('PAGE NEEDS PROGRESS');
+    pageNeedsProgress = true;
+  }
+  
+  setContext('progress', progress);
+  setContext('updateProgress', updateProgress);
+  setContext('pageNeedsProgress', setPageNeedsProgressData);
+
+  const showStatusMenu = () => statusMenuVisible = true;
+  const closeStatusMenu = () => statusMenuVisible = false;
+  const toggleStatusMenu = () => {
+    statusMenuVisible = !statusMenuVisible;
+    if (statusMenuVisible === true) updateProgress();
+  }
+
+  const dismissAll = async () => {
+    await fetch('/api/progress/dismiss');
+    updateProgress();
+  }
+
+  const FAST_RATE = 500;
+  const SLOW_RATE = 5000;
+
+  $: booksDone = $progress.filter((p) => p.is_done === true).length;
+  $: booksNotDone = $progress.filter((p) => p.is_done === false).length;
+  $: booksInProgress = $progress.filter((p) => p.in_progress === true).length;
+  $: booksWaiting = $progress.filter((p) => p.in_progress === false && p.is_done === false).length;
+  $: totalBooks = $progress.length;
+  $: rate = pageNeedsProgress ? (booksNotDone > 0 ? FAST_RATE : SLOW_RATE) : (booksNotDone > 0 && statusMenuVisible ? FAST_RATE : SLOW_RATE);
+
+  let interval: number;
+
+  $: {
+    if (browser && rate) {
+      console.log(rate, booksNotDone, pageNeedsProgress);
+      clearInterval(interval);
+      interval = setInterval(() => {
+        updateProgress();
+      }, rate);
+      alerts.showNotifications(alertsComponent, notifications, true);
+    }
+  }
+
+  onMount(() => {
+    clearInterval(interval);
+    interval = setInterval(() => {
+			updateProgress();
+		}, SLOW_RATE);
+		return () => {
+			clearInterval(interval);
+		};
+	});
+
 
   // -----------------------------------------------------------------------------------------------
   // Navigation Menus
@@ -480,6 +559,109 @@
               </span>
             {/if}
           </button>
+
+          <div class="relative">
+            <button on:click={toggleStatusMenu} bind:this={showStatusButton} type="button" class="relative -m-2.5 p-2.5 {booksNotDone ? 'text-sky-500' : 'text-gray-400'}  hover:text-gray-500">
+              <span class="sr-only">View Status</span>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+              </svg>
+              <!-- {#if booksNotDone}
+                <span class="absolute -translate-x-[0.8rem] translate-y-[0.6rem] top-0 right-0 flex h-2 w-2">
+                  <span class="absolute animate-ping inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+                </span>
+              {/if} -->
+            </button>
+
+            <!--
+                Dropdown menu, show/hide based on menu state.
+
+                Entering: "transition ease-out duration-100"
+                  From: "transform opacity-0 scale-95"
+                  To: "transform opacity-100 scale-100"
+                Leaving: "transition ease-in duration-75"
+                  From: "transform opacity-100 scale-100"
+                  To: "transform opacity-0 scale-95"
+              -->
+            {#if statusMenuVisible}
+              <!-- <div class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1"> -->
+              <div class="fixed sm:absolute top-16 sm:top-auto bottom-12 overflow-hidden overflow-y-scroll sm:overflow-y-visible sm:bottom-auto right-2 left-2 sm:left-auto sm:right-0 z-10 mt-2.5 sm:w-[30rem] origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none " in:scale="{{duration: 100, opacity: 0.95, start: 0.95, easing: cubicOut}}" out:scale="{{duration: 75, opacity: 0.95, start: 0.95, easing: cubicOut}}" use:EscapeOrClickOutside={{except: showStatusButton, callback: closeStatusMenu}} role="menu" aria-orientation="vertical" aria-labelledby="options-menu-button" tabindex="-1">
+                <div in:fade="{{duration: 100, easing: cubicOut}}" out:fade="{{duration: 75, easing: cubicOut}}" use:UpDownEnter={{up: accountDropdownUpEvent, down: accountDropdownDownEvent, enter: accountDropdownEnterEvent}} class=" antialiase">
+
+                  <button on:click={closeStatusMenu} type="button" class="absolute right-2 top-2 px-1 py-1 text-gray-500 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100" >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                      <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                    </svg>
+                  </button>
+
+                  <div class="pt-3 flex flex-col">
+
+                    <div class="px-3 flex flex-col gap-1 pb-1">
+                      <div class="font-bold text-lg">Download / Convert Status</div>
+                      <div class="flex gap-2">
+                        <div class="font-mono grow text-center sm:text-left sm:pl-2">{totalBooks}<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans">Queued</span></div>
+                        <div class="border-l grow-0"/>
+                        <div class="font-mono grow text-center sm:text-left sm:pl-2">{booksInProgress}<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans">In Progress</span></div>
+                        <div class="border-l grow-0"/>
+                        <div class="font-mono grow text-center sm:text-left sm:pl-2">{booksDone}<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans">Finished</span></div>
+                        <div class="border-l grow-0"/>
+                        <div class="font-mono grow text-center sm:text-left sm:pl-2">4:45:17<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans">Elapsed</span></div>
+                      </div>
+                      <div class="mx-2 mt-1">
+                        <div class="relative w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                          <div class="absolute bg-blue-600 h-2.5 rounded-full transition-width" style="width: {totalBooks > 0 ? Math.floor(100 * (booksDone / totalBooks)) : '0'}%"></div>
+                        </div>
+                        <div class="flex justify-between mb-1">
+                          <span class="text-xs font-medium text-blue-700 dark:text-white truncate max-w-[7rem]">{booksDone} <span class="text-xxs">of</span> {totalBooks}</span>
+                          <span class="text-xs font-medium text-blue-700 dark:text-white">{totalBooks > 0 ? Math.floor(100 * (booksDone / totalBooks)) : '0'}%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {#if $progress.length > 0}
+                      {#if booksInProgress > 0}
+                        <div class="border-b my-1"></div>
+                        <div class="flex flex-col" role="none">
+                          {#each $progress.filter((p) => p.in_progress === true) as p (p.bookAsin)}
+                            <StatusBar progress={p}/>
+                          {/each}
+                        </div>
+                      {/if}
+                      {#if booksWaiting > 0}
+                        <div class="border-b-4 border-double my-1"/>
+                        <div class="mx-3 flex flex-row gap-1 items-center">
+                          <div class="font-bold text-lg">Queue</div>
+                          <div class="font-mono grow pl-2 text-sm">{booksWaiting}<span class="ml-1 text-xs text-gray-600 font-sans">{helpers.basicPlural('Book', booksWaiting)} Waiting</span></div>
+                        </div>
+                        <ul class="flex flex-col max-h-56 overflow-y-scroll overflow-hidden bg-white" role="none">
+                          {#each $progress.filter((p) => p.in_progress === false && p.is_done === false) as p (p.bookAsin)}
+                            <li class="odd:bg-gray-100"><QueuedBook progress={p}/></li>
+                          {/each}
+                        </ul>
+                      {/if}
+                      {#if booksDone > 0}
+                        <div class="border-b-4 border-double my-1"/>
+                        <div class="relative py-1 pl-3 pr-2 flex flex-row gap-1 items-center">
+                          <div class="font-bold text-lg ">Finished</div>
+                          <div class="font-mono pl-2 text-sm">{booksDone}<span class="ml-1 text-xs text-gray-600 font-sans">{helpers.basicPlural('Book', booksDone)} Done</span></div>
+                          <div class="grow"/>
+                          <button on:click={dismissAll} type="button" class="transition-colors duration-100 text-xxs rounded-md py-1 px-2 font-mono text-gray-600 border border-gray-400 hover:text-black hover:border-black" >
+                            Dismiss All
+                          </button>
+                        </div>
+                        <ul class="flex flex-col max-h-56 overflow-y-scroll overflow-hidden bg-white" role="none">
+                          {#each $progress.filter((p) => p.is_done === true) as p (p.bookAsin)}
+                            <li class="odd:bg-gray-100"><FinishedBook progress={p}/></li>
+                          {/each}
+                        </ul>
+                      {/if}
+                    {/if}
+                  </div>
+                </div>
+              </div>
+            {/if}
+          </div>
 
           <!-- Separator -->
           <div class="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-900/10" aria-hidden="true"></div>

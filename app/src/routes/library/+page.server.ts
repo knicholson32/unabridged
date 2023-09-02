@@ -9,6 +9,8 @@ import * as helpers from '$lib/helpers';
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ url, depends }) {
 
+  console.log('library > +page.server.ts');
+
   const fuseOptionsBooks = {
     // isCaseSensitive: false,
     // includeScore: false,

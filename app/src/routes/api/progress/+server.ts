@@ -9,12 +9,25 @@ export const GET = async ({ params }) => {
     where: {
       OR: [
         { in_progress: true },
+        { in_progress: false },
         { is_done: true }
       ]
+    },
+    include: {
+      book: {
+        select: {
+          title: true,
+          authors: true,
+          genres: true,
+          cover: {
+            select: {
+              url_100: true
+            }
+          }
+        }
+      }
     }
   });
-  // Delete the done ones now that we have them
-  await prisma.processQueue.deleteMany({ where: { is_done: true } });
 
   // Return if the progress was not found
   if (progresses === null || progresses === undefined) return json({ ok: false, status: 404 } satisfies ProcessProgressesAPI)

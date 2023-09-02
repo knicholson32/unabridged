@@ -1,7 +1,11 @@
 <script lang="ts">
-	import type { ProcessProgress, ProcessProgressAPI, ProgressStatus } from "$lib/types";
-	import { onMount } from "svelte";
+	import type { PageNeedsProgress, ProcessProgress, ProcessProgressAPI, ProgressStatus } from "$lib/types";
+	import { getContext, onMount } from "svelte";
 	import { cubicInOut } from "svelte/easing";
+  import type { Readable } from 'svelte/store';
+
+  const progresses = getContext<Readable<ProcessProgress[]>>('progress');
+  getContext<PageNeedsProgress>('pageNeedsProgress')();
 
   type ThemeDefault = 'indigo' | 'white' | 'red' | 'green';
 
@@ -15,46 +19,51 @@
   export let theme: Theme = {};
   export let id: string;
 
+  $: progress = $progresses.find((p) => p.bookAsin === id);
+
+  console.log(progress)
+
+
   let themeDefault: ThemeDefault;
 
 
-  let interval: number;
-  let isFast: boolean = false;
+  // let interval: number;
+  // let isFast: boolean = false;
 
-  const intervalFunction = async () => {
-    let progressResp: ProcessProgressAPI = await (await fetch(`/api/progress/${id}`)).json() as ProcessProgressAPI;
-    if (progressResp.ok === true && progressResp.progress !== undefined) updateProgress(progressResp.progress);
-    else intervalSlow();
-  }
+  // const intervalFunction = async () => {
+  //   let progressResp: ProcessProgressAPI = await (await fetch(`/api/progress/${id}`)).json() as ProcessProgressAPI;
+  //   if (progressResp.ok === true && progressResp.progress !== undefined) updateProgress(progressResp.progress);
+  //   else intervalSlow();
+  // }
 
-  let progress: ProcessProgress | undefined;
-  const updateProgress = (p: ProcessProgress) => {
-    progress = p;
-    if (progress.is_done === true) intervalSlow();
-    else intervalFast();
-  }
+  // let progress: ProcessProgress | undefined;
+  // const updateProgress = (p: ProcessProgress) => {
+  //   progress = p;
+  //   if (progress.is_done === true) intervalSlow();
+  //   else intervalFast();
+  // }
 
-  const intervalSlow = () => {
-    if (isFast === false) return;
-    clearInterval(interval);
-    interval = setInterval(intervalFunction, 3000);
-    progress = undefined;
-    isFast = false;
-  }
+  // const intervalSlow = () => {
+  //   if (isFast === false) return;
+  //   clearInterval(interval);
+  //   interval = setInterval(intervalFunction, 3000);
+  //   progress = undefined;
+  //   isFast = false;
+  // }
 
-  const intervalFast = () => {
-    if (isFast === true) return;
-    clearInterval(interval);
-    interval = setInterval(intervalFunction, 500);
-    isFast = true;
-  }
+  // const intervalFast = () => {
+  //   if (isFast === true) return;
+  //   clearInterval(interval);
+  //   interval = setInterval(intervalFunction, 500);
+  //   isFast = true;
+  // }
 
-  onMount(() => {
-    clearInterval(interval);
-    interval = setInterval(intervalFunction, 3000);
-    intervalFunction();
-    return () => clearInterval(interval);
-  });
+  // onMount(() => {
+  //   clearInterval(interval);
+  //   interval = setInterval(intervalFunction, 3000);
+  //   intervalFunction();
+  //   return () => clearInterval(interval);
+  // });
 
 
 

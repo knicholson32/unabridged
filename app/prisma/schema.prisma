@@ -158,6 +158,8 @@ model Branding {
   book              Book   @relation(fields: [asin], references: [asin], onDelete: Cascade)
   intro_duration_ms Int
   outro_duration_ms Int
+
+  @@map("branding")
 }
 
 model Chapter {

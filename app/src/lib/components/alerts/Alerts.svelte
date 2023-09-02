@@ -24,6 +24,10 @@
     alerts = [...alerts, alert as unknown as GeneralDefinition];
   }
 
+  export const isShowingID = (id: string) => {
+    return alerts.findIndex((alert) => alert.id === id) !== -1;
+  }
+
   export const showNotification = (text: string, settings?: NotificationSettings) => {
     let id = uuidv4();
     if (settings !== undefined && settings.id !== undefined) id = settings.id;
@@ -37,10 +41,6 @@
       id: id
     }
     alerts = [...alerts, alert as unknown as GeneralDefinition];
-  }
-
-  export const isShowingID = (id: string) => {
-    return alerts.findIndex((alert) => alert.id === id) !== -1;
   }
 
 </script>

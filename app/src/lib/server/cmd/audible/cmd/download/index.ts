@@ -238,6 +238,16 @@ export const download = async (asin: string, processID: string, tmpDir: string):
           // Delete old chapters
           await prisma.chapter.deleteMany({ where: { bookAsin: book.asin } });
 
+          // Delete old branding
+          await prisma.branding.deleteMany({ where: { asin: book.asin } });
+
+          // Create new branding
+          await prisma.branding.create({ data: {
+            asin: book.asin,
+            intro_duration_ms: chapterObj.content_metadata.chapter_info.brandIntroDurationMs,
+            outro_duration_ms: chapterObj.content_metadata.chapter_info.brandOutroDurationMs
+          }});
+
           let sequence = 0;
           for (const chapter of chapterObj.content_metadata.chapter_info.chapters) {
             if (chapter.chapters !== undefined) {

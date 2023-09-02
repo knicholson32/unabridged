@@ -4,7 +4,7 @@
 	import { Submit } from '$lib/components/buttons';
 	import Rating from '$lib/components/decorations/Rating.svelte';
   import * as helpers from '$lib/helpers';
-	import type { GenerateAlert } from '$lib/types';
+	import type { GenerateAlert, PageNeedsProgress } from '$lib/types';
 	import { getContext } from 'svelte';
   import * as dateFns from 'date-fns'
 	import TextArea from '$lib/components/input/selectable/TextArea.svelte';

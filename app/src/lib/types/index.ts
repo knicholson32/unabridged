@@ -148,7 +148,22 @@ export type Progress = Prisma.ProgressGetPayload<{
     }
 }>;
 
-export type ProcessProgress = Prisma.ProcessQueueGetPayload<{}>;
+export type ProcessProgress = Prisma.ProcessQueueGetPayload<{
+    include: {
+        book: {
+            select: {
+                title: true,
+                authors: true,
+                genres: true,
+                cover: {
+                    select: {
+                        url_100: true
+                    }
+                }
+            }
+        }
+    }
+}>;
 
 export type ProgressAPI = {
     ok: boolean,
@@ -174,6 +189,71 @@ export type ProgressManyAPI = {
     ok: boolean,
     progress?: Progress[],
     status: number
+}
+
+export type UpdateProgress = () => void;
+export type PageNeedsProgress = () => void;
+
+export enum ProcessError {
+    NO_ERROR = 'NO_ERROR',
+    AUDIBLE_LOCKED = 'AUDIBLE_LOCKED',
+    BOOK_NOT_FOUND = 'BOOK_NOT_FOUND',
+    CANCELED = 'CANCELED',
+    NO_PROFILE = 'NO_PROFILE',
+    NO_PROFILE_WITH_AUTHCODE = 'NO_PROFILE_WITH_AUTHCODE',
+    NO_FOLDER = 'NO_FOLDER',
+    CONVERSION_ERROR = 'CONVERSION_ERROR',
+    COULD_NOT_SAVE = 'COULD_NOT_SAVE',
+}
+
+export const processErrorToStringShort = (p: ProcessError) => {
+    switch (p) {
+        case ProcessError.NO_ERROR:
+            return 'Success';
+        case ProcessError.AUDIBLE_LOCKED:
+            return 'Audible Locked';
+        case ProcessError.BOOK_NOT_FOUND:
+            return 'Unknown Book';
+        case ProcessError.CANCELED:
+            return 'Canceled by User';
+        case ProcessError.NO_PROFILE:
+            return 'No Profile';
+        case ProcessError.NO_PROFILE_WITH_AUTHCODE:
+            return 'No Authcode';
+        case ProcessError.NO_FOLDER:
+            return 'Download Error';
+        case ProcessError.CONVERSION_ERROR:
+            return 'Conversion Error';
+        case ProcessError.COULD_NOT_SAVE:
+            return 'Save Error';
+        default:
+            return 'Unknown error';
+    }
+}
+
+export const processErrorToStringLong = (p: ProcessError) => {
+    switch (p) {
+        case ProcessError.NO_ERROR:
+            return 'Success';
+        case ProcessError.AUDIBLE_LOCKED:
+            return 'The Audible CLI is locked, which happens when a profile is being added. Finish or cancel the profile add to unlock the Audible CLI.';
+        case ProcessError.BOOK_NOT_FOUND:
+            return 'This book does not appear to exist in the library.';
+        case ProcessError.CANCELED:
+            return 'This download / conversion was canceled before it completed.';
+        case ProcessError.NO_PROFILE:
+            return 'There is no profile that owns this book, therefore it could not be downloaded.';
+        case ProcessError.NO_PROFILE_WITH_AUTHCODE:
+            return 'There is no profile with authorization to download this book.';
+        case ProcessError.NO_FOLDER:
+            return 'Something went wrong while downloading this book; no files were saved.';
+        case ProcessError.CONVERSION_ERROR:
+            return 'Something went wrong while converting this book\'s audio file.';
+        case ProcessError.COULD_NOT_SAVE:
+            return 'Something went wrong while copying this book\'s audio file to storage.';
+        default:
+            return 'An unknown and unexpected error has occurred.';
+    }
 }
 
 

@@ -180,7 +180,7 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
 
     // Attach to the exit event
     aax.on('exit', async () => {
-      if (cancelMap[asin].canceled === true) {
+      if (asin in cancelMap && cancelMap[asin].canceled === true) {
         delete cancelMap[asin];
         resolve(ConversionError.CANCELED);
       } else {

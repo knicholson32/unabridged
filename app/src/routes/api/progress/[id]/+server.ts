@@ -17,14 +17,14 @@ export const GET = async ({ params }) => {
   // Return if the progress was not found
   if (progress === null || progress === undefined) return json({ ok: false, status: 404 } satisfies ProcessProgressAPI)
 
-  // Delete if it is done
-  if (progress.is_done === true) {
-    try {
-      await prisma.processQueue.delete({ where: { is_done: true, bookAsin: id } });
-    } catch(e) {
-      // Nothing to do
-    }
-  }
+  // // Delete if it is done
+  // if (progress.is_done === true) {
+  //   try {
+  //     await prisma.processQueue.delete({ where: { is_done: true, bookAsin: id } });
+  //   } catch(e) {
+  //     // Nothing to do
+  //   }
+  // }
 
   return json({ ok: true, progress: progress, status: 200 } satisfies ProcessProgressAPI);
 }
