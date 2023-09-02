@@ -38,7 +38,7 @@
   </div>
   <div class="mx-1">
     <div class="flex justify-between mb-1">
-      <span class="text-xs font-medium text-blue-700 dark:text-white truncate max-w-[7rem]">Downloading</span>
+      <span class="text-xs font-medium text-blue-700 dark:text-white truncate max-w-[7rem]">{waitingForDownload ? 'Starting' : (!downloaded ? 'Downloading' : (!processed ? 'Processing' : 'Finishing'))}</span>
       <span class="text-xs font-medium text-blue-700 dark:text-white">{Math.floor(barProgress*100)}%</span>
     </div>
     <div class="px-2">
