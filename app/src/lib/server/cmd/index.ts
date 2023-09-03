@@ -3,7 +3,7 @@ import * as audible from './audible';
 import * as AAXtoMP3 from './AAXtoMP3';
 import prisma from '$lib/server/prisma';
 import * as tools from './tools';
-import * as fs from 'node:fs';
+import * as settings from '$lib/server/settings';
 import { v4 as uuidv4 } from 'uuid';
 import { BookDownloadError } from './audible/types';
 import type { Issuer, ModalTheme } from '$lib/types';
@@ -59,8 +59,8 @@ export namespace LibraryManager {
   // ---------------------------------------------------------------------------------------------
 
   // let eventLoopInterval: NodeJS.Timeout | undefined = undefined;
-  export const eventLoop = () => {
-    global.manager.runProcess();
+  export const eventLoop = async () => {
+    await global.manager.runProcess();
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -154,7 +154,21 @@ export namespace LibraryManager {
     await lockProcessQueue();
     let queueEntry = await prisma.processQueue.findFirst(getQueueFinder());
     // Loop while there are elements to process
-    while (queueEntry !== null) {
+    while (queueEntry !== null && await settings.get('progress.paused') === false) {
+      // Make sure we are listed as running
+      if (await settings.get('progress.running') === false) {
+        const startTime = await settings.get('progress.startTime');
+        const endTime = await settings.get('progress.endTime')
+        if (startTime !== -1 && endTime !== -1) {
+          // We can just shift the times
+          await settings.set('progress.startTime', Math.floor(Date.now() / 1000) - (endTime - startTime));
+        } else {
+          // Total reset of the times
+          await settings.set('progress.startTime', Math.floor(Date.now() / 1000));
+        }
+        await settings.set('progress.endTime', -1);
+        await settings.set('progress.running', true);
+      }
       // Steps to download and process a book
       // 1. Select this entry as in-progress
       await prisma.processQueue.update({ where: { id: queueEntry.id }, data: {
@@ -366,10 +380,25 @@ export namespace LibraryManager {
     resolve();
   };
 
-  const runProcess = () => {
+  const runProcess = async () => {
+    if (await settings.get('progress.paused') === true) {
+      console.log('Processor Paused!');
+      return;
+    }
+
     for (let i = 0; i < processorPromises.length; i++) {
       if (processorPromises[i] === undefined) {
-        const p = new Promise(processFunc).then(() => processorPromises[i] = undefined);
+        const p = new Promise(processFunc).then(async () => {
+          processorPromises[i] = undefined
+
+          const noneWorking = processorPromises.every((p) => p === undefined);
+
+          if (noneWorking && await settings.get('progress.running') === true) {
+            await settings.set('progress.running', false);
+            await settings.set('progress.endTime', Math.floor(Date.now() / 1000));
+          }
+
+        });
         processorPromises[i] = p;
       }
     }
@@ -398,7 +427,7 @@ export namespace LibraryManager {
     if (global.manager.interval !== undefined) stop();
     global.manager.interval = setInterval(eventLoop, EVENT_LOOP_RATE);
     global.manager.interval.unref();
-    global.manager.runProcess();
+    await global.manager.runProcess();
   }
 
   /**
@@ -455,7 +484,7 @@ export namespace LibraryManager {
           }
         });
       }
-      if (run) runProcess();
+      if (run) await global.manager.runProcess();
     } catch(e) {
       console.log('Library Manager QueueBook', e);
     }
@@ -467,7 +496,7 @@ export namespace LibraryManager {
    */
   export const queueBooks = async (asins: string[]) => {
     for (const asin of asins) await queueBook(asin, false);
-    runProcess();
+    await global.manager.runProcess();
   }
 
   /**

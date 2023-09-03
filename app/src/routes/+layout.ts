@@ -8,5 +8,7 @@ export async function load({ fetch }) {
   return {
     progresses: progress.progresses ?? [],
     notifications: nData.notifications ?? [],
+    processPaused: progress.paused ?? false,
+    elapsed_s: progress.elapsed_s ?? -1
   };
 }

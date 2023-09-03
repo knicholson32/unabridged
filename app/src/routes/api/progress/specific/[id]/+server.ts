@@ -1,6 +1,6 @@
 import prisma from '$lib/server/prisma';
 import { error, json } from '@sveltejs/kit';
-import * as helpers from '$lib/helpers';
+import * as settings from '$lib/server/settings';
 import type { ProcessProgressAPI } from '$lib/types';
 
 export const GET = async ({ params }) => {
@@ -11,20 +11,28 @@ export const GET = async ({ params }) => {
   if (id === null || id === undefined) throw error(404, 'Not found');
 
   const progress = await prisma.processQueue.findUnique({
-    where: { bookAsin: id }
+    where: { bookAsin: id },
+    include: {
+      book: {
+        select: {
+          title: true,
+          authors: true,
+          genres: true,
+          cover: {
+            select: {
+              url_100: true
+            }
+          }
+        }
+      }
+    }
   });
 
   // Return if the progress was not found
   if (progress === null || progress === undefined) return json({ ok: false, status: 404 } satisfies ProcessProgressAPI)
 
-  // // Delete if it is done
-  // if (progress.is_done === true) {
-  //   try {
-  //     await prisma.processQueue.delete({ where: { is_done: true, bookAsin: id } });
-  //   } catch(e) {
-  //     // Nothing to do
-  //   }
-  // }
+  // Get whether or not the processor is paused
+  const paused = !await settings.get('progress.running');
 
-  return json({ ok: true, progress: progress, status: 200 } satisfies ProcessProgressAPI);
+  return json({ ok: true, progress: progress, status: 200, paused } satisfies ProcessProgressAPI);
 }

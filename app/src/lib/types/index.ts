@@ -174,13 +174,17 @@ export type ProgressAPI = {
 export type ProcessProgressesAPI = {
     ok: boolean,
     progresses?: ProcessProgress[],
-    status: number
+    status: number,
+    paused?: boolean,
+    elapsed_s?: number
 }
 
 export type ProcessProgressAPI = {
     ok: boolean,
     progress?: ProcessProgress,
-    status: number
+    status: number,
+    paused?: boolean,
+    elapsed_s?: number
 }
 
 export type ProgressStatus = 'RUNNING' | 'DONE' | 'ERROR'
@@ -272,4 +276,46 @@ export type DownloadStatusAPI = {
     status: number
     inProgress: boolean,
     progress?: Progress
+}
+
+// -------------------------------------------------------------------------------------------------
+// Settings
+// -------------------------------------------------------------------------------------------------
+
+export namespace Settings {
+
+    export type TypeName =
+        'progress.running' |
+        'progress.paused' |
+        'progress.startTime' |
+        'progress.endTime' |
+        'progress.endTime' |
+        'general.string' |
+        'general.int' |
+        'general.float' |
+        'general.boolean'
+    ;
+
+    export type ObjectType<T> =
+        T extends 'progress.running' ? boolean :   // Boolean
+        T extends 'progress.paused' ? boolean :    // Boolean
+        T extends 'progress.startTime' ? number :  // Integer
+        T extends 'progress.endTime' ? number :    // Integer
+        T extends 'general.string' ? string :      // String
+        T extends 'general.int' ? number :         // Integer
+        T extends 'general.float' ? number :       // Float
+        T extends 'general.boolean' ? boolean :    // Boolean
+        never;
+
+    export const defaultSettings: { [key in Settings.TypeName]: any } = {
+        'progress.running': true,
+        'progress.paused': true,
+        'progress.startTime': -1,
+        'progress.endTime': -1,
+        'general.string': 'test',
+        'general.int': 1,
+        'general.float': 3.14,
+        'general.boolean': false
+    }
+
 }

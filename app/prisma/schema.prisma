@@ -207,3 +207,10 @@ model Progress {
 
   @@id([id, type])
 }
+
+model Settings {
+  setting String @id
+  value   String
+
+  @@map("settings")
+}

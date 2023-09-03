@@ -112,16 +112,16 @@ export const download = async (asin: string, processID: string, tmpDir: string):
       // Convert the buffer data to a string
       const data = d.toString();
 
-      const regex = /(?<percent>[0-9]+)%\|[█▉▊▋▌▍▎▏\s]+\| (?<downloaded>[0-9.]+)[MG]\/(?<total>[0-9.]+)[MG] \[.+ (?<speed>[0-9.]+)[a-zA-Z]+\/s]/;
+      const regex = /(?<percent>[0-9]+)%\|[█▉▊▋▌▍▎▏\s]+\| (?<downloaded>[0-9.]+)(?<downloadUnit>[MG])\/(?<total>[0-9.]+)(?<totalUnit>[MG]) \[.+ (?<speed>[0-9.]+)[a-zA-Z]+\/s]/;
 
-      type RegexMatchGroups = { percent: string, downloaded: string, total: string, speed: string };
+      type RegexMatchGroups = { percent: string, downloaded: string, downloadUnit: 'M' | 'G', total: string, totalUnit: 'M' | 'G', speed: string };
 
       const groups: RegexMatchGroups = data.match(regex)?.groups as RegexMatchGroups;
 
       if (groups !== undefined) {
         const progress = parseFloat(groups.percent) / 100;
-        const downloaded = parseFloat(groups.downloaded);
-        const total = parseFloat(groups.total);
+        const downloaded = parseFloat(groups.downloaded) * (groups.downloadUnit === 'M' ? 1 : 1024);
+        const total = parseFloat(groups.total) * (groups.totalUnit === 'M' ? 1 : 1024);
         const speed = parseFloat(groups.speed);
 
         try{

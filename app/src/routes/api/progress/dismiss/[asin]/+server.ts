@@ -2,7 +2,7 @@
 
 import prisma from '$lib/server/prisma';
 import { error, json } from '@sveltejs/kit';
-import * as helpers from '$lib/helpers';
+import * as settings from '$lib/server/settings';
 import type { ProcessProgressesAPI } from '$lib/types';
 
 export const GET = async ({ params }) => {
@@ -20,6 +20,14 @@ export const GET = async ({ params }) => {
     });
   } catch(e) {
     // Nothing to do if this fails
+  }
+
+  // Check for in progress or waiting items
+  const notFinished = await prisma.processQueue.count();
+  // If there are no more to do, we can erase the time details
+  if (notFinished === 0) {
+    await settings.set('progress.startTime', -1);
+    await settings.set('progress.endTime', -1);
   }
 
   // Return

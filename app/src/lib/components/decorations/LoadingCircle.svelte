@@ -23,7 +23,7 @@
   let isFast: boolean = false;
 
   const intervalFunction = async () => {
-    let progressResp: ProgressAPI = await (await fetch(`/api/progress/${id}/${type}`)).json() as ProgressAPI;
+    let progressResp: ProgressAPI = await (await fetch(`/api/progress/specific/${id}/${type}`)).json() as ProgressAPI;
     if (progressResp.ok === true && progressResp.progress !== undefined) updateProgress(progressResp.progress);
     else intervalSlow();
   }

@@ -43,7 +43,7 @@ export const load = async ({ params, fetch }) => {
         progress: 0
     }
 
-    const progressResp: ProgressAPI = await (await fetch(`/api/progress/${id}/sync`)).json() as ProgressAPI;        
+    const progressResp: ProgressAPI = await (await fetch(`/api/progress/specific/${id}/sync`)).json() as ProgressAPI;        
 
     if (progressResp.ok === true && progressResp.progress !== undefined) {
         syncing.val = progressResp.progress.status === 'RUNNING' satisfies ProgressStatus;

@@ -25,7 +25,7 @@ export const GET = async ({ params }) => {
         try_after_time: null
       }
     });
-    LibraryManager.eventLoop();
+    await LibraryManager.eventLoop();
   } catch (e) {
     return json({ ok: true, status: 400 } satisfies ProcessProgressesAPI);
   }

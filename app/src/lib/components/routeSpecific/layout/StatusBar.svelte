@@ -30,15 +30,18 @@
       <span class="font-serif font-bold" title="{progress.book.title}">{progress.book.title}</span>
       <span class="block text-xs text-gray-500">By {progress.book.authors[0].name}</span>
     </div>
-    <button on:click={cancel} type="button" title="Cancel" class="absolute right-0 top-0 px-1 py-1 transition-colors duration-100 rounded-lg text-black hover:text-white hover:bg-red-700" >
+    <!-- <button on:click={cancel} type="button" title="Cancel" class="absolute right-0 top-0 px-1 py-1 transition-colors duration-100 rounded-lg text-black hover:text-white hover:bg-red-700" >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
         <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
       </svg>
+    </button> -->
+    <button on:click={cancel} type="button" class="absolute right-0 top-0 transition-colors duration-100 text-xxs rounded-md py-1 px-2 font-mono text-red-600 border border-red-400 hover:text-white hover:bg-red-600 hover:border-red-600" >
+      Cancel
     </button>
   </div>
   <div class="mx-1">
     <div class="flex justify-between mb-1">
-      <span class="text-xs font-medium text-blue-700 dark:text-white truncate max-w-[7rem]">{waitingForDownload ? 'Starting' : (!downloaded ? 'Downloading' : (!processed ? 'Processing' : 'Finishing'))}</span>
+      <span class="text-xs font-medium text-blue-700 dark:text-white">{@html waitingForDownload ? 'Starting' : (!downloaded ? `Downloading <span class="text-gray-400 font-mono">${progress.downloaded_mb?.toFixed(1)}/${progress.total_mb?.toFixed(1)}MB @ ${progress.speed?.toFixed(1)}Mb/s</span>` : (!processed ? `Processing <span class="text-gray-400 font-mono">${progress.speed ?? '0'}x</span>` : 'Finishing'))}</span>
       <span class="text-xs font-medium text-blue-700 dark:text-white">{Math.floor(barProgress*100)}%</span>
     </div>
     <div class="px-2">

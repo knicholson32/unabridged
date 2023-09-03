@@ -21,8 +21,6 @@
 
   $: progress = $progresses.find((p) => p.bookAsin === id);
 
-  console.log(progress)
-
 
   let themeDefault: ThemeDefault;
 
@@ -31,7 +29,7 @@
   // let isFast: boolean = false;
 
   // const intervalFunction = async () => {
-  //   let progressResp: ProcessProgressAPI = await (await fetch(`/api/progress/${id}`)).json() as ProcessProgressAPI;
+  //   let progressResp: ProcessProgressAPI = await (await fetch(`/api/progress/specific/${id}`)).json() as ProcessProgressAPI;
   //   if (progressResp.ok === true && progressResp.progress !== undefined) updateProgress(progressResp.progress);
   //   else intervalSlow();
   // }

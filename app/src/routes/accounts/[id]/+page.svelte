@@ -132,7 +132,7 @@
 
 
   const fetchSyncProgress = async () => {
-    let progressResp: ProgressAPI = await (await fetch(`/api/progress/${data.profile.id}/sync`)).json() as ProgressAPI;
+    let progressResp: ProgressAPI = await (await fetch(`/api/progress/specific/${data.profile.id}/sync`)).json() as ProgressAPI;
     if (progressResp.ok === true && progressResp.progress !== undefined) {
       console.log(Date.now(), progressResp.progress.progress, progressResp.progress.message);
       syncingProgress = progressResp.progress.progress;
@@ -149,7 +149,7 @@
   const startSyncing = () => {
     syncingProgress = 0;
     profileSyncing = true;
-    console.log(`/api/progress/${data.profile.id}-sync`);
+    console.log(`/api/progress/specific/${data.profile.id}-sync`);
     syncingInterval = setInterval(fetchSyncProgress, 250);
     fetchSyncProgress();
   }

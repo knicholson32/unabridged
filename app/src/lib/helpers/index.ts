@@ -196,6 +196,11 @@ export class RunTime {
         const hm = this.hoursMinutes;
         return hm.h.toString().padStart(2, '0') + ':' + hm.m.toString().padStart(2, '0');
     }
+
+    toDirectFormatFull(): string {
+        const hms = this.hoursMinutesSeconds;
+        return hms.h.toString().padStart(2, '0') + ':' + hms.m.toString().padStart(2, '0') + ':' + hms.s.toString().padStart(2, '0');
+    }
     
 }
 
