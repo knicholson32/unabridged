@@ -62,8 +62,30 @@ export const cleanBook = async (asin: string) => {
   //     // Nothing to do if it didn't exist anyway
   //   }
   // }
+  // TODO: Clean authors if there are no more books present
   await prisma.media.deleteMany({ where: { bookAsin: book.asin } });
-  await prisma.book.update({ where: { asin }, data: { downloaded: false, processed: false }});
+  await prisma.book.update({ where: { asin }, data: { downloaded: false, processed: false } });
+  await media.clean();
+}
+
+/**
+ * Deletes the physical download and media for a book, but does not remove the book from the DB.
+ * @param asin 
+ */
+export const cleanSeries = async (id: string) => {
+  const series = await prisma.series.findUnique({ where: { id }, include: { books: { include: { authors: true } } } });
+  if (series === null || series === undefined) return;
+  for (const book of series.books) {
+    // Delete all the physical files that are associated with books that just got deleted
+    try {
+      fs.rmSync(`${LIBRARY_FOLDER}/${sanitize(book.authors[0].name)}/${sanitize(book.title)}`, { recursive: true, force: true });
+    } catch (e) {
+      // Nothing to do if it didn't exist anyway
+    }
+    await prisma.media.deleteMany({ where: { bookAsin: book.asin } });
+    await prisma.book.update({ where: { asin: book.asin }, data: { downloaded: false, processed: false } });
+  }
+  // TODO: Clean authors if there are no more books present
   await media.clean();
 }
 

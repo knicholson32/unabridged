@@ -289,22 +289,23 @@ export namespace Settings {
         'progress.paused' |
         'progress.startTime' |
         'progress.endTime' |
-        'progress.endTime' |
+        'progress.startPaused' |
+
+        'general.autoSync' |
         'general.string' |
-        'general.int' |
-        'general.float' |
-        'general.boolean'
+        'general.float'
     ;
 
     export type ObjectType<T> =
-        T extends 'progress.running' ? boolean :   // Boolean
-        T extends 'progress.paused' ? boolean :    // Boolean
-        T extends 'progress.startTime' ? number :  // Integer
-        T extends 'progress.endTime' ? number :    // Integer
-        T extends 'general.string' ? string :      // String
-        T extends 'general.int' ? number :         // Integer
-        T extends 'general.float' ? number :       // Float
-        T extends 'general.boolean' ? boolean :    // Boolean
+        T extends 'progress.running' ? boolean :        // Boolean
+        T extends 'progress.paused' ? boolean :         // Boolean
+        T extends 'progress.startTime' ? number :       // Integer
+        T extends 'progress.endTime' ? number :         // Integer
+        T extends 'progress.startPaused' ? boolean :    // Integer
+
+        T extends 'general.autoSync' ? boolean :        // Boolean
+        T extends 'general.string' ? string :           // String
+        T extends 'general.float' ? number :            // Float
         never;
 
     export const defaultSettings: { [key in Settings.TypeName]: any } = {
@@ -312,10 +313,11 @@ export namespace Settings {
         'progress.paused': true,
         'progress.startTime': -1,
         'progress.endTime': -1,
+        'progress.startPaused': false,
+
+        'general.autoSync': true,
         'general.string': 'test',
-        'general.int': 1,
-        'general.float': 3.14,
-        'general.boolean': false
+        'general.float': 3.14
     }
 
 }

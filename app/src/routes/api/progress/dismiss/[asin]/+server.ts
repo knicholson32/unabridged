@@ -28,6 +28,7 @@ export const GET = async ({ params }) => {
   if (notFinished === 0) {
     await settings.set('progress.startTime', -1);
     await settings.set('progress.endTime', -1);
+    await settings.set('progress.paused', await settings.get('progress.startPaused'));
   }
 
   // Return

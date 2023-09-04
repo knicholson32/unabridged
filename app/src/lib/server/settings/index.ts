@@ -26,13 +26,13 @@ export const get = async <T extends Settings.TypeName>(setting: T): Promise<Sett
       // Boolean Conversion ------------------------------------------------------------------------
       case 'progress.running':
       case 'progress.paused':
-      case 'general.boolean':
+      case 'progress.startPaused':
+      case 'general.autoSync':
         return (settingVal.value === 'true' ? true : false) as Settings.ObjectType<T>;
 
       // Integer Conversion ------------------------------------------------------------------------
       case 'progress.startTime':
       case 'progress.endTime':
-      case 'general.int':
         return parseInt(settingVal.value) as Settings.ObjectType<T>;
 
       // Float Conversion --------------------------------------------------------------------------

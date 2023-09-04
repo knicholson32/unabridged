@@ -422,6 +422,9 @@ export namespace LibraryManager {
 
     console.log(await prisma.processQueue.findMany());
 
+    // Set the paused value to the default
+    await settings.set('progress.paused', await settings.get('progress.startPaused'));
+
     if (global.manager === undefined) global.manager = { interval: undefined, runProcess: runProcess };
     global.manager.runProcess = runProcess;
     if (global.manager.interval !== undefined) stop();
@@ -448,6 +451,14 @@ export namespace LibraryManager {
    */
   export const cleanBook = async (asin: string) => {
     await tools.cleanBook(asin);
+  }
+
+  /**
+   * Deletes a book from the downloaded library
+   * @param asin 
+   */
+  export const cleanSeries = async (id: string) => {
+    await tools.cleanSeries(id);
   }
 
   /**

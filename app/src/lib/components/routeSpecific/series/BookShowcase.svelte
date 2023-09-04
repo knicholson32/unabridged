@@ -3,6 +3,7 @@
 	import Rating from "$lib/components/decorations/Rating.svelte";
   import * as helpers from '$lib/helpers';
 	import type { Prisma } from "@prisma/client";
+	import { getContext } from "svelte";
 
 
 
@@ -16,6 +17,15 @@
   }>;
   
   export let book: Book;
+
+  const updateProgress = getContext<() => Promise<void>>('updateProgress');
+  const openManager = getContext<() => void>('openManager');
+
+  const download = async () => {
+    await fetch(`/api/library/download/book/${book.asin}`)
+    await updateProgress();
+    openManager()
+  }
 
   let rating = book.rating as unknown as number;
 
@@ -53,13 +63,22 @@
           {book.title}
         </a>
         <span class="text-xxs leading-7 font-sans font-normal text-gray-700 align-baseline ml-1">Book {book.series_sequence}</span>
-        <span class="absolute right-0">
-          <button class="px-1 py-1 text-gray-700 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100/70" >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+        <span class="absolute right-0 top-0 flex">
+          {#if book.downloaded && book.processed}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 m-1">
+              <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
             </svg>
-          </button>
+          {:else}
+            <button on:click={download} class="px-1 py-1 text-gray-700 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100/70 dark:hover:text-gray-700" >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
+                <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+              </svg>
+
+            </button>
+          {/if}
         </span>
+
       </p>
       <p class="font-normal font-sans text-xxs text-gray-700">by {authors}, Narrated by {narrators}</p>
       {#if book.runtime_length_min !== null}

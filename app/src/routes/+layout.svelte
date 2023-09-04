@@ -72,7 +72,9 @@
   const subMenuDefault = 'text-gray-400 hover:text-white hover:bg-gray-800';
 
   const profileMenu = [
-    [{href: '#', newTab: false, title: 'View Profile'}, {href: '#', newTab: false, title: 'Settings'}, {href: '#', newTab: false, title: 'Notifications'}],
+    [{href: '#', newTab: false, title: 'View Profile'}, {href: '#', newTab: false, title: 'Notifications'}],
+    [{href: '/settings', newTab: false, title: 'Settings'}],
+    [{href: '#', newTab: false, title: 'Logout'}],
   ] as ProfileMenu;
 
 
@@ -85,16 +87,20 @@
 
   
   const progress = writable<ProcessProgress[]>();
-  progress.set(data.progresses);  
+  const processPaused = writable<boolean>();
+  const elapsed_s = writable<number>();
   
-  $: downloadsPaused = data.processPaused;
-  $: elapsed_s = data.elapsed_s;
+  progress.set(data.progresses);  
+  processPaused.set(data.processPaused);
+  elapsed_s.set(data.elapsed_s);
+
+
   const updateProgress: UpdateProgress = async () => {
     console.log('Progress Update');
     const p = await (await fetch('/api/progress')).json() as ProcessProgressesAPI;
     if (p.progresses !== undefined) progress.set(p.progresses);
-    if (p.paused !== undefined) downloadsPaused = p.paused;
-    if (p.elapsed_s !== undefined) elapsed_s = p.elapsed_s;
+    if (p.paused !== undefined) processPaused.set(p.paused);
+    if (p.elapsed_s !== undefined) elapsed_s.set(p.elapsed_s);
   }
 
   const togglePause = async () => {
@@ -108,16 +114,18 @@
     pageNeedsProgress = true;
   }
   
-  setContext('progress', progress);
-  setContext('updateProgress', updateProgress);
-  setContext('pageNeedsProgress', setPageNeedsProgressData);
-
   const showStatusMenu = () => statusMenuVisible = true;
   const closeStatusMenu = () => statusMenuVisible = false;
   const toggleStatusMenu = () => {
     statusMenuVisible = !statusMenuVisible;
-    // if (statusMenuVisible === true)
   }
+
+  setContext('progress', progress);
+  setContext('processPaused', processPaused);
+  setContext('elapsed_s', elapsed_s);
+  setContext('updateProgress', updateProgress);
+  setContext('openManager', showStatusMenu);
+  setContext('pageNeedsProgress', setPageNeedsProgressData);
 
   const hoverStatusMenuButton = () => {
      if (statusMenuVisible === false) updateProgress();
@@ -426,12 +434,21 @@
                 <!-- Loop through each sideMenu -->
                   {#each $page.data.sideMenus as menu}
                     <li>
-                      <div class="text-xs font-semibold leading-6 text-gray-400">{menu.title}</div>
+                      <div class="inline-flex w-full">
+                        <div class="text-xs font-semibold leading-6 text-gray-400 grow truncate">{menu.title}</div>
+                        {#if menu.button !== undefined}
+                          <a href="{menu.button.href}" on:click={closeMobileMenu} class="shrink-0 text-gray-400 hover:text-gray-200">
+                            <svg class="h-6 w-6 p-0.5 m-auto" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                              {@html menu.button.iconPath}
+                            </svg>
+                          </a>
+                        {/if}
+                      </div>
                       <ul role="list" class="-mx-2 mt-2 space-y-1">
                         {#each menu.elements as element}
                           <li>
                             <!-- Current: "bg-gray-800 text-white", Default: "text-gray-400 hover:text-white hover:bg-gray-800" -->
-                            <a href="{element.href}" class="{$page.url.pathname===element.href ? subMenuActive : subMenuDefault} group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold">
+                            <a href="{element.href}" on:click={closeMobileMenu} class="{$page.url.pathname===element.href ? subMenuActive : subMenuDefault} group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold">
                               {#if element.miniTitle !== undefined}
                                 <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[0.625rem] font-medium text-gray-400 border-gray-700 bg-gray-800 group-hover:text-white">{element.miniTitle}</span>
                               {:else if element.iconURL !== undefined}
@@ -450,7 +467,7 @@
                   {/each}
                 {/if}
                 <li class="mt-auto">
-                  <a href="#" class="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white">
+                  <a href="/settings" class="{$page.url.pathname === '/settings' ? subMenuActive : subMenuDefault} group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white">
                     <svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
                       <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -467,7 +484,7 @@
   {/if}
 
   <!-- Static sidebar for desktop -->
-  <div class="hidden lg:fixed lg:inset-y-0 lg:z-20 lg:flex lg:w-72 lg:flex-col">
+  <div class="hidden lg:fixed lg:inset-y-0 lg:z-20 lg:flex lg:w-48 xl:w-72 lg:flex-col">
     <!-- Sidebar component, swap this element with another sidebar if you like -->
     <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-[#1A1A1A] px-6 pb-4">
       <div class="flex h-16 shrink-0 items-center">
@@ -496,7 +513,7 @@
             {#each $page.data.sideMenus as menu}
               <li>
                 <div class="inline-flex w-full">
-                  <div class="text-xs font-semibold leading-6 text-gray-400 grow">{menu.title}</div>
+                  <div class="text-xs font-semibold leading-6 text-gray-400 grow truncate">{menu.title}</div>
                   {#if menu.button !== undefined}
                     <a href="{menu.button.href}" class="shrink-0 text-gray-400 hover:text-gray-200">
                       <svg class="h-6 w-6 p-0.5 m-auto" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
@@ -528,7 +545,7 @@
             {/each}
           {/if}
           <li class="mt-auto">
-            <a href="#" class="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white">
+            <a href="/settings" class="{$page.url.pathname.startsWith('/settings') ? subMenuActive : subMenuDefault} group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white">
               <svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -541,7 +558,7 @@
     </div>
   </div>
 
-  <div class="lg:pl-72">
+  <div class="lg:pl-48 xl:pl-72">
     <div class="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
       <button on:click={openMobileMenu} type="button" class="-m-2.5 p-2.5 text-gray-700 lg:hidden">
         <span class="sr-only">Open sidebar</span>
@@ -602,12 +619,12 @@
             {#if statusMenuVisible}
               <!-- <div class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1"> -->
               <div class="fixed sm:absolute top-16 sm:top-auto bottom-12 overflow-hidden overflow-y-scroll sm:overflow-y-visible sm:bottom-auto right-2 left-2 sm:left-auto sm:right-0 z-10 mt-2.5 sm:w-[30rem] origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none " in:scale="{{duration: 100, opacity: 0.95, start: 0.95, easing: cubicOut}}" out:scale="{{duration: 75, opacity: 0.95, start: 0.95, easing: cubicOut}}" use:EscapeOrClickOutside={{except: showStatusButton, callback: closeStatusMenu}} role="menu" aria-orientation="vertical" aria-labelledby="options-menu-button" tabindex="-1">
-                <div in:fade="{{duration: 100, easing: cubicOut}}" out:fade="{{duration: 75, easing: cubicOut}}" use:UpDownEnter={{up: accountDropdownUpEvent, down: accountDropdownDownEvent, enter: accountDropdownEnterEvent}} class=" antialiase">
+                <div in:fade="{{duration: 100, easing: cubicOut}}" out:fade="{{duration: 75, easing: cubicOut}}" class=" antialiase">
 
                   <div class="absolute right-2 top-2 flex gap-1">
                     <button on:click={togglePause} type="button" class="px-1 py-1 text-gray-500 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100" >
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
-                        {#if downloadsPaused}
+                        {#if $processPaused}
                           <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                         {:else}
                           <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
@@ -632,7 +649,7 @@
                         <div class="border-l grow-0"/>
                         <div class="font-mono grow text-center sm:text-left sm:pl-2">{booksDone}<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans">Finished</span></div>
                         <div class="border-l grow-0"/>
-                        <div class="font-mono grow text-center sm:text-left sm:pl-2">{elapsed_s === -1 ? '00:00:00' : new helpers.RunTime({s: elapsed_s}).toDirectFormatFull()}<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans">Elapsed</span></div>
+                        <div class="font-mono grow text-center sm:text-left sm:pl-2">{$elapsed_s === -1 ? '00:00:00' : new helpers.RunTime({s: $elapsed_s}).toDirectFormatFull()}<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans">Elapsed</span></div>
                       </div>
                       <div class="mx-2 mt-1">
                         <div class="relative w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
@@ -663,7 +680,7 @@
                         <div class="border-b-4 border-double my-1"/>
                         <div class="mx-3 flex flex-row gap-1 items-center">
                           <div class="font-bold text-lg">Queue</div>
-                          <div class="font-mono grow pl-2 text-sm">{booksWaiting}<span class="ml-1 text-xs text-gray-600 font-sans">{helpers.basicPlural('Book', booksWaiting)} Waiting{downloadsPaused ? ' - Paused' : ''}</span></div>
+                          <div class="font-mono grow pl-2 text-sm">{booksWaiting}<span class="ml-1 text-xs text-gray-600 font-sans">{helpers.basicPlural('Book', booksWaiting)} Waiting{$processPaused ? ' - Paused' : ''}</span></div>
                         </div>
                         <ul class="flex flex-col max-h-56 overflow-y-scroll overflow-hidden bg-white" role="none">
                           {#each $progress.filter((p) => p.in_progress === false && p.is_done === false) as p (p.bookAsin)}

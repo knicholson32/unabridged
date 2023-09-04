@@ -49,8 +49,8 @@
   const fileTitleClass = 'bg-white text-gray-800/70 align-baseline pr-5 pl-2 py-2 text-center';
   const fileDataClass = 'pr-5 pl-2 py-2'
 
-  const coverHEX = data.book.cover?.hex_dom ?? '#FFFFFF';
-  const coverBright = data.book.cover?.hex_dom_bright ?? true;
+  $: coverHEX = data.book.cover?.hex_dom ?? '#FFFFFF';
+  $: coverBright = data.book.cover?.hex_dom_bright ?? true;
   const rating = data.book.rating as unknown as number;
 
   const bookRuntime = new helpers.RunTime({ min: data.book.runtime_length_min ?? 0 });
@@ -172,7 +172,7 @@
 </nav>
 
 <div class="relative w-full p-6 {coverBright ? 'text-gray-800' : 'text-white'} flex flex-col align-middle items-center sm:flex-row gap-6 shadow-black/10" style="background-color: {coverHEX};">
-  <div class="absolute top-6 right-6 flex flex-col gap-1">
+  <div class="absolute top-6 right-6  bottom-6 flex flex-col gap-1">
     <a href="https://www.audible.com/pd/{data.book.asin}" target="_blank" class="group">
       <span class="inline-flex h-8 w-8 align-bottom rounded-full bg-[#FF9800]">
         <svg class="h-5 w-5 ml-1.5 mt-1.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="audible">
@@ -196,6 +196,21 @@
           </svg>
         </span>
       </a>
+    {/if}
+    <div class="flex-grow"></div>
+    {#if data.book.downloaded}
+      <button on:click={() => {console.log(fetch(`/api/library/remove/book/${data.book.asin}`))}} type="button" class="px-1 py-1 transition-colors duration-100 rounded-lg {data.book.cover?.hex_dom_bright ? 'text-gray-800 hover:text-white hover:bg-gray-800': 'text-white hover:text-gray-800 hover:bg-white'}" >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-7 h-7">
+          <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+        </svg>
+      </button>
+    {:else}
+      <button on:click={() => {console.log(fetch(`/api/library/download/book/${data.book.asin}`))}} type="button" class="px-1 py-1 transition-colors duration-100 rounded-lg {data.book.cover?.hex_dom_bright ? 'text-gray-800 hover:text-white hover:bg-gray-800': 'text-white hover:text-gray-800 hover:bg-white'}" >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-7 h-7">
+          <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
+          <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+        </svg>
+      </button>
     {/if}
   </div>
   <div class="h-72 shrink-0">
@@ -439,14 +454,9 @@
 {/if}
 
 <div class="flex items-center justify-end gap-x-6 border-t bg-white border-gray-900/10 px-4 py-4 sm:px-8">
-  <form method="POST" action="?/download" class="flex items-center justify-end gap-x-6" use:enhance>
-    <LoadingCircleProgress id={data.book.asin} />
+  <!-- <form method="POST" action="?/download" class="flex items-center justify-end gap-x-6" use:enhance>
     <button class="text-sm font-semibold leading-6 text-gray-900">Download</button>
-  </form>
-  <button type="button" on:click={() => {console.log(fetch(`/api/library/cancel/book/${data.book.asin}`))}} class="text-sm font-semibold leading-6 text-gray-900">Cancel</button>
-  {#if data.book.downloaded}
-    <button type="button" on:click={() => {console.log(fetch(`/api/library/remove/book/${data.book.asin}`))}} class="text-sm font-semibold leading-6 text-gray-900">Remove</button>
-  {/if}
+  </form> -->
   <form method="POST" action="?/update" class="flex items-center justify-end gap-x-6" use:enhance={() => {
     updatesSubmitting = true;
     return async ({ update }) => {
