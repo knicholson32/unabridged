@@ -1,7 +1,5 @@
 <script lang="ts">
 	import { enhance } from "$app/forms";
-
-
 	import { Switch } from "$lib/components/buttons";
 
   export let data: import('./$types').PageData;

@@ -89,6 +89,7 @@
 
 	let searchBar: HTMLInputElement;
 	const submitSearch = () => {
+		if (!data.autoSubmit) return;
 		params.search = searchBar.value;
 		params = params;
 		goto(generateURL({page: 0}), { replaceState: true, keepFocus: true });

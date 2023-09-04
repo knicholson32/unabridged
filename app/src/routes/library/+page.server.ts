@@ -5,11 +5,14 @@ import type * as Table from '$lib/table';
 import * as table from '$lib/table';
 import type { Prisma } from '@prisma/client';
 import * as helpers from '$lib/helpers';
+import * as settings from '$lib/server/settings';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ url, depends }) {
 
   console.log('library > +page.server.ts');
+
+  const autoSubmit = await settings.get('search.autoSubmit');
 
   const fuseOptionsBooks = {
     // isCaseSensitive: false,
@@ -260,7 +263,8 @@ export async function load({ url, depends }) {
       page: params.page,
       series: seriesExport.slice(start, end),
       singleBooks,
-      profiles
+      profiles,
+      autoSubmit
     };
   } else if (params.group === 'author') {
     const authorsRaw = await prisma.author.findMany({
@@ -309,7 +313,8 @@ export async function load({ url, depends }) {
       page: params.page,
       authors: authors.slice(start, end),
       singleBooks,
-      profiles
+      profiles,
+      autoSubmit
     };
   } else if (params.group === 'narrator') {
     const narratorsRaw = await prisma.narrator.findMany({
@@ -358,7 +363,8 @@ export async function load({ url, depends }) {
       page: params.page,
       authors: narrators.slice(start, end),
       singleBooks,
-      profiles
+      profiles,
+      autoSubmit
     };
   }
 
@@ -366,6 +372,7 @@ export async function load({ url, depends }) {
     bookCount,
     pages: 0,
     singleBooks,
-    profiles
+    profiles,
+    autoSubmit
   };
 }

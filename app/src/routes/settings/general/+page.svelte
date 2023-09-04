@@ -1,3 +1,12 @@
+<script lang="ts">
+
+	import { enhance } from "$app/forms";
+	import { Switch } from "$lib/components/buttons";
+
+  export let data: import('./$types').PageData;
+
+</script>
+
 <div>
   <h2 class="text-base font-semibold leading-7 text-gray-900">Profile</h2>
   <p class="mt-1 text-sm leading-6 text-gray-500">This information will be displayed publicly so be careful what you share.</p>
@@ -28,13 +37,15 @@
 </div>
 
 <div>
-  <h2 class="text-base font-semibold leading-7 text-gray-900">Bank accounts</h2>
-  <p class="mt-1 text-sm leading-6 text-gray-500">Connect bank accounts to your account.</p>
+  <h2 class="text-base font-semibold leading-7 text-gray-900">Search</h2>
+  <p class="mt-1 text-sm leading-6 text-gray-500">Configure how Unabridged searches books.</p>
 
   <ul role="list" class="mt-6 divide-y divide-gray-100 border-t border-gray-200 text-sm leading-6">
     <li class="flex justify-between gap-x-6 py-6">
-      <div class="font-medium text-gray-900">TD Canada Trust</div>
-      <button type="button" class="font-semibold text-indigo-600 hover:text-indigo-500">Update</button>
+      <div class="font-medium text-gray-900">Auto Submit on Input</div>
+      <form method="POST" action="?/update" class="flex items-center justify-end gap-x-6" use:enhance>
+        <Switch type="submit" valueName="autoSubmit" value={data.autoSubmit} />
+      </form>
     </li>
     <li class="flex justify-between gap-x-6 py-6">
       <div class="font-medium text-gray-900">Royal Bank of Canada</div>

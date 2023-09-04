@@ -291,6 +291,8 @@ export namespace Settings {
         'progress.endTime' |
         'progress.startPaused' |
 
+        'search.autoSubmit' |
+
         'general.autoSync' |
         'general.string' |
         'general.float'
@@ -303,6 +305,8 @@ export namespace Settings {
         T extends 'progress.endTime' ? number :         // Integer
         T extends 'progress.startPaused' ? boolean :    // Integer
 
+        T extends 'search.autoSubmit' ? boolean :       // Boolean
+
         T extends 'general.autoSync' ? boolean :        // Boolean
         T extends 'general.string' ? string :           // String
         T extends 'general.float' ? number :            // Float
@@ -314,6 +318,8 @@ export namespace Settings {
         'progress.startTime': -1,
         'progress.endTime': -1,
         'progress.startPaused': false,
+
+        'search.autoSubmit': true,
 
         'general.autoSync': true,
         'general.string': 'test',
