@@ -293,6 +293,8 @@ export namespace Settings {
 
         'search.autoSubmit' |
 
+        'system.debug' |
+
         'general.autoSync' |
         'general.string' |
         'general.float'
@@ -307,6 +309,8 @@ export namespace Settings {
 
         T extends 'search.autoSubmit' ? boolean :       // Boolean
 
+        T extends 'system.debug' ? boolean :            // Boolean
+
         T extends 'general.autoSync' ? boolean :        // Boolean
         T extends 'general.string' ? string :           // String
         T extends 'general.float' ? number :            // Float
@@ -320,6 +324,8 @@ export namespace Settings {
         'progress.startPaused': false,
 
         'search.autoSubmit': true,
+
+        'system.debug': false,
 
         'general.autoSync': true,
         'general.string': 'test',

@@ -64,3 +64,7 @@ You can preview the production build with `npm run preview`.
 ### ToDo
 [ ] Allow an account to be re-authenticated, so if there is an issue you don't lose all the books
 [ ] Process parts as well as chapters (See Bobiverse: We Are Legion)
+[ ] Re-implement AAXtoMP3 in-house to enable the titles to be what we specifically set (AAXtoMP3 picks second title which is the title and subtitle combined)
+
+### Important Links
+* https://github.com/djdembeck/Audnexus.bundle -> used for getting metadata in Plex

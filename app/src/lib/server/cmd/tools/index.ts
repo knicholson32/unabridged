@@ -2,7 +2,9 @@ import { LIBRARY_FOLDER } from "$lib/server/env";
 import prisma from "$lib/server/prisma";
 import * as fs from 'node:fs';
 import * as media from '$lib/server/media';
+import * as settings from '$lib/server/settings';
 import sanitize from "sanitize-filename";
+import { sanitizeFile } from "$lib/server/helpers";
 
 /**
  * Create a temporary directory based on an asin
@@ -49,9 +51,13 @@ export const cleanBook = async (asin: string) => {
   const book = await prisma.book.findUnique({ where: { asin }, include: { authors: true } });
   if (book === null || book === undefined) return;
   // Delete all the physical files that are associated with books that just got deleted
+  const debug = await settings.get('system.debug') === true;
   try {
-    fs.rmSync(`${LIBRARY_FOLDER}/${sanitize(book.authors[0].name)}/${sanitize(book.title)}`, { recursive: true, force: true });
+    const rm = `${LIBRARY_FOLDER}/${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}`;
+    if (debug) console.log('Remove', rm);
+    fs.rmSync(rm, { recursive: true, force: true });
   } catch (e) {
+    if (debug) console.log(e);
     // Nothing to do if it didn't exist anyway
   }
   // // Delete all the physical files that are associated with authors that just got deleted
@@ -75,12 +81,16 @@ export const cleanBook = async (asin: string) => {
 export const cleanSeries = async (id: string) => {
   const series = await prisma.series.findUnique({ where: { id }, include: { books: { include: { authors: true } } } });
   if (series === null || series === undefined) return;
+  const debug = await settings.get('system.debug') === true;
   for (const book of series.books) {
     // Delete all the physical files that are associated with books that just got deleted
     try {
-      fs.rmSync(`${LIBRARY_FOLDER}/${sanitize(book.authors[0].name)}/${sanitize(book.title)}`, { recursive: true, force: true });
+      const rm = `${LIBRARY_FOLDER}/${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}`;
+      if (debug) console.log('Remove', rm)
+      fs.rmSync(rm, { recursive: true, force: true });
     } catch (e) {
       // Nothing to do if it didn't exist anyway
+      if (debug) console.log(e);
     }
     await prisma.media.deleteMany({ where: { bookAsin: book.asin } });
     await prisma.book.update({ where: { asin: book.asin }, data: { downloaded: false, processed: false } });
@@ -146,10 +156,14 @@ export const cleanAll = async () => {
     await prisma.narrator.deleteMany({ where: { books: { none: {} } } });
     await prisma.genre.deleteMany({ where: { books: { none: {} } } });
 
+    const debug = await settings.get('system.debug') === true;
+
     // Delete all the physical files that are associated with books that just got deleted
     for (const book of books) {
       try {
-        fs.rmSync(`${LIBRARY_FOLDER}/${sanitize(book.authors[0].name)}/${sanitize(book.title)}`, { recursive: true, force: true });
+        const rm = `${LIBRARY_FOLDER}/${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}`;
+        if (debug) console.log('Remove', rm)
+        fs.rmSync(rm, { recursive: true, force: true });
       } catch (e) {
         // Nothing to do if it didn't exist anyway
       }
@@ -157,7 +171,9 @@ export const cleanAll = async () => {
     // Delete all the physical files that are associated with authors that just got deleted
     for (const author of authors) {
       try {
-        fs.rmSync(`${LIBRARY_FOLDER}/${sanitize(author.name)}`, { recursive: true, force: true });
+        const rm = `${LIBRARY_FOLDER}/${sanitizeFile(author.name)}`;
+        if (debug) console.log('Remove', rm)
+        fs.rmSync(rm, { recursive: true, force: true });
       } catch (e) {
         // Nothing to do if it didn't exist anyway
       }

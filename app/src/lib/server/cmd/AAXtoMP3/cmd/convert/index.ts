@@ -1,6 +1,7 @@
 import * as child_process from 'node:child_process';
 import * as fs from 'fs'
 import { v4 as uuidv4 } from 'uuid';
+import * as settings from '$lib/server/settings';
 import prisma from '$lib/server/prisma';
 import * as helpers from '$lib/helpers';
 import * as media from '$lib/server/media';
@@ -89,7 +90,10 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
 
   // AAXtoMP3 -e:m4b -s --author "Martha Wells" --authcode 4165af03 --dir-naming-scheme '$artist/$title' --file-naming-scheme '$title' --use-audible-cli-data -t /app/db/export ./*.aaxc
   // '--debug', `--audible-cli-library-file`, `"/db/audible/${profileID}.library.tsv"`
+  // TODO: Save the directory and filename so we can just save them to the DB to make deleting books easier
   const args = ['-e:m4b', `-L`, `/db/audible/${profileID}.library.tsv`, '-s', '--author', `"${book.authors[0].name}"`, '--authcode', authCode, '--dir-naming-scheme', `'"${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}"'`, '--file-naming-scheme', `'"${sanitizeFile(book.title)}"'`, '--use-audible-cli-data', '-t', LIBRARY_FOLDER, './*.aaxc']
+  // Check if we should use debug mode
+  if (await settings.get('system.debug') === true) args.unshift('--debug');
   console.log(`${AAXtoMP3_COMMAND} ${args.join(' ')}`);
   const aax = child_process.spawn(
     AAXtoMP3_COMMAND,

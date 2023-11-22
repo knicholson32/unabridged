@@ -51,6 +51,24 @@
 </div>
 
 <div>
+  <h2 class="text-base font-semibold leading-7 text-gray-900">System</h2>
+  <p class="mt-1 text-sm leading-6 text-gray-500">Configure specifics the process system and backend.</p>
+
+  <ul role="list" class="mt-6 divide-y divide-gray-100 border-t border-gray-200 text-sm leading-6">
+    <li class="flex justify-between gap-x-6 py-6">
+      <div class="font-medium text-gray-900">Debug Mode</div>
+      <form method="POST" action="?/update" class="flex items-center justify-end gap-x-6" use:enhance>
+        <Switch type="submit" valueName="debug" value={data.debug} />
+      </form>
+    </li>
+  </ul>
+
+  <div class="flex border-t border-gray-100 pt-6">
+    <button type="button" class="text-sm font-semibold leading-6 text-indigo-600 hover:text-indigo-500"><span aria-hidden="true">+</span> Add another bank</button>
+  </div>
+</div>
+
+<div>
   <h2 class="text-base font-semibold leading-7 text-gray-900">Integrations</h2>
   <p class="mt-1 text-sm leading-6 text-gray-500">Connect applications to your account.</p>
 

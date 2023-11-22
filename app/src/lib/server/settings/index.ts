@@ -29,6 +29,7 @@ export const get = async <T extends Settings.TypeName>(setting: T): Promise<Sett
       case 'progress.startPaused':
       case 'search.autoSubmit':
       case 'general.autoSync':
+      case 'system.debug':
         return (settingVal.value === 'true' ? true : false) as Settings.ObjectType<T>;
 
       // Integer Conversion ------------------------------------------------------------------------
