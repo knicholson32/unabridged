@@ -8,7 +8,7 @@
 usage=$'\nUsage: AAXtoMP3 [--flac] [--aac] [--opus ] [--single] [--level <COMPRESSIONLEVEL>]
 [--chaptered] [-e:mp3] [-e:m4a] [-e:m4b] [--authcode <AUTHCODE>] [--no-clobber]
 [--target_dir <PATH>] [--complete_dir <PATH>] [--validate] [--loglevel <LOGLEVEL>]
-[--keep-author <N>] [--author <AUTHOR>] [--{dir,file,chapter}-naming-scheme <STRING>]  
+[--keep-author <N>] [--author <AUTHOR>] [--{dir,file,chapter}-naming-scheme <STRING>] [--title <TITLE>]
 [--use-audible-cli-data] [--audible-cli-library-file <LIBRARY_PATH>] [--continue <CHAPTERNUMBER>] {FILES}\n'
 codec=libmp3lame            # Default encoder.
 extension=mp3               # Default encoder extension.
@@ -31,6 +31,8 @@ continue=0                  # Default off, If set Transcoding is skipped and cha
 continueAt=1                # Optional chapter to continue splitting the chapters.
 keepArtist=-1               # Default off, if set change author metadata to use the passed argument as field
 authorOverride=             # Override the author, ignoring the metadata           
+keepTitle=-1                # Default off, if set change author metadata to use the passed argument as field
+titleOverride=              # Override the title, ignoring the metadata           
 audibleCli=0                # Default off, Use additional data gathered from mkb79/audible-cli
 aaxc_key=                   # Initialize variables, in case we need them in debug_vars
 aaxc_iv=                    # Initialize variables, in case we need them in debug_vars
@@ -92,6 +94,8 @@ while true; do
     --keep-author     ) keepArtist="$2";                                                shift 2 ;;
                       # Author override
     --author          ) authorOverride="$2";                                            shift 2 ;;
+                      # Author override
+    --title           ) titleOverride="$2";                                             shift 2 ;;
                       # Ffmpeg path override
     --ffmpeg-path     ) ffmpegPath="$2";                                                shift 2 ;;
                       # Ffmpeg name override
@@ -687,7 +691,12 @@ do
       album_artist="$(get_metadata_value album_artist)"
     fi
   fi
-  title=$(get_metadata_value title)
+  if [ "x${titleOverride}" != "x" ]; then
+    #Manual Override
+    title="${titleOverride}"
+  else
+    title=$(get_metadata_value title)
+  fi
   title=${title:0:128}
   bitrate="$(get_bitrate)k"
   album="$(get_metadata_value album)"
