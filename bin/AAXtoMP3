@@ -694,12 +694,14 @@ do
   if [ "x${titleOverride}" != "x" ]; then
     #Manual Override
     title="${titleOverride}"
+    album="${titleOverride}"
   else
     title=$(get_metadata_value title)
+    album="$(get_metadata_value album)"
   fi
   title=${title:0:128}
   bitrate="$(get_bitrate)k"
-  album="$(get_metadata_value album)"
+  # album="$(get_metadata_value album)"
   album_date="$(get_metadata_value date)"
   copyright="$(get_metadata_value copyright)"
   series="$(get_metadata_value series)"
