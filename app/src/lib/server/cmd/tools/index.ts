@@ -1,4 +1,4 @@
-import { LIBRARY_FOLDER } from "$lib/server/env";
+// import { LIBRARY_FOLDER } from "$lib/server/env";
 import prisma from "$lib/server/prisma";
 import * as fs from 'node:fs';
 import * as media from '$lib/server/media';
@@ -52,6 +52,7 @@ export const cleanBook = async (asin: string) => {
   if (book === null || book === undefined) return;
   // Delete all the physical files that are associated with books that just got deleted
   const debug = await settings.get('system.debug') === true;
+  const LIBRARY_FOLDER = await settings.get('library.location');
   try {
     const rm = `${LIBRARY_FOLDER}/${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}`;
     if (debug) console.log('Remove', rm);
@@ -82,6 +83,7 @@ export const cleanSeries = async (id: string) => {
   const series = await prisma.series.findUnique({ where: { id }, include: { books: { include: { authors: true } } } });
   if (series === null || series === undefined) return;
   const debug = await settings.get('system.debug') === true;
+  const LIBRARY_FOLDER = await settings.get('library.location');
   for (const book of series.books) {
     // Delete all the physical files that are associated with books that just got deleted
     try {
@@ -157,6 +159,7 @@ export const cleanAll = async () => {
     await prisma.genre.deleteMany({ where: { books: { none: {} } } });
 
     const debug = await settings.get('system.debug') === true;
+    const LIBRARY_FOLDER = await settings.get('library.location');
 
     // Delete all the physical files that are associated with books that just got deleted
     for (const book of books) {

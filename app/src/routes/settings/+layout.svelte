@@ -25,17 +25,18 @@
         <li>
           <a href="/settings/system" class="{$page.url.pathname === '/settings/system' ? subMenuActive : subMenuDefault} group flex gap-x-3 rounded-md py-2 pl-2 pr-3 text-sm leading-6 font-semibold">
             <svg class="h-6 w-6 shrink-0 {$page.url.pathname === '/settings/system' ? subMenuIconActive : subMenuIconDefault}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33" />
+              <!-- <path stroke-linecap="round" stroke-linejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33" /> -->
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
             </svg>
             System
           </a>
         </li>
         <li>
-          <a href="#" class="{$page.url.pathname === '/settings/notifications' ? subMenuActive : subMenuDefault} group flex gap-x-3 rounded-md py-2 pl-2 pr-3 text-sm leading-6 font-semibold">
-            <svg class="h-6 w-6 shrink-0 {$page.url.pathname === '/settings/notifications' ? subMenuIconActive : subMenuIconDefault}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+          <a href="/settings/plex" class="{$page.url.pathname === '/settings/plex' ? subMenuActive : subMenuDefault} group flex gap-x-3 rounded-md py-2 pl-2 pr-3 text-sm leading-6 font-semibold">
+            <svg class="h-6 w-6 shrink-0 {$page.url.pathname === '/settings/plex' ? subMenuIconActive : subMenuIconDefault}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="4 4 34 34" stroke-width="2.125" stroke="currentColor">
+              <g id="Plex"><path d="M20,34h0A14,14,0,0,1,6,20H6A14,14,0,0,1,20,6h0A14,14,0,0,1,34,20h0A14,14,0,0,1,20,34Zm0-23.06H15.06L20,20l-4.94,9.06H20L25.76,20Z"/></g>
             </svg>
-            Notifications
+            Plex
           </a>
         </li>
         <li>

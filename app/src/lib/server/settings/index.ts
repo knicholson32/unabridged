@@ -1,5 +1,6 @@
 import { Settings } from '$lib/types';
 import prisma from '$lib/server/prisma';
+import * as CryptoJS from 'crypto-js';
 
 // -------------------------------------------------------------------------------------------------
 // Settings
@@ -14,6 +15,9 @@ export const get = async <T extends Settings.TypeName>(setting: T): Promise<Sett
 
   // Make sure the setting can exist
   if (!(setting in Settings.defaultSettings)) throw Error(`Unknown setting: ${setting}`);
+
+  // TODO: Cache some of these settings? Maybe the frequent ones? That way we don't have to do a DB
+  //       call every time. Would only make sense for some settings though.
 
   // Pull the setting from the DB
   const settingVal = await prisma.settings.findUnique({ where: { setting }});
@@ -30,11 +34,17 @@ export const get = async <T extends Settings.TypeName>(setting: T): Promise<Sett
       case 'search.autoSubmit':
       case 'general.autoSync':
       case 'system.debug':
+      case 'plex.enable':
+      case 'plex.useToken':
+      case 'plex.collections.enable':
+      case 'plex.library.autoScan':
+      case 'plex.library.scheduled':
         return (settingVal.value === 'true' ? true : false) as Settings.ObjectType<T>;
 
       // Integer Conversion ------------------------------------------------------------------------
       case 'progress.startTime':
       case 'progress.endTime':
+      case 'plex.library.autoScanDelay':
         return parseInt(settingVal.value) as Settings.ObjectType<T>;
 
       // Float Conversion --------------------------------------------------------------------------
@@ -42,7 +52,17 @@ export const get = async <T extends Settings.TypeName>(setting: T): Promise<Sett
         return parseFloat(settingVal.value) as Settings.ObjectType<T>;
 
       // String Conversion -------------------------------------------------------------------------
+      case 'plex.address':
+      case 'plex.token':
+      case 'plex.username':
+      case 'plex.password':
+      case 'general.encKey':
       case 'general.string':
+      case 'library.location':
+        return settingVal.value as Settings.ObjectType<T>;
+
+      // Enum Conversion ------------------------------------------------00-------------------------
+      case 'plex.collections.by':
         return settingVal.value as Settings.ObjectType<T>;
 
       // Unknown -----------------------------------------------------------------------------------
@@ -51,6 +71,17 @@ export const get = async <T extends Settings.TypeName>(setting: T): Promise<Sett
     }
   } else {
     // It does not. Assign the default to the DB and return the default value.
+
+    // First, check if this is a setting that needs a special default
+    if (setting === 'general.encKey') {
+      // It is. Generate the default
+      const defaultVal = CryptoJS.lib.WordArray.random(24).toString() as Settings.ObjectType<T>;
+      await prisma.settings.create({ data: { setting, value: defaultVal.toString() } });
+      // Return the default value
+      return defaultVal;  
+    }
+
+    // It is not. Get the default setting
     const defaultVal = (Settings.defaultSettings[setting] as Settings.ObjectType<T>);
 
     // Write the default value to the DB

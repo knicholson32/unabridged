@@ -282,6 +282,11 @@ export type DownloadStatusAPI = {
 // Settings
 // -------------------------------------------------------------------------------------------------
 
+export enum CollectionBy {
+    series = 'series',
+    album = 'album'
+}
+
 export namespace Settings {
 
     export type TypeName =
@@ -295,25 +300,55 @@ export namespace Settings {
 
         'system.debug' |
 
+        'plex.enable' |
+        'plex.address' |
+        'plex.useToken' |
+        'plex.token' |
+        'plex.username' |
+        'plex.password' |
+        'plex.library.autoScan' |
+        'plex.library.autoScanDelay' |
+        'plex.library.scheduled' |
+        'plex.collections.enable' |
+        'plex.collections.by' | 
+
+        'library.location' |
+
         'general.autoSync' |
+        'general.encKey' |
         'general.string' |
         'general.float'
     ;
 
     export type ObjectType<T> =
-        T extends 'progress.running' ? boolean :        // Boolean
-        T extends 'progress.paused' ? boolean :         // Boolean
-        T extends 'progress.startTime' ? number :       // Integer
-        T extends 'progress.endTime' ? number :         // Integer
-        T extends 'progress.startPaused' ? boolean :    // Integer
+        T extends 'progress.running' ? boolean :           // Boolean
+        T extends 'progress.paused' ? boolean :            // Boolean
+        T extends 'progress.startTime' ? number :          // Integer
+        T extends 'progress.endTime' ? number :            // Integer
+        T extends 'progress.startPaused' ? boolean :       // Integer
+  
+        T extends 'search.autoSubmit' ? boolean :          // Boolean
+ 
+        T extends 'system.debug' ? boolean :               // Boolean
 
-        T extends 'search.autoSubmit' ? boolean :       // Boolean
+        T extends 'plex.enable' ? boolean :                // Boolean
+        T extends 'plex.address' ? string :                // String
+        T extends 'plex.useToken' ? boolean :              // Boolean
+        T extends 'plex.token' ? string :                  // String
+        T extends 'plex.username' ? string :               // String
+        T extends 'plex.password' ? string :               // String
+        T extends 'plex.library.autoScan' ? boolean :      // Boolean
+        T extends 'plex.library.scheduled' ? boolean :     // Boolean
+        T extends 'plex.library.autoScanDelay' ? number :  // Integer
+        T extends 'plex.collections.enable' ? boolean :    // Boolean
+        T extends 'plex.collections.by' ? CollectionBy :   // Enum
 
-        T extends 'system.debug' ? boolean :            // Boolean
+        T extends 'library.location' ? string :            // String
 
-        T extends 'general.autoSync' ? boolean :        // Boolean
-        T extends 'general.string' ? string :           // String
-        T extends 'general.float' ? number :            // Float
+        T extends 'general.autoSync' ? boolean :           // Boolean
+        T extends 'general.encKey' ? string :              // String
+        T extends 'general.string' ? string :              // String
+        T extends 'general.float' ? number :               // Float
         never;
 
     export const defaultSettings: { [key in Settings.TypeName]: any } = {
@@ -327,7 +362,22 @@ export namespace Settings {
 
         'system.debug': false,
 
+        'plex.enable': false,
+        'plex.address': '127.0.0.1',
+        'plex.useToken': true,
+        'plex.token': '',
+        'plex.username': '',
+        'plex.password': '',
+        'plex.library.autoScan': true,
+        'plex.library.scheduled': true,
+        'plex.library.autoScanDelay': 60,
+        'plex.collections.enable': true,
+        'plex.collections.by': CollectionBy.series,
+
+        'library.location': '/library',
+        
         'general.autoSync': true,
+        'general.encKey': 'UNSET',
         'general.string': 'test',
         'general.float': 3.14
     }

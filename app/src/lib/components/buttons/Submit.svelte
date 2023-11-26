@@ -3,7 +3,7 @@
 
   type ThemeDefault = 'indigo' | 'white' | 'red' | 'green';
   type ThemeDone = 'green' | 'white';
-  type ThemeFail = 'red' | 'yellow';
+  type ThemeFail = 'red' | 'yellow' | 'white';
 
   type Theme = {
     primary?: ThemeDefault,
@@ -94,10 +94,13 @@
 
   switch (themeFailed) {
     case 'yellow':
-      themeClassesFailed = 'bg-yellow-500 text-white hover:bg-yellow-400 focus-visible:outline-yellow-500';
+      themeClassesFailed = 'bg-yellow-500 text-white hover:bg-yellow-400 ring-yellow-300 focus-visible:outline-yellow-500';
+      break;
+    case 'white':
+      themeClassesFailed = 'bg-white text-gray-800 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline-grey-500 ring-1 ring-inset ring-gray-300';
       break;
     default: // red
-      themeClassesFailed = 'bg-red-600 text-white hover:bg-red-500 focus-visible:outline-red-500';
+      themeClassesFailed = 'bg-red-600 text-white hover:bg-red-500 ring-red-300 focus-visible:outline-red-500';
       break;
   }
 

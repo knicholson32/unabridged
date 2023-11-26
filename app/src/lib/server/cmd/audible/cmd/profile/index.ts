@@ -12,7 +12,7 @@ import type { CountryCode } from '$lib/types';
 import * as crypto from 'crypto';
 import prisma from '$lib/server/prisma';
 import * as media from '$lib/server/media';
-import { LIBRARY_FOLDER, AUDIBLE_FOLDER, AUDIBLE_CMD } from '$lib/server/env';
+import { AUDIBLE_FOLDER, AUDIBLE_CMD } from '$lib/server/env';
 
 const ENTER = '\n';
 

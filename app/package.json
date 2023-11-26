@@ -37,6 +37,7 @@
 		"@tailwindcss/aspect-ratio": "^0.4.2",
 		"@tanstack/svelte-table": "^8.9.5",
 		"base-64": "^1.0.0",
+		"crypto-js": "^4.2.0",
 		"date-fns": "^2.30.0",
 		"date-format": "^4.0.14",
 		"fast-average-color-node": "^2.6.0",

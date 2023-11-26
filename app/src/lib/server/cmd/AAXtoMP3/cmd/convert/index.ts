@@ -5,7 +5,7 @@ import * as settings from '$lib/server/settings';
 import prisma from '$lib/server/prisma';
 import * as helpers from '$lib/helpers';
 import * as media from '$lib/server/media';
-import { AAXtoMP3_COMMAND, LIBRARY_FOLDER } from '$lib/server/env';
+import { AAXtoMP3_COMMAND } from '$lib/server/env';
 import * as path from 'node:path';
 import type { Issuer, ModalTheme, ProgressStatus } from '$lib/types';
 import { ConversionError } from '../../types';
@@ -62,6 +62,8 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
 
   // Exit if no authcode
   if (authCode === undefined || profileID === undefined) return ConversionError.NO_PROFILE_WITH_AUTHCODE;
+
+  const LIBRARY_FOLDER = await settings.get('library.location');
 
   // Delete this book from the downloaded library if it exists
   const destinationFolder = `${LIBRARY_FOLDER}/${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}`;
