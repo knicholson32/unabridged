@@ -16,6 +16,7 @@
   let plexIntegrationUpdate: () => {};
   let plexIntegrationUnsavedChanges = false;
   let plexEnable = data.settingValues['plex.enable'];
+  let plexAddress = data.settingValues['plex.address'];
   let useToken = data.settingValues['plex.useToken'];
   let token = data.settingValues['plex.token'];
   let username = data.settingValues['plex.username'];
@@ -62,6 +63,11 @@
 
   <Settings.Switch name="plex.enable" title="Enable Plex" update={plexIntegrationUpdate} bind:value={plexEnable} 
     hoverTitle={'Whether or not to enable Plex integration'} />
+
+  <Settings.Input name="plex.address" title="Plex Address" mono={true} update={plexIntegrationUpdate} bind:value={plexAddress} 
+    disabled={plexEnable === false}
+    placeholder="127.0.0.1"
+    hoverTitle={plexEnable === false ? 'Disabled because Plex is not enabled' : 'Plex Address'} />
 
   <Settings.Switch name="plex.useToken" title="Use Plex Token" update={plexIntegrationUpdate} bind:value={useToken} 
     hoverTitle={plexEnable === false ? 'Disabled because Plex is not enabled' : 'Whether or not to use a Plex Token. Either a Plex Token or account login can be used.'}

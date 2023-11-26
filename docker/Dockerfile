@@ -1,7 +1,7 @@
 # Project arguments
 ARG AAXtoMP3_VERSION=1.3
 ARG TONE_VERSION=0.1.5
-ARG NODE_VERSION=20.5.0
+ARG NODE_VERSION=20.10.0
 ARG USR_LOCAL_EXPORT=/export-usr-bin
 ARG ROOT_EXPORT=/export-root
 ARG WHEEL_EXPORT=/export-wheel
@@ -128,7 +128,7 @@ RUN echo "---- INSTALL AUDIBLE-CLI ----" \
   && rm -rf /tmp/*
 
 ######### Node Modules & Build #####################################################################
-FROM node:20.5.0-alpine as build
+FROM node:${NODE_VERSION}-alpine as build
 
 # Copy the application and move to the copied folder
 COPY ./app/ /app/

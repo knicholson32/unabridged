@@ -52,6 +52,9 @@ export const actions = {
     const plexEnable = (data.get('plex.enable') ?? undefined) as undefined | string;
     if (plexEnable !== undefined) await settings.set('plex.enable', plexEnable === 'true');
 
+    const plexAddress = (data.get('plex.address') ?? undefined) as undefined | string;
+    if (plexAddress !== undefined) await settings.set('plex.address', plexAddress);
+
     const useToken = (data.get('plex.useToken') ?? undefined) as undefined | string;
     if (useToken !== undefined) await settings.set('plex.useToken', useToken === 'true');
 

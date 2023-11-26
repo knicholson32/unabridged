@@ -50,7 +50,7 @@
         <h2 class="text-lg font-semibold leading-7 text-gray-900">
           <slot name="title">Settings</slot>
           {#if unsavedChanges === true}
-            <span class="text-gray-300 text-xxs uppercase ml-2">
+            <span class="text-gray-400 text-xxs uppercase ml-2">
               Unsaved Changes
             </span>
           {/if}
