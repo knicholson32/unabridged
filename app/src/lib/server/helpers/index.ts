@@ -4,7 +4,7 @@ import * as helpers from '$lib/helpers';
 import sanitize from 'sanitize-filename';
 import * as settings from '$lib/server/settings';
 import { ENC_SALT } from '$lib/server/env';
-import * as CryptoJS from 'crypto-js';
+import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 
 export const cropImages = async (image: ArrayBuffer): Promise<Images> => {
@@ -41,73 +41,59 @@ export const sanitizeFile = (file: string) => {
 //   return '\'"' + dirs.map((d) => sanitize(d)).join('/').replaceAll('\"', '\'').replaceAll('\'', '\'"\'"\'') + '"\'';
 // }
 
+// If this is changed, the length of the key must also be changed
+const ENC_ALGORITHM = "aes-256-cbc";
+const KEY_LENGTH = 32; // Bytes
 
-export const toWordArray = (str: string): CryptoJS.lib.WordArray => {
-  return CryptoJS.enc.Utf8.parse(str);
-}
-
-export const toString = (words: CryptoJS.lib.WordArray): string => {
-  return CryptoJS.enc.Utf8.stringify(words);
-}
-
-export const toBase64String = (words: CryptoJS.lib.WordArray): string => {
-  return CryptoJS.enc.Base64.stringify(words);
-}
-
-export const hash = async (string: string): Promise<string> => {
-  const utf8 = new TextEncoder().encode(string);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray
-    .map((bytes) => bytes.toString(16).padStart(2, '0'))
-    .join('');
-  return hashHex;
-}
-
-// DO NOT CHANGE THE LENGTH OF THIS HEADER (bit alignment issues)
-const HEADER_ENCRYPT = '_UNABRIDGED_ENC';
-
+/**
+ * Encrypt data using the encryption key stored in the DB
+ * @param input the data to encrypt
+ * @returns the encrypted data
+ */
 export const encrypt = async (input: string) => {
+  // generate 16 bytes of random data
+  const initVector = crypto.randomBytes(16);
 
-  // Get the symmetric key
-  const key = await hash(await settings.get('general.encKey') + ENC_SALT);
+  // Get the encryption key, hash it, and make it 32 bytes long
+  const key = crypto.createHash('sha256').update(String(await settings.get('general.encKey') + ENC_SALT)).digest('base64').substring(0, KEY_LENGTH);
 
-  const PROTOCOL_AES256 = 2;
-  const secret_key = CryptoJS.SHA256(key);
-  const header = toWordArray(HEADER_ENCRYPT + String.fromCharCode(PROTOCOL_AES256));
-  const iv = CryptoJS.lib.WordArray.random(16);
-  const body = CryptoJS.AES.encrypt(input, secret_key, { iv: iv });
+  // Create the cipher
+  const cipher = crypto.createCipheriv(ENC_ALGORITHM, key, initVector);
 
-  // construct the packet
-  // HEADER + IV + BODY
-  header.concat(iv);
-  header.concat(body.ciphertext);
+  // encrypt the message
+  let encryptedData = cipher.update(input, "utf-8", "hex");
+  encryptedData += cipher.final("hex");
 
-  // encode in base64
-  return toBase64String(header);
+  // Create and add the header (to store the IV)
+  const header = 'UNABRIDGED/' + initVector.toString('hex') + '/';
+
+  // Done
+  return header + encryptedData;
 }
 
+/**
+ * Decrypt the data using the encryption key stored in the DB
+ * @param input the data to decrypt
+ * @returns the decrypted data
+ */
 export const decrypt = async (input: string) => {
 
-  // Get the symmetric key
-  const key = await hash(await settings.get('general.encKey') + ENC_SALT);
+  // Get the encryption key, hash it, and make it 32 bytes long
+  const key = crypto.createHash('sha256').update(String(await settings.get('general.encKey') + ENC_SALT)).digest('base64').substring(0, KEY_LENGTH);
 
-  // convert payload encoded in base64 to words
-  const packet = CryptoJS.enc.Base64.parse(input);
+  // Split the input into the three parts (UNABRIDGED, IV, Message)
+  const inputDecoded = input.split('/');
 
-  // helpers to compute for offsets
-  const PROTOCOL_AES256 = 2;
-  const secret_key = CryptoJS.SHA256(key);
-  const header = toWordArray(HEADER_ENCRYPT + String.fromCharCode(PROTOCOL_AES256));
-  const iv = CryptoJS.lib.WordArray.random(16);
+  // If it isn't the right format, return nothing
+  if (inputDecoded.length !== 3) return '';
 
-  // compute for offsets
-  const start = iv.words.length + header.words.length;
+  // Create the de-cipher
+  const decipher = crypto.createDecipheriv(ENC_ALGORITHM, key, Buffer.from(inputDecoded[1], "hex"));
 
-  const cipherText = CryptoJS.lib.WordArray.create(packet.words.slice(start));
-  const parsed_iv = CryptoJS.lib.WordArray.create(packet.words.slice(header.words.length, start));
-  const cipherTextStr = toBase64String(cipherText);
-  const decrypted = CryptoJS.AES.decrypt(cipherTextStr, secret_key, { iv: parsed_iv });
+  // Decode the data
+  let decryptedData = decipher.update(inputDecoded[2], "hex", "utf-8");
+  decryptedData += decipher.final("utf8");
 
-  return toString(decrypted);
+  // Done
+  return decryptedData;
 }

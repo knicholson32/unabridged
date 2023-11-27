@@ -1,6 +1,6 @@
 import { Settings } from '$lib/types';
 import prisma from '$lib/server/prisma';
-import * as CryptoJS from 'crypto-js';
+import * as crypto from 'node:crypto';
 
 // -------------------------------------------------------------------------------------------------
 // Settings
@@ -75,7 +75,7 @@ export const get = async <T extends Settings.TypeName>(setting: T): Promise<Sett
     // First, check if this is a setting that needs a special default
     if (setting === 'general.encKey') {
       // It is. Generate the default
-      const defaultVal = CryptoJS.lib.WordArray.random(24).toString() as Settings.ObjectType<T>;
+      const defaultVal = crypto.randomBytes(32).toString('hex') as Settings.ObjectType<T>;
       await prisma.settings.create({ data: { setting, value: defaultVal.toString() } });
       // Return the default value
       return defaultVal;  

@@ -16,13 +16,15 @@ setup:
 	docker volume create nodemodules-unabridged
 	docker build --file ./docker/Dockerfile --target dev -t unabridged-dev .
 install:
-	docker-compose -f ./docker/docker-compose.builder.yml -p unabridged run --rm install
+	docker-compose -f ./docker/docker-compose.builder.yml -p unabridged run --rm =
 dev:
 	docker-compose -f ./docker/docker-compose.install.yml -p unabridged up --remove-orphans
 	docker-compose -f ./docker/docker-compose.yml -p unabridged up --remove-orphans
 preview:
 	docker-compose -f ./docker/docker-compose.build.yml -p unabridged up --remove-orphans
 	docker-compose -f ./docker/docker-compose.preview.yml -p unabridged up --remove-orphans
+local:
+	docker-compose -f ./docker/docker-compose.local.yml up --remove-orphans
 # test:
 # 	docker-compose -f ./docker/docker-compose.tester.yml run --rm test
 # test-single:

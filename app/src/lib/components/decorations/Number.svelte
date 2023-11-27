@@ -21,7 +21,6 @@
 
 <script lang="ts">
   // import { nanoid } from "nanoid/nanoid";
-  import { inview } from "svelte-inview";
 
   // https://easings.net/#easeInOutQuad
   const easeInOutQuad = (x: number): number => {
@@ -29,7 +28,6 @@
   }
 
   // const id = nanoid();
-  let isInView: boolean;
 
   export let value: number;
 
@@ -56,17 +54,6 @@
   //   step++;
   // }
 
-  // counterResult[id] = initial;
-  // timers[id] = setInterval(() => {
-  //   if (isInView) {
-  //     if (counterResult[id] <= max) {
-  //       counterResult[id] += step;
-  //     } else {
-  //       clearInterval(timers[id]);
-  //       counterResult[id] = Math.round(max / roundto) * roundto;
-  //     }
-  //   }
-  // }, duration / ((max - initial) / step));
 
 
   let animating = false;

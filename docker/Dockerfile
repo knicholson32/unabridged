@@ -75,26 +75,26 @@ RUN echo "---- REMOVE BUILD DEPENDENCIES (to keep image small) ----" \
    && apk del --purge build-dependencies && rm -rf /tmp/* \
    && rm -rf /root/.cache /tmp/*
 
-######### Wheel Build Stage ########################################################################
-FROM python:3.11.4-alpine3.18 as wheel
+# ######### Wheel Build Stage ########################################################################
+# FROM python:3.11.4-alpine3.18 as wheel
 
-# Renew args from above
-ARG WHEEL_EXPORT
+# # Renew args from above
+# ARG WHEEL_EXPORT
 
-# Install dependancies that will be used only to aid the build process
-RUN echo "---- INSTALL BUILD DEPENDENCIES ----" \
-  && echo http://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories \
-  && apk add --no-cache --update --upgrade --virtual=build-dependencies gcc libgcc musl-dev jpeg-dev zlib-dev
+# # Install dependancies that will be used only to aid the build process
+# RUN echo "---- INSTALL BUILD DEPENDENCIES ----" \
+#   && echo http://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories \
+#   && apk add --no-cache --update --upgrade --virtual=build-dependencies gcc libgcc musl-dev jpeg-dev zlib-dev
 
-# Compile the wheels and save to export location
-RUN echo "---- BUILD WHEELS ----" \
-  && pip3 install wheel \
-  && pip3 wheel -w ${WHEEL_EXPORT} audible-cli markdownify natsort
+# # Compile the wheels and save to export location
+# RUN echo "---- BUILD WHEELS ----" \
+#   && pip3 install wheel \
+#   && pip3 wheel -w ${WHEEL_EXPORT} audible-cli markdownify natsort
 
-# Remove build dependancies and packages
-RUN echo "---- REMOVE BUILD DEPENDENCIES (to keep image small) ----" \
-   && apk del --purge build-dependencies && rm -rf /tmp/* \
-   && rm -rf /root/.cache /tmp/*
+# # Remove build dependancies and packages
+# RUN echo "---- REMOVE BUILD DEPENDENCIES (to keep image small) ----" \
+#    && apk del --purge build-dependencies && rm -rf /tmp/* \
+#    && rm -rf /root/.cache /tmp/*
 
 
 
@@ -108,7 +108,7 @@ ARG WHEEL_EXPORT
 
 # Copy artifacts from the previous stage ()
 COPY --from=dependancies "${USR_LOCAL_EXPORT}/" "/usr/local/"
-COPY --from=wheel "${WHEEL_EXPORT}/" "/tmp/whl/"
+# COPY --from=wheel "${WHEEL_EXPORT}/" "/tmp/whl/"
 
 # Install development dependancies
 RUN echo "---- INSTALL DEPENDENCIES ----" \
@@ -124,8 +124,9 @@ COPY --from=node_install /usr/local/bin /usr/local/bin
 # Install the Audible-CLI python module and dependancies
 RUN echo "---- INSTALL AUDIBLE-CLI ----" \
   # && pip3 --no-cache-dir install audible-cli markdownify natsort
-  && pip3 install --no-index --find-links=/tmp/whl audible-cli markdownify natsort \
-  && rm -rf /tmp/*
+  && pip3 install  audible-cli markdownify natsort
+  # && rm -rf /tmp/*
+# && pip3 install --no-index --find-links=/tmp/whl audible-cli markdownify natsort \
 
 ######### Node Modules & Build #####################################################################
 FROM node:${NODE_VERSION}-alpine as build
@@ -178,15 +179,16 @@ COPY --from=node_install /usr/local/lib /usr/local/lib
 COPY --from=node_install /usr/local/include /usr/local/include
 COPY --from=node_install /usr/local/bin /usr/local/bin
 
-# Copy artifacts from the previous stage (wheel)
-COPY --from=wheel "${WHEEL_EXPORT}/" "/tmp/whl/"
+# # Copy artifacts from the previous stage (wheel)
+# COPY --from=wheel "${WHEEL_EXPORT}/" "/tmp/whl/"
 
 # Install the Audible-CLI python module and dependancies
 # TODO: When this issue is resolved, the wheel should already exist: https://github.com/python-pillow/pillow-wheels/issues/346
 RUN echo "---- INSTALL AUDIBLE-CLI ----" \
-  && ls /tmp/whl \
-  && pip3 install --no-index --find-links=/tmp/whl audible-cli markdownify natsort \
-  && rm -rf /tmp/*
+  # && ls /tmp/whl \
+  && pip3 install audible-cli markdownify natsort
+  # && rm -rf /tmp/*
+# && pip3 install --no-index --find-links=/tmp/whl audible-cli markdownify natsort \
 
 # Copy artifacts from the previous stage (base & node)
 COPY --from=dependancies "${USR_LOCAL_EXPORT}/" "/usr/local/"
@@ -199,12 +201,12 @@ COPY --from=build "/app/package-lock.json" "/app/package-lock.json"
 # Install production node dependancies
 RUN echo "---- Install Production Dependancies ----" \
   && cd /app \
-  && npm ci --omit dev
+  && npm ci --omit dev && npx prisma generate
 
-# Prepare the DB
-RUN echo "---- Prepare the Database ----" \
-  && cd /app \
-  && npx prisma generate
+# # Prepare the DB
+# RUN echo "---- Prepare the Database ----" \
+#   && cd /app \
+#   && npx prisma generate
 
 STOPSIGNAL SIGKILL
 # Set Docker command entry point and expose the proper port

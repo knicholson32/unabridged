@@ -1,7 +1,4 @@
 import prisma from '$lib/server/prisma';
-import * as helpers from '$lib/helpers';
-import sharp from 'sharp';
-import { getAverageColor } from 'fast-average-color-node';
 
 
 
