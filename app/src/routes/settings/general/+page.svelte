@@ -1,78 +1,35 @@
 <script lang="ts">
 
-	import { enhance } from "$app/forms";
-	import { Switch } from "$lib/components/buttons";
+	import { beforeNavigate } from "$app/navigation";
+	import * as Settings from "$lib/components/settings";
 
   export let data: import('./$types').PageData;
+  export let form: import('./$types').ActionData;
+
+  // Search
+  let searchUpdate: () => {};
+  let searchUnsavedChanges = false;
+  let autoSubmit = data.settingValues['search.autoSubmit'];
+
+  // Utilities
+  beforeNavigate(({ cancel }) => {
+    if (searchUnsavedChanges) {
+      if (!confirm('Are you sure you want to leave this page? You have unsaved changes that will be lost.')) {
+        cancel();
+      }
+    }
+  });
 
 </script>
 
-<div>
-  <h2 class="text-base font-semibold leading-7 text-gray-900">Profile</h2>
-  <p class="mt-1 text-sm leading-6 text-gray-500">This information will be displayed publicly so be careful what you share.</p>
+<!-- Search -->
+<Settings.List class="" form={form} action="?/updateSearch" bind:unsavedChanges={searchUnsavedChanges} bind:update={searchUpdate}>
+  <span slot="title">Search</span>
+  <span slot="description">Configure how searching is performed.</span>
 
-  <dl class="mt-6 space-y-6 divide-y divide-gray-100 border-t border-gray-200 text-sm leading-6">
-    <div class="pt-6 sm:flex">
-      <dt class="font-medium text-gray-900 sm:w-64 sm:flex-none sm:pr-6">Full name</dt>
-      <dd class="mt-1 flex justify-between gap-x-6 sm:mt-0 sm:flex-auto">
-        <div class="text-gray-900">Tom Cook</div>
-        <button type="button" class="font-semibold text-indigo-600 hover:text-indigo-500">Update</button>
-      </dd>
-    </div>
-    <div class="pt-6 sm:flex">
-      <dt class="font-medium text-gray-900 sm:w-64 sm:flex-none sm:pr-6">Email address</dt>
-      <dd class="mt-1 flex justify-between gap-x-6 sm:mt-0 sm:flex-auto">
-        <div class="text-gray-900">tom.cook@example.com</div>
-        <button type="button" class="font-semibold text-indigo-600 hover:text-indigo-500">Update</button>
-      </dd>
-    </div>
-    <div class="pt-6 sm:flex">
-      <dt class="font-medium text-gray-900 sm:w-64 sm:flex-none sm:pr-6">Title</dt>
-      <dd class="mt-1 flex justify-between gap-x-6 sm:mt-0 sm:flex-auto">
-        <div class="text-gray-900">Human Resources Manager</div>
-        <button type="button" class="font-semibold text-indigo-600 hover:text-indigo-500">Update</button>
-      </dd>
-    </div>
-  </dl>
-</div>
-
-<div>
-  <h2 class="text-base font-semibold leading-7 text-gray-900">Search</h2>
-  <p class="mt-1 text-sm leading-6 text-gray-500">Configure how Unabridged searches books.</p>
-
-  <ul role="list" class="mt-6 divide-y divide-gray-100 border-t border-gray-200 text-sm leading-6">
-    <li class="flex justify-between gap-x-6 py-6">
-      <div class="font-medium text-gray-900">Auto Submit on Input</div>
-      <form method="POST" action="?/update" class="flex items-center justify-end gap-x-6" use:enhance>
-        <Switch type="submit" valueName="autoSubmit" value={data.autoSubmit} />
-      </form>
-    </li>
-    <li class="flex justify-between gap-x-6 py-6">
-      <div class="font-medium text-gray-900">Royal Bank of Canada</div>
-      <button type="button" class="font-semibold text-indigo-600 hover:text-indigo-500">Update</button>
-    </li>
-  </ul>
-
-  <div class="flex border-t border-gray-100 pt-6">
-    <button type="button" class="text-sm font-semibold leading-6 text-indigo-600 hover:text-indigo-500"><span aria-hidden="true">+</span> Add another bank</button>
-  </div>
-</div>
-
-<div>
-  <h2 class="text-base font-semibold leading-7 text-gray-900">Integrations</h2>
-  <p class="mt-1 text-sm leading-6 text-gray-500">Connect applications to your account.</p>
-
-  <ul role="list" class="mt-6 divide-y divide-gray-100 border-t border-gray-200 text-sm leading-6">
-    <li class="flex justify-between gap-x-6 py-6">
-      <div class="font-medium text-gray-900">QuickBooks</div>
-      <button type="button" class="font-semibold text-indigo-600 hover:text-indigo-500">Update</button>
-    </li>
-  </ul>
-
-  <div class="flex border-t border-gray-100 pt-6">
-    <button type="button" class="text-sm font-semibold leading-6 text-indigo-600 hover:text-indigo-500"><span aria-hidden="true">+</span> Add another application</button>
-  </div>
-</div>
+  <Settings.Switch name="search.autoSubmit" title="Search While Typing" update={searchUpdate} bind:value={autoSubmit} 
+    hoverTitle={'Whether or not to refresh the library search as the user is typing the search query'} />
+</Settings.List>
 
 <div>
   <h2 class="text-base font-semibold leading-7 text-gray-900">Language and dates</h2>

@@ -34,6 +34,7 @@ export const get = async <T extends Settings.TypeName>(setting: T): Promise<Sett
       case 'search.autoSubmit':
       case 'general.autoSync':
       case 'system.debug':
+      case 'system.cron.enable':
       case 'plex.enable':
       case 'plex.useToken':
       case 'plex.collections.enable':
@@ -52,6 +53,7 @@ export const get = async <T extends Settings.TypeName>(setting: T): Promise<Sett
         return parseFloat(settingVal.value) as Settings.ObjectType<T>;
 
       // String Conversion -------------------------------------------------------------------------
+      case 'system.cron':
       case 'plex.address':
       case 'plex.token':
       case 'plex.username':

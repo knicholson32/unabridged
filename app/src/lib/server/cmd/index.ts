@@ -9,6 +9,7 @@ import { BookDownloadError } from './audible/types';
 import type { Issuer, ModalTheme } from '$lib/types';
 import { ConversionError } from './AAXtoMP3/types';
 import { ProcessError } from '$lib/types';
+import cron from 'node-cron';
 
 enum ProcessState {
   NOT_STARTED = 'NOT_STARTED',
@@ -425,12 +426,15 @@ export namespace LibraryManager {
     // Set the paused value to the default
     await settings.set('progress.paused', await settings.get('progress.startPaused'));
 
-    if (global.manager === undefined) global.manager = { interval: undefined, runProcess: runProcess };
+    if (global.manager === undefined) global.manager = { interval: undefined, cronTask: undefined, runProcess: runProcess };
     global.manager.runProcess = runProcess;
     if (global.manager.interval !== undefined) stop();
     global.manager.interval = setInterval(eventLoop, EVENT_LOOP_RATE);
     global.manager.interval.unref();
     await global.manager.runProcess();
+
+    // Start the cron task
+    Cron.start();
   }
 
   /**
@@ -438,10 +442,13 @@ export namespace LibraryManager {
    */
   export const stop = () => {
     console.log('stop event loop');
-    if (global.manager === undefined) global.manager = { interval: undefined, runProcess: runProcess };
+    if (global.manager === undefined) global.manager = { interval: undefined, cronTask: undefined, runProcess: runProcess };
     global.manager.runProcess = runProcess;
     clearInterval(global.manager.interval);
     global.manager.interval = undefined;
+
+    // Stop cron
+    Cron.stop();
   }
 
 
@@ -570,3 +577,73 @@ export namespace LibraryManager {
 process.on('SIGINT', LibraryManager.stop);
 process.on('SIGTERM', LibraryManager.stop);
 process.on('exit', LibraryManager.stop);
+
+
+// ---------------------------------------------------------------------------------------------
+// Cron
+// ---------------------------------------------------------------------------------------------
+export namespace Cron {
+
+  // ---------------------------------------------------------------------------------------------
+  // Processor
+  // ---------------------------------------------------------------------------------------------
+
+  const process = async () => {
+    const debug = await settings.get('system.debug');
+    if (debug) console.log('CRON PROCESS');
+  }
+
+  
+  // ---------------------------------------------------------------------------------------------
+  // Public Functions
+  // ---------------------------------------------------------------------------------------------
+
+  export const get = () => {
+    return global.manager.cronTask;
+  }
+
+  /**
+   * Start the Cron task
+   */
+  export const start = async () => {
+    
+    // Check if we are in debug
+    const debug = await settings.get('system.debug');
+    if (debug) console.log('start cron');
+
+    // Stop the current cron if one exists
+    if (global.manager.cronTask !== undefined) global.manager.cronTask.stop();
+
+    // Check if the cron is enabled
+    if (!await settings.get('system.cron.enable')) {
+      if (debug) console.log('Cron failed to start because it is not enabled')
+      return false;
+    }
+
+    // Get the cron string
+    const cronString = await settings.get('system.cron');
+    
+    // Validate the cron string
+    if (!cron.validate(cronString)) {
+      if (debug) console.log('Cron failed to start because the cron string is invalid:', cronString);
+      return false;
+    }
+
+    // Start the cron
+    global.manager.cronTask = cron.schedule(cronString, process, {
+      // TODO: Load this timezone from settings
+      timezone: 'America/New_York'
+    });
+
+    // Start the cron task
+    global.manager.cronTask.start();
+
+    // Done
+    return true;
+  }
+
+  export const stop = async () => {
+    if (global.manager.cronTask !== undefined) global.manager.cronTask.stop();
+  }
+
+}

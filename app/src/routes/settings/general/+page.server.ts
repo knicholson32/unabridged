@@ -1,23 +1,20 @@
-import prisma from '$lib/server/prisma';
-import { error } from '@sveltejs/kit';
 import * as settings from '$lib/server/settings';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params }) => {
-
-  const autoSubmit = await settings.get('search.autoSubmit');
-
   return {
-    autoSubmit
+    settingValues: {
+      'search.autoSubmit': await settings.get('search.autoSubmit')
+    }
   }
 }
 
 export const actions = {
-  update: async ({ request }) => {
+  updateSearch: async ({ request }) => {
 
     const data = await request.formData();
 
-    const autoSubmit = (data.get('autoSubmit') ?? undefined) as undefined | string;
+    const autoSubmit = (data.get('search.autoSubmit') ?? undefined) as undefined | string;
     if (autoSubmit !== undefined) await settings.set('search.autoSubmit', autoSubmit === 'true');
 
   }

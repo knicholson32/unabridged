@@ -34,6 +34,7 @@ export type LinkMenuItem = {
     title: string,
     miniTitle?: string,
     iconURL?: string,
+    iconSVG?: string
     // buttonColor: string
 }
 
@@ -299,6 +300,8 @@ export namespace Settings {
         'search.autoSubmit' |
 
         'system.debug' |
+        'system.cron.enable' |
+        'system.cron' |
 
         'plex.enable' |
         'plex.address' |
@@ -328,8 +331,10 @@ export namespace Settings {
         T extends 'progress.startPaused' ? boolean :       // Integer
   
         T extends 'search.autoSubmit' ? boolean :          // Boolean
- 
+        
         T extends 'system.debug' ? boolean :               // Boolean
+        T extends 'system.cron.enable' ? boolean :         // Boolean
+        T extends 'system.cron' ? string :                 // String
 
         T extends 'plex.enable' ? boolean :                // Boolean
         T extends 'plex.address' ? string :                // String
@@ -361,6 +366,8 @@ export namespace Settings {
         'search.autoSubmit': true,
 
         'system.debug': false,
+        'system.cron.enable': true,
+        'system.cron': '0 4 * * *',
 
         'plex.enable': false,
         'plex.address': '127.0.0.1',

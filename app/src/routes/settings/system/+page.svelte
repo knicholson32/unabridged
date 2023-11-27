@@ -1,88 +1,85 @@
 <script lang="ts">
-	import { enhance } from "$app/forms";
-	import { Switch } from "$lib/components/buttons";
+	import { beforeNavigate } from "$app/navigation";
+	import { icons } from "$lib/components";
+	import * as Settings from "$lib/components/settings";
+  import cronstrue from 'cronstrue';
 
   export let data: import('./$types').PageData;
+  export let form: import('./$types').ActionData;
+
+  // System
+  let systemUpdate: () => {};
+  let systemUnsavedChanges = false;
+  let cronEnable = data.settingValues['system.cron.enable'];
+  let cron = data.settingValues['system.cron'];
+  let cronString = '';
+  let cronError = false;
+  try {
+    cronString = cronstrue.toString(cron);
+    cronError = false;
+  } catch(e: unknown) {
+    cronString = e as string;
+    cronError = true;
+  }
+
+  const updateCronText = (cron: string) => {
+    try {
+      cronString = cronstrue.toString(cron);
+      cronError = false;
+    } catch(e: unknown) {
+      cronString = e as string;
+      cronError = true;
+    }
+    console.log(cron, cronString);
+  }
+
+  // Debug
+  let debugUpdate: () => {};
+  let debugUnsavedChanges = false;
+  let debug = data.settingValues['system.debug'];
+
+  // Utilities
+  beforeNavigate(({ cancel }) => {
+    if (systemUnsavedChanges || debugUnsavedChanges) {
+      if (!confirm('Are you sure you want to leave this page? You have unsaved changes that will be lost.')) {
+        cancel();
+      }
+    }
+  });
 
 </script>
-<div>
-  <h2 class="text-base font-semibold leading-7 text-gray-900">Audible Accounts</h2>
-  <p class="mt-1 text-sm leading-6 text-gray-500">Specify how Unabridged should interact with your Audible accounts.</p>
 
-  <dl class="mt-6 space-y-6 divide-y divide-gray-100 border-t border-gray-200 text-sm leading-6">
-    <div class="flex pt-6">
-      <dt class="flex-none pr-6 font-medium text-gray-900 sm:w-64" id="timezone-option-label">Automatic Sync</dt>
-      <dd class="flex flex-auto items-center justify-end">
-        <form method="POST" action="?/update" class="flex items-center justify-end gap-x-6" use:enhance>
-          <Switch type="submit" valueName="autoSync" value={data.autoSync} />
-        </form>
-      </dd>
-    </div>
-    <div class="pt-6 sm:flex">
-      <dt class="font-medium text-gray-900 sm:w-64 sm:flex-none sm:pr-6">Full name</dt>
-      <dd class="mt-1 flex justify-between gap-x-6 sm:mt-0 sm:flex-auto">
-        <div class="text-gray-900">Tom Cook</div>
-        <button type="button" class="font-semibold text-indigo-600 hover:text-indigo-500">Update</button>
-      </dd>
-    </div>
-  </dl>
-</div>
+<!-- System -->
+<Settings.List class="" form={form} action="?/updateSystem" bind:unsavedChanges={systemUnsavedChanges} bind:update={systemUpdate}>
+  <span slot="title">System</span>
+  <span slot="description">Configure System Settings.</span>
 
-<div>
-  <h2 class="text-base font-semibold leading-7 text-gray-900">Download Manager</h2>
-  <p class="mt-1 text-sm leading-6 text-gray-500">Configure specifics for the download / process system.</p>
+  <Settings.Switch name="system.cron.enable" form={form} title="Enable Scheduled Processing" update={systemUpdate} bind:value={cronEnable} 
+    hoverTitle={'Whether or not to allow Unabridged to do certain tasks on a schedule (like sync library data or trigger Plex events).'} />
 
-  <ul role="list" class="mt-6 divide-y divide-gray-100 border-t border-gray-200 text-sm leading-6">
-    <li class="flex justify-between gap-x-6 py-6">
-      <div class="font-medium text-gray-900">Start Paused</div>
-      <form method="POST" action="?/update" class="flex items-center justify-end gap-x-6" use:enhance>
-        <Switch type="submit" valueName="startPaused" value={data.startPaused} />
-      </form>
-    </li>
-    <li class="flex justify-between gap-x-6 py-6">
-      <div class="font-medium text-gray-900">Royal Bank of Canada</div>
-      <button type="button" class="font-semibold text-indigo-600 hover:text-indigo-500">Update</button>
-    </li>
-  </ul>
+  <Settings.Input name="system.cron" form={form} mono={true} title="Schedule Cron" update={systemUpdate} bind:value={cron} 
+    disabled={cronEnable === false}
+    placeholder="0 4 * * *"
+    updatedContents={updateCronText}
+    leadingText={{t: cronString, error: cronError}}
+    bind:error={cronError}
+    small={true}
+    hoverTitle={cronEnable ? 'A cron string that describes when scheduled tasks should be performed' : 'Disabled because scheduled processing is disabled'}/>
+    <!-- link={{href: `https://crontab.guru/#${cron.replaceAll(' ', '_')}`, title: 'Online Cron Editor', icon: icons.arrowTopRightOnSquare}} -->
 
-  <div class="flex border-t border-gray-100 pt-6">
-    <button type="button" class="text-sm font-semibold leading-6 text-indigo-600 hover:text-indigo-500"><span aria-hidden="true">+</span> Add another bank</button>
-  </div>
-</div>
+</Settings.List>
 
-<div>
-  <h2 class="text-base font-semibold leading-7 text-gray-900">System</h2>
-  <p class="mt-1 text-sm leading-6 text-gray-500">Configure specifics the process system and backend.</p>
+<!-- Debug -->
+<Settings.List class="" form={form} action="?/updateDebug" bind:unsavedChanges={debugUnsavedChanges} bind:update={debugUpdate}>
+  <span slot="title">Debug</span>
+  <span slot="description">General debugging features and logs.</span>
 
-  <ul role="list" class="mt-6 divide-y divide-gray-100 border-t border-gray-200 text-sm leading-6">
-    <li class="flex justify-between gap-x-6 py-6">
-      <div class="font-medium text-gray-900">Debug Mode</div>
-      <form method="POST" action="?/update" class="flex items-center justify-end gap-x-6" use:enhance>
-        <Switch type="submit" valueName="debug" value={data.debug} />
-      </form>
-    </li>
-  </ul>
+  <Settings.Switch name="system.debug" form={form} title="Enable Debug" update={debugUpdate} bind:value={debug} 
+    hoverTitle={'Whether or not to enable general debugging features and logs'} />
 
-  <div class="flex border-t border-gray-100 pt-6">
-    <button type="button" class="text-sm font-semibold leading-6 text-indigo-600 hover:text-indigo-500"><span aria-hidden="true">+</span> Add another bank</button>
-  </div>
-</div>
+  
 
-<div>
-  <h2 class="text-base font-semibold leading-7 text-gray-900">Integrations</h2>
-  <p class="mt-1 text-sm leading-6 text-gray-500">Connect applications to your account.</p>
-
-  <ul role="list" class="mt-6 divide-y divide-gray-100 border-t border-gray-200 text-sm leading-6">
-    <li class="flex justify-between gap-x-6 py-6">
-      <div class="font-medium text-gray-900">QuickBooks</div>
-      <button type="button" class="font-semibold text-indigo-600 hover:text-indigo-500">Update</button>
-    </li>
-  </ul>
-
-  <div class="flex border-t border-gray-100 pt-6">
-    <button type="button" class="text-sm font-semibold leading-6 text-indigo-600 hover:text-indigo-500"><span aria-hidden="true">+</span> Add another application</button>
-  </div>
-</div>
+</Settings.List>
 
 <div>
   <h2 class="text-base font-semibold leading-7 text-gray-900">Language and dates</h2>

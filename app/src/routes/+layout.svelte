@@ -455,6 +455,10 @@
                                 <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full overflow-hidden text-[0.625rem] font-medium text-gray-400 border-gray-700 bg-gray-800 group-hover:text-white">
                                   <img src="{element.iconURL}" alt="{element.title} icon"/>
                                 </span>
+                              {:else if element.iconSVG !== undefined}
+                                <svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                  {@html element.iconSVG}
+                                </svg>
                               {:else}
                                 <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[0.625rem] font-medium text-gray-400 border-gray-700 bg-gray-800 group-hover:text-white">{element.title.splice(0, 2)}</span>
                               {/if}
@@ -533,6 +537,10 @@
                         <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full overflow-hidden text-[0.625rem] font-medium text-gray-400 border-gray-700 bg-gray-800 group-hover:text-white">
                           <img src="{element.iconURL}" alt="{element.title} icon"/>
                         </span>
+                        {:else if element.iconSVG !== undefined}
+                          <svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            {@html element.iconSVG}
+                          </svg>
                         {:else}
                         <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-[0.625rem] font-medium text-gray-400 border-gray-700 bg-gray-800 group-hover:text-white">{element.title.splice(0, 2)}</span>
                         {/if}
