@@ -602,6 +602,7 @@ export namespace Cron {
       // Library Sync (Audible) ----------------------------------------------------------------------------
       if (await settings.get('general.autoSync') === true) {
         if (debug) console.log('Library Sync Audible');
+
         // Get the profile from the database
         const profiles = await prisma.profile.findMany();
 
@@ -618,23 +619,10 @@ export namespace Cron {
           const results = await audible.cmd.library.get(profile.id);
 
           // Check if the sync worked
-          if (results !== null) {
-            // Create a notification
-            await prisma.notification.create({
-              data: {
-                id: uuidv4(),
-                issuer: 'general' satisfies Issuer,
-                theme: 'info' satisfies ModalTheme,
-                text: 'Synced at ' + new Date().toISOString(),
-                linger_time: 10000,
-                needs_clearing: false,
-                auto_open: false
-              }
-            });
-            // Print results
-            if (debug) console.log(JSON.stringify(results));
+          if (debug) {
+            if (results !== null) console.log(JSON.stringify(results));
+            else console.log('Sync failed');
           }
-          else if (debug) console.log('Sync failed');
         }
         if (debug) console.log('Library Sync Complete');
       }

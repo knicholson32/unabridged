@@ -117,7 +117,7 @@ export const actions = {
         await prisma.notification.create({
             data: {
                 id: uuidv4(),
-                issuer: 'general' satisfies Issuer,
+                issuer: 'account.sync' satisfies Issuer,
                 theme: 'info' satisfies ModalTheme,
                 text: 'Synced at ' + new Date().toISOString(),
                 linger_time: 10000,

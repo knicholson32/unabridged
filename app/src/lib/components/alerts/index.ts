@@ -51,6 +51,7 @@ export const showNotifications = async (alertsComponent: Alerts, notifications: 
           linger_ms: (notification.linger_time <= 0) ? undefined : notification.linger_time,
         });
         break;
+      case 'account.sync':
       case 'general':
         alertsComponent.showNotification(notification.text, {
           id: notification.id,

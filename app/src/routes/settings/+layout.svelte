@@ -11,7 +11,7 @@
 </script>
 
 <div class="mx-auto max-w-7xl bg-white xl:flex xl:gap-x-16 xl:px-8">
-  <aside class="flex lg:hidden justify-center overflow-x-auto border-b border-gray-900/5 py-4 ">
+  <aside class="flex lg:hidden sm:justify-center overflow-x-scroll border-b border-gray-900/5 py-4 ">
     <nav class="flex-none px-4 sm:px-6 xl:px-0">
       <ul role="list" class="flex gap-x-3 gap-y-1 whitespace-nowrap xl:flex-col">
         <li>

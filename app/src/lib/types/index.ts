@@ -101,7 +101,7 @@ export type URLAlert = {
     settings?: AlertSettings
 }
 
-export type Issuer = 'general' | 'audible.download';
+export type Issuer = 'general' | 'audible.download' | 'account.sync';
 export type Notification = {
   id:             string,
   icon_path:      string | null,
