@@ -47,15 +47,6 @@
 </script>
 
 
-<!-- Library Location -->
-<Settings.List class="" form={form} action="?/updateLibraryLocation" bind:unsavedChanges={libraryLocationUnsavedChanges} bind:update={libraryLocationUpdate} confirmAction={'This will cause file de-sync if there are books currently downloaded.'}>
-  <span slot="title">Library Location</span>
-  <span slot="description">Specify where Unabridged should save audiobooks. If you intend to use plex, this should be a folder accessible by plex.</span>
-
-  <Settings.Input name="library.location" form={form} mono={true} title="Library Location" update={libraryLocationUpdate} bind:value={libraryLocation} 
-    hoverTitle="Library location" />
-</Settings.List>
-
 <!-- Plex Integration -->
 <Settings.List class="mt-16" action="?/updatePlexIntegration" bind:unsavedChanges={plexIntegrationUnsavedChanges} bind:update={plexIntegrationUpdate}>
   <span slot="title">Plex Integration</span>
@@ -120,4 +111,13 @@
     options={[CollectionBy.series, CollectionBy.album]}
     hoverTitle={collectionsEnable === false ? 'Disabled because Plex collection management is disabled' : 'Specify how audiobooks could be collected in Plex'} />
   
+</Settings.List>
+
+<!-- Library Location -->
+<Settings.List class="" form={form} action="?/updateLibraryLocation" bind:unsavedChanges={libraryLocationUnsavedChanges} bind:update={libraryLocationUpdate} confirmAction={'This will cause file de-sync if there are books currently downloaded.'}>
+  <span slot="title">Library Location</span>
+  <span slot="description">Specify where Unabridged should save audiobooks. If you intend to use plex, this should be a folder accessible by plex.</span>
+
+  <Settings.Input name="library.location" form={form} mono={true} title="Library Location" update={libraryLocationUpdate} bind:value={libraryLocation} 
+    hoverTitle="Library location" />
 </Settings.List>
