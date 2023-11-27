@@ -48,7 +48,7 @@
 
 
 <!-- Plex Integration -->
-<Settings.List class="mt-16" action="?/updatePlexIntegration" bind:unsavedChanges={plexIntegrationUnsavedChanges} bind:update={plexIntegrationUpdate}>
+<Settings.List class="" action="?/updatePlexIntegration" bind:unsavedChanges={plexIntegrationUnsavedChanges} bind:update={plexIntegrationUpdate}>
   <span slot="title">Plex Integration</span>
   <span slot="description">Direct Unabridged where and how to interact with Plex.</span>
 

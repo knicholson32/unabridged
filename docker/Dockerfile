@@ -193,7 +193,6 @@ RUN echo "---- INSTALL AUDIBLE-CLI ----" \
 # Copy artifacts from the previous stage (base & node)
 COPY --from=dependancies "${USR_LOCAL_EXPORT}/" "/usr/local/"
 # COPY --from=dependancies "${ROOT_EXPORT}/" "/"
-COPY --from=build "/app/build/" "/app/"
 COPY --from=build "/app/prisma/" "/app/prisma"
 COPY --from=build "/app/package.json" "/app/package.json"
 COPY --from=build "/app/package-lock.json" "/app/package-lock.json"
@@ -202,6 +201,8 @@ COPY --from=build "/app/package-lock.json" "/app/package-lock.json"
 RUN echo "---- Install Production Dependancies ----" \
   && cd /app \
   && npm ci --omit dev --loglevel verbose && npx prisma generate
+
+COPY --from=build "/app/build/" "/app/"
 
 # # Prepare the DB
 # RUN echo "---- Prepare the Database ----" \
