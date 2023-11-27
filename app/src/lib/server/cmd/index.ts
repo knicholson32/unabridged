@@ -599,45 +599,47 @@ export namespace Cron {
       cronRunning = true;
       if (debug) console.log('CRON PROCESS');
 
-      // Library Sync ----------------------------------------------------------------------------
-      if (debug) console.log('Library Sync');
-      // Get the profile from the database
-      const profiles = await prisma.profile.findMany();
+      // Library Sync (Audible) ----------------------------------------------------------------------------
+      if (await settings.get('general.autoSync') === true) {
+        if (debug) console.log('Library Sync Audible');
+        // Get the profile from the database
+        const profiles = await prisma.profile.findMany();
 
-      // Loop through each profile
-      for (const profile of profiles) {
-        // Skip the ones that do not auto-sync
-        if (!profile.auto_sync) {
-          if (debug) console.log(`Skipping ${profile.id} because auto-sync is disabled`);
-          continue;
+        // Loop through each profile
+        for (const profile of profiles) {
+          // Skip the ones that do not auto-sync
+          if (!profile.auto_sync) {
+            if (debug) console.log(`Skipping ${profile.id} because auto-sync is disabled`);
+            continue;
+          }
+          if (debug) console.log(`Syncing ${profile.id}`);
+
+          // Sync the profile
+          const results = await audible.cmd.library.get(profile.id);
+
+          // Check if the sync worked
+          if (results !== null) {
+            // Create a notification
+            await prisma.notification.create({
+              data: {
+                id: uuidv4(),
+                issuer: 'general' satisfies Issuer,
+                theme: 'info' satisfies ModalTheme,
+                text: 'Synced at ' + new Date().toISOString(),
+                linger_time: 10000,
+                needs_clearing: false,
+                auto_open: false
+              }
+            });
+            // Print results
+            if (debug) console.log(JSON.stringify(results));
+          }
+          else if (debug) console.log('Sync failed');
         }
-        if (debug) console.log(`Syncing ${profile.id}`);
-
-        // Sync the profile
-        const results = await audible.cmd.library.get(profile.id);
-
-        // Check if the sync worked
-        if (results !== null) {
-          // Create a notification
-          await prisma.notification.create({
-            data: {
-              id: uuidv4(),
-              issuer: 'general' satisfies Issuer,
-              theme: 'info' satisfies ModalTheme,
-              text: 'Synced at ' + new Date().toISOString(),
-              linger_time: 10000,
-              needs_clearing: false,
-              auto_open: false
-            }
-          });
-          // Print results
-          if (debug) console.log(JSON.stringify(results));
-        }
-        else if (debug) console.log('Sync failed');
+        if (debug) console.log('Library Sync Complete');
       }
-      if (debug) console.log('Library Sync Complete');
 
-      
+
     } finally {
       cronRunning = false;
     }

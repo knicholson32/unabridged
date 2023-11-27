@@ -201,7 +201,7 @@ COPY --from=build "/app/package-lock.json" "/app/package-lock.json"
 # Install production node dependancies
 RUN echo "---- Install Production Dependancies ----" \
   && cd /app \
-  && npm ci --omit dev && npx prisma generate
+  && npm ci --omit dev --loglevel verbose && npx prisma generate
 
 # # Prepare the DB
 # RUN echo "---- Prepare the Database ----" \
