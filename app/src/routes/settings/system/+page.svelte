@@ -2,15 +2,19 @@
 	import { beforeNavigate } from "$app/navigation";
 	import { icons } from "$lib/components";
 	import * as Settings from "$lib/components/settings";
+  import { DataContainer, DataEntry } from "$lib/components/decorations/data";
   import cronstrue from 'cronstrue';
+	import { intlFormatDistance, formatDistanceToNow } from "date-fns";
 
   export let data: import('./$types').PageData;
   export let form: import('./$types').ActionData;
 
   // System
-  let systemUpdate: () => {};
-  let systemUnsavedChanges = false;
+  let cronUpdate: () => {};
+  let cronUnsavedChanges = false;
   let cronEnable = data.settingValues['system.cron.enable'];
+  let maxRun = data.settingValues['system.cron.maxRun'];
+  let records = data.settingValues['system.cron.record'];
   let cron = data.settingValues['system.cron'];
   let cronString = '';
   let cronError = false;
@@ -40,32 +44,54 @@
 
   // Utilities
   beforeNavigate(({ cancel }) => {
-    if (systemUnsavedChanges || debugUnsavedChanges) {
+    if (cronUnsavedChanges || debugUnsavedChanges) {
       if (!confirm('Are you sure you want to leave this page? You have unsaved changes that will be lost.')) {
         cancel();
       }
     }
   });
 
+  const lastCron = records === undefined ? 'Unknown' : intlFormatDistance(new Date(records.startTime * 1000), new Date());
+  const lastCronTime = records === undefined ? 'Unknown' : new Date(records.startTime * 1000).toISOString();
+  const lastCronDuration = records === undefined ? 'Unknown' : formatDistanceToNow(new Date(Math.floor(Date.now()) - (records.endTime * 1000 - records.startTime * 1000)));
+  const lastCronDurationTime = records === undefined ? 'Unknown' : (records.endTime - records.startTime) + ' seconds';
+
 </script>
 
-<!-- System -->
-<Settings.List class="" form={form} action="?/updateSystem" bind:unsavedChanges={systemUnsavedChanges} bind:update={systemUpdate}>
-  <span slot="title">System</span>
-  <span slot="description">Configure System Settings.</span>
+<!-- Cron -->
+<Settings.List class="" form={form} action="?/updateCron" bind:unsavedChanges={cronUnsavedChanges} bind:update={cronUpdate}>
+  <span slot="title">Cron</span>
+  <span slot="description">Configure Cron Settings.</span>
 
-  <Settings.Switch name="system.cron.enable" form={form} title="Enable Scheduled Processing" update={systemUpdate} bind:value={cronEnable} 
+  <Settings.Switch name="system.cron.enable" form={form} title="Enable Scheduled Processing" update={cronUpdate} bind:value={cronEnable} 
     hoverTitle={'Whether or not to allow Unabridged to do certain tasks on a schedule (like sync library data or trigger Plex events).'} />
 
-  <Settings.Input name="system.cron" form={form} mono={true} title="Schedule Cron" update={systemUpdate} bind:value={cron} 
+  <Settings.Input name="system.cron" form={form} mono={true} title="Schedule Cron" update={cronUpdate} bind:value={cron} 
     disabled={cronEnable === false}
     placeholder="0 4 * * *"
     updatedContents={updateCronText}
     leadingText={{t: cronString, error: cronError}}
     bind:error={cronError}
-    small={true}
+    small={false}
     hoverTitle={cronEnable ? 'A cron string that describes when scheduled tasks should be performed' : 'Disabled because scheduled processing is disabled'}/>
-    <!-- link={{href: `https://crontab.guru/#${cron.replaceAll(' ', '_')}`, title: 'Online Cron Editor', icon: icons.arrowTopRightOnSquare}} -->
+
+  <Settings.NumericalInput name="plex.library.autoScanDelay" title="Alloted Run Time" update={cronUpdate} bind:value={maxRun}
+    disabled={cronEnable === false}
+    hoverTitle={cronEnable === false ? 'Disabled because scheduled processing is disabled' : 'The max number of seconds the cron should target to run for. After this many seconds, new cron tasks will not be started (but current ones will finish).'}
+    showWrapper={{start: 'Max', end: 'seconds'}} />
+
+    {#if records !== undefined}
+      <DataContainer>
+        <DataEntry title={'Last Run'}>
+          <span title="{lastCronTime}">{lastCron}</span>
+          <span class="text-sm text-gray-400">for</span>
+          <span title="{lastCronDurationTime}">{lastCronDuration}</span>
+        </DataEntry>
+        <DataEntry title={'Libraries Synced'} data={records.libSync.toLocaleString()}/>
+        <DataEntry title={'Books Added'} data={records.booksAdded.toLocaleString()} />
+        <DataEntry title={'Books Updated'} data={records.booksUpdated.toLocaleString()}/>
+      </DataContainer>
+    {/if}
 
 </Settings.List>
 

@@ -1,33 +1,62 @@
 import prisma from '$lib/server/prisma';
 import * as settings from '$lib/server/settings';
+import type * as types from '$lib/types/index.js';
 import cronstrue from 'cronstrue';
 import cron from 'node-cron';
 import { Cron } from '$lib/server/cmd';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params }) => {
+
+  // Load the cron records
+  const record = await settings.get('system.cron.record');
+  // Set a variable to hold the parsed records
+  let recordParsed: types.Cron.Record | undefined = undefined;
+  // Only parse if records exist
+  if (record !== '') {
+    try {
+      // Attempt to parse the records
+      recordParsed = JSON.parse(record) as types.Cron.Record;
+      // Check that the records are the correct version
+      if (recordParsed.version !== 'v2') {
+        // They are not. Reset them.
+        recordParsed = undefined;
+        await settings.set('system.cron.record', '');
+      }
+    } catch (e) {
+      // Records could not be parsed. Reset them.
+      recordParsed = undefined;
+      await settings.set('system.cron.record', '');
+    }
+  }
+
   return {
     settingValues: {
       'system.debug': await settings.get('system.debug'),
       'system.cron.enable': await settings.get('system.cron.enable'),
+      'system.cron.maxRun': await settings.get('system.cron.maxRun'),
+      'system.cron.record': recordParsed,
       'system.cron': await settings.get('system.cron'),
     }
   }
 }
 
 export const actions = {
-  updateSystem: async ({ request }) => {
+  updateCron: async ({ request }) => {
 
     const data = await request.formData();
 
-    const debug = (data.get('system.debug') ?? undefined) as undefined | string;
-    if (debug !== undefined) await settings.set('system.debug', debug === 'true');
+    // Initialize a variable to tell if we should restart the cron later
+    let cronShouldBeRestarted = false;
 
     const cronEnable = (data.get('system.cron.enable') ?? undefined) as undefined | string;
     if (cronEnable !== undefined) {
-      Cron.start();
+      cronShouldBeRestarted = true;
       await settings.set('system.cron.enable', cronEnable === 'true');
     }
+
+    const maxRun = (data.get('system.cron.maxRun') ?? undefined) as undefined | string;
+    if (maxRun !== undefined) await settings.set('system.cron.maxRun', parseInt(maxRun));
 
     const cronInput = (data.get('system.cron') ?? undefined) as undefined | string;
     if (cronInput !== undefined) {
@@ -56,6 +85,10 @@ export const actions = {
         } 
       }
     }
+
+
+    // Restart the cron if we get this far, need to, and haven't done so yet.
+    if (cronShouldBeRestarted) Cron.start()
 
   },
   updateDebug: async ({ request }) => {

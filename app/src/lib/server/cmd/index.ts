@@ -4,6 +4,7 @@ import * as AAXtoMP3 from './AAXtoMP3';
 import prisma from '$lib/server/prisma';
 import * as tools from './tools';
 import * as settings from '$lib/server/settings';
+import type * as types from '$lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { BookDownloadError } from './audible/types';
 import type { Issuer, ModalTheme } from '$lib/types';
@@ -588,13 +589,34 @@ export namespace Cron {
   // Processor
   // -------------------------------------------------------------------------------------------
 
+  let lastCronStartTime = Math.floor(Date.now() / 1000);
+  const checkCronTime = async (debug?: boolean) => {
+    const shouldExit = Math.floor(Date.now() / 1000) - lastCronStartTime >= await settings.get('system.cron.maxRun');
+    if (debug === true) console.log(`cron time: ${Math.floor(Date.now() / 1000)} : ${lastCronStartTime} | ${shouldExit ? 'Cron will exit' : 'Cron will continue'}`);
+    return shouldExit;
+  }
+
   let cronRunning = false;
+
+  let cronRecord: types.Cron.Record | undefined = undefined;
+
   const process = async () => {
     try {
       const debug = await settings.get('system.debug');
       if (cronRunning) {
         if (debug) console.log('CRON RUNNING - SKIP');
         return;
+      }
+      // Record the start time of this cron
+      lastCronStartTime = Math.floor(Date.now() / 1000);
+      // Reset the cron records
+      cronRecord = {
+        version: 'v2',
+        libSync: 0,
+        booksAdded: 0,
+        booksUpdated: 0,
+        startTime: lastCronStartTime,
+        endTime: lastCronStartTime
       }
       cronRunning = true;
       if (debug) console.log('CRON PROCESS');
@@ -618,18 +640,41 @@ export namespace Cron {
           // Sync the profile
           const results = await audible.cmd.library.get(profile.id);
 
+          if (results !== null) {
+            cronRecord.libSync++;
+            cronRecord.booksAdded += results.numCreated;
+            cronRecord.booksUpdated += results.numUpdated;
+          }
+
           // Check if the sync worked
           if (debug) {
             if (results !== null) console.log(JSON.stringify(results));
             else console.log('Sync failed');
           }
+          if (await checkCronTime(debug)) throw Error('Cron time expired');
         }
+
+        // Check to see if the cron should exit yet
         if (debug) console.log('Library Sync Complete');
       }
 
+      // Check to see if the cron should exit yet
+      if (await checkCronTime(debug)) throw Error('Cron time expired');
+
 
     } finally {
+      // Save that the cron is no longer running
       cronRunning = false;
+      // Record the end time for the cron
+      if (cronRecord !== undefined) {
+        cronRecord.endTime = Math.floor(Date.now() / 1000);
+      }
+      // Save the cron record
+      try {
+        await settings.set('system.cron.record', JSON.stringify(cronRecord));
+      } catch (e) {
+        console.log('ERROR: Could not save cron record:', e);
+      }
     }
 
   }
@@ -663,6 +708,7 @@ export namespace Cron {
 
     // Get the cron string
     const cronString = await settings.get('system.cron');
+    if (debug) console.log(cronString);
     
     // Validate the cron string
     if (!cron.validate(cronString)) {
