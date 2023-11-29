@@ -96,7 +96,10 @@ export const actions = {
     const data = await request.formData();
 
     const debug = (data.get('system.debug') ?? undefined) as undefined | string;
-    if (debug !== undefined) await settings.set('system.debug', debug === 'true');
+    if (debug !== undefined) {
+      const verbose = (data.get('system.debug.verbose') ?? undefined) as undefined | string;
+      await settings.set('system.debug', debug === 'false' ? 0 : verbose === 'true' ? 2 : 1);
+    }
 
   }
 }

@@ -47,7 +47,7 @@
         ring = 'ring-red-100';
         defIconPath = icons.notAllowed;
         break;
-      case "warning":
+      case 'warning':
         bg = 'bg-yellow-200/80';
         defIconColor = 'text-yellow-500';
         textColor = 'text-yellow-800';

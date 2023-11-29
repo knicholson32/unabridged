@@ -1,11 +1,21 @@
 <script lang="ts">
-	import { beforeNavigate } from "$app/navigation";
+	import { beforeNavigate, goto } from "$app/navigation";
+	import { icons } from "$lib/components";
 	import { Switch } from "$lib/components/buttons";
+	import Submit from "$lib/components/buttons/Submit.svelte";
   import * as Settings from "$lib/components/settings";
-	import { CollectionBy } from "$lib/types";
+	import { CollectionBy, type GenerateAlert, type URLAlert } from "$lib/types";
+	import { getContext, onMount } from "svelte";
+  import { page } from '$app/stores';
+	import { decodeURLAlert } from "$lib/components/alerts";
+	import { enhance } from "$app/forms";
 
   export let data: import('./$types').PageData;
   export let form: import('./$types').ActionData;
+
+  let showAlert = getContext<GenerateAlert>('showAlert');
+
+  let authorizedRedirect = false;
 
   // Library Location
   let libraryLocationUpdate: () => {};
@@ -13,14 +23,18 @@
   let libraryLocation = data.settingValues['library.location'];
 
   // Plex Integration
+  let testingPlexIntegration = false;
   let plexIntegrationUpdate: () => {};
   let plexIntegrationUnsavedChanges = false;
   let plexEnable = data.settingValues['plex.enable'];
   let plexAddress = data.settingValues['plex.address'];
-  let useToken = data.settingValues['plex.useToken'];
   let token = data.settingValues['plex.token'];
-  let username = data.settingValues['plex.username'];
-  let password = data.settingValues['plex.password'];
+
+
+  // Plex API
+  let plexAPIUpdate: () => {};
+  let plexAPIUnsavedChanges = false;
+  let apiTimeout = data.settingValues['plex.apiTimeout'];
 
   // Plex Library
   let plexLibraryUpdate: () => {};
@@ -37,46 +51,116 @@
 
   // Utilities
   beforeNavigate(({ cancel }) => {
-    if (libraryLocationUnsavedChanges || plexIntegrationUnsavedChanges || plexLibraryUnsavedChanges || plexCollectionsUnsavedChanges) {
+    if (!authorizedRedirect && (libraryLocationUnsavedChanges || plexIntegrationUnsavedChanges || plexAPIUnsavedChanges || plexLibraryUnsavedChanges || plexCollectionsUnsavedChanges)) {
       if (!confirm('Are you sure you want to leave this page? You have unsaved changes that will be lost.')) {
         cancel();
       }
     }
   });
 
+  // onMount(() => {
+  //   let alert = $page.url.searchParams.get('a');
+  //   if (alert !== null) {
+  //     const decodedAlert = decodeURLAlert(alert);
+  //     if (decodedAlert !== null) showAlert(decodedAlert.text, decodedAlert.settings);
+  //   }
+  //   // goto('/settings/plex');
+  // });
+
 </script>
 
 
 <!-- Plex Integration -->
-<Settings.List class="" action="?/updatePlexIntegration" bind:unsavedChanges={plexIntegrationUnsavedChanges} bind:update={plexIntegrationUpdate}>
+<Settings.List class="" form={form} action="?/updatePlexIntegration" bind:unsavedChanges={plexIntegrationUnsavedChanges} bind:update={plexIntegrationUpdate}>
   <span slot="title">Plex Integration</span>
-  <span slot="description">Direct Unabridged where and how to interact with Plex.</span>
-
-  <Settings.Switch name="plex.enable" title="Enable Plex" update={plexIntegrationUpdate} bind:value={plexEnable} 
+  <span slot="description" class="block">
+    <span class="block">Direct Unabridged where and how to interact with Plex.</span>
+    {#if data.plex.signedIn === true}
+      <span class="block">
+        Connected to
+        <a href="{data.settingValues['plex.address']}" target="_blank" class="inline-flex items-center font-mono border border-gray-300 rounded px-1">
+          {data.plex.name}
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="ml-1 w-4 h-4">
+            {@html icons.arrowTopRightOnSquare}
+          </svg>
+        </a>
+      </span>
+    {/if}
+  </span>
+  <span slot="button" class="inline-flex gap-2">
+    <form method="POST" action={'?/testPlexIntegration'} use:enhance={({cancel}) => {
+      testingPlexIntegration = true;
+      return async ({ update }) => {
+        testingPlexIntegration = false;
+        update({ reset: false });
+      };
+    }}>
+      <Submit
+        class="w-full sm:w-auto" 
+        theme={{primary: 'white', done: 'white', fail: 'white'}} 
+        actionText={"Test"}
+        doneText="Success"
+        actionTextInProgress="Testing" 
+        submitting={testingPlexIntegration}
+        disabled={plexIntegrationUnsavedChanges || (data.settingValues['plex.address'] === '' || data.settingValues['plex.token'] === '')}
+        hoverTitle={(data.settingValues['plex.address'] === '' || data.settingValues['plex.token'] === '') ? 'No data to test' : plexIntegrationUnsavedChanges ? 'Save changes before testing' : 'Test the current Plex integration settings.'}
+        failed={form?.success === false && form?.action === '?/updatePlexIntegration'}
+      />
+    </form>
+  </span>
+  
+  <Settings.Switch name="plex.enable" form={form} title="Enable Plex" update={plexIntegrationUpdate} bind:value={plexEnable} 
     hoverTitle={'Whether or not to enable Plex integration'} />
 
-  <Settings.Input name="plex.address" title="Plex Address" mono={true} update={plexIntegrationUpdate} bind:value={plexAddress} 
-    disabled={plexEnable === false}
+  <Settings.Input name="plex.address" form={form} title="Plex Address" mono={true} update={plexIntegrationUpdate} bind:value={plexAddress} 
     placeholder="127.0.0.1"
-    hoverTitle={plexEnable === false ? 'Disabled because Plex is not enabled' : 'Plex Address'} />
+    hoverTitle={'Plex Address'} />
 
-  <Settings.Switch name="plex.useToken" title="Use Plex Token" update={plexIntegrationUpdate} bind:value={useToken} 
-    hoverTitle={plexEnable === false ? 'Disabled because Plex is not enabled' : 'Whether or not to use a Plex Token. Either a Plex Token or account login can be used.'}
-    disabled={plexEnable === false} />
+  <Settings.Password name="plex.token" form={form} title="Plex Token" update={plexIntegrationUpdate} bind:value={token} 
+    hoverTitle="Plex Token" >
+    <button 
+      title="Click to sign into Plex to generate a Plex Token for Unabridged to use." 
+      name="signIntoPlex"
+      type="submit"
+      on:click={() => authorizedRedirect = true }
+      class="select-none w-full sm:w-auto flex justify-center items-center whitespace-nowrap px-3 py-2 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ring-1 ring-inset ring-gray-300 bg-white text-gray-800 hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 disabled:ring-gray-200 focus-visible:outline-grey-500">
+      Sign Into Plex 
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="ml-1 w-4 h-4">
+        {@html icons.arrowTopRightOnSquare}
+      </svg>
+    </button>
+  </Settings.Password>
 
-  <Settings.Password name="plex.token" title="Plex Token" update={plexIntegrationUpdate} bind:value={token} 
-    disabled={useToken === false || plexEnable === false}
-    hoverTitle={useToken === false || plexEnable === false ? (plexEnable ? 'Disabled because Plex is being authenticated with a Plex username and password' : 'Disabled because Plex is not enabled') : 'Plex Token'} />
+  <Settings.Frame title={'Clear Integration'}>
+    <form method="POST" action={'?/clearPlexIntegration'}>
+      <button 
+        title={(data.settingValues['plex.address'] === '' && data.settingValues['plex.token'] === '') ? 'No settings to erase' : 'Click to erase Plex integration settings'} 
+        type="submit" 
+        disabled={data.settingValues['plex.address'] === '' && data.settingValues['plex.token'] === ''}
+        class="hover:bg-yellow-100/20 hover:text-yellow-800 hover:ring-yellow-400/80 select-none w-full sm:w-auto flex justify-center items-center whitespace-nowrap px-3 py-2 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ring-1 ring-inset ring-gray-300 bg-white text-gray-800 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 disabled:ring-gray-200 focus-visible:outline-grey-500">
+        Erase Settings & Logout
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="ml-1 w-4 h-4">
+          {@html icons.warning}
+        </svg>
+      </button>
+    </form>
+  </Settings.Frame>
 
-  <Settings.Input name="plex.username" title="Plex Email or Username" update={plexIntegrationUpdate} bind:value={username} 
-    disabled={useToken === true || plexEnable === false} 
-    hoverTitle={useToken === true || plexEnable === false ? (plexEnable ? 'Disabled because Plex is being authenticated with a Plex Token' : 'Disabled because Plex is not enabled') : 'Plex Username'} />
-
-  <Settings.Password name="plex.password" title="Plex Password" update={plexIntegrationUpdate} bind:value={password} 
-    disabled={useToken === true || plexEnable === false} 
-    hoverTitle={useToken === true || plexEnable === false ? (plexEnable ? 'Disabled because Plex is being authenticated with a Plex Token' : 'Disabled because Plex is not enabled') : 'Plex Password'} />
 </Settings.List>
 
+
+<!-- Plex API -->
+<Settings.List class="" form={form} action="?/updatePlexAPI" bind:unsavedChanges={plexAPIUnsavedChanges} bind:update={plexAPIUpdate}>
+  <span slot="title">Plex API</span>
+  <span slot="description">Configure how Unabridged uses the Plex API.</span>
+
+  <Settings.NumericalInput name="plex.apiTimeout" title="API Timeout" update={plexAPIUpdate} bind:value={apiTimeout}
+    min={100}
+    max={10000}
+    hoverTitle={'The number of milliseconds before an API request to the Plex server should abort.'}
+    showWrapper={{end: 'milliseconds'}} />
+
+</Settings.List>
 
 <!-- Plex Library -->
 <Settings.List class="" form={form} action="?/updatePlexLibrary" bind:unsavedChanges={plexLibraryUnsavedChanges} bind:update={plexLibraryUpdate}>
@@ -91,6 +175,8 @@
     hoverTitle={autoScan === false ? 'Disabled because automatic sync is disabled' : 'Whether or not to enable scheduled Plex library scans, as opposed to immediate scans'} />
   
   <Settings.NumericalInput name="plex.library.autoScanDelay" title="Auto Scan Delay" update={plexLibraryUpdate} bind:value={autoScanDelay}
+    min={0}
+    max={600}
     disabled={autoScan === false || scheduled === true}
     hoverTitle={autoScan === false ? 'Disabled because automatic sync is disabled' : (scheduled === true ? 'Disabled because scheduled sync is enabled' : 'How long to wait after books are downloaded before triggering a Plex library scan')}
     showWrapper={{start: 'Delay', end: 'seconds'}} />

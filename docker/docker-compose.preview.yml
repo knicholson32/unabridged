@@ -11,6 +11,9 @@ services:
       - ../app/db:/db
       - ../library:/library
 
+    environment:
+      ORIGIN: 'http://localhost:4173'
+
     stop_signal: SIGKILL
     working_dir: /app
     command: npm run preview -- --host

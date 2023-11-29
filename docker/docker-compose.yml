@@ -10,6 +10,9 @@ services:
       - ../app:/app
       - ../app/db:/db
       - ../library:/library
+
+    environment:
+      ORIGIN: 'http://localhost:5173'
     
     stop_signal: SIGKILL
     working_dir: /app

@@ -8,14 +8,11 @@
   export let placeholder: number = 0;
   export let hoverTitle: string = '';
   export let disabled: boolean = false;
+  export let min: number | undefined = undefined;
+  export let max: number | undefined = undefined;
   export let form: { success: boolean, name: string, message: string | undefined } | null = null;
 
   export let update = () => {};
-
-  const _update = (value: Event & { currentTarget: EventTarget & HTMLInputElement; }) => {
-    console.log(value);
-    update();
-  }
 
 </script>
 
@@ -55,8 +52,10 @@
       <input 
         disabled={disabled} 
         title={hoverTitle} 
-        on:input={_update}
+        on:input={update}
         type="number"
+        min={min}
+        max={max}
         name={name} 
         bind:value={value}
         class="block flex-1 border-0 {showWrapper !== null ? 'w-[5em] text-center px-1' : '' } disabled:cursor-not-allowed disabled:text-gray-500 bg-transparent py-1.5 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6" 

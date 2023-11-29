@@ -17,6 +17,7 @@
   export let submitting: boolean;
   export let failed: boolean = false;
   export let progress: number = 0;
+  export let hoverTitle = '';
 
   export let disabled: boolean = false;
   export let actionText = 'Save';
@@ -68,8 +69,8 @@
       spinnerProgressClasses = 'text-white';
       break
     case 'white':
-      themeClassesStatic = 'ring-1 ring-inset ring-gray-300'
-      themeClassesDefault = 'bg-white text-gray-800 hover:bg-gray-100 hover:text-gray-900 disabled:text-gray-200 disabled:bg-gray-800 disabled:hover:bg-gray-800 focus-visible:outline-grey-500';
+      themeClassesStatic = 'ring-1 ring-inset ring-gray-300 disabled:bg-gray-50 disabled:text-gray-500 disabled:ring-gray-200'
+      themeClassesDefault = 'bg-white text-gray-800 hover:bg-gray-100 hover:text-gray-900 disabled:bg-gray-50 disabled:text-gray-500 disabled:ring-gray-200 focus-visible:outline-grey-500';
       themeClassesSubmitting = 'bg-white text-gray-800 cursor-default';
       spinnerClasses = 'text-gray-100 fill-gray-800';
       spinnerProgressClasses = 'text-gray-800';
@@ -157,7 +158,7 @@
 
 </script>
 
-<button title="{submitting && progress != 0 ? `${Math.round(progress * 100)}%` : ''}" bind:this={button} disabled={disabled} type="submit" class="{clazz} select-none transition-colors flex justify-center px-3 py-2 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed {(done) ? '' : themeClassesStatic} {themeClasses}">
+<button title="{submitting && progress != 0 ? `${Math.round(progress * 100)}%` : hoverTitle}" bind:this={button} disabled={disabled} type="submit" class="{clazz} select-none transition-colors flex justify-center px-3 py-2 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed {(done) ? '' : themeClassesStatic} {themeClasses}">
   <span class="flex-none">{done ? (failed ? failedText : doneText) : (submitting ? actionTextInProgress : actionText)}</span>
   {#if submitting || done}
     <div transition:reveal role="status" class="relative flex-none ml-2 w-5 h-5 align-middle overflow-hidden">

@@ -37,6 +37,15 @@ export const sanitizeFile = (file: string) => {
   return sanitize(file).replaceAll(/[()\[\]'"!@#$%^&*`]/g, '');
 }
 
+/**
+ * Remove up to one trailing slash from a URL
+ * @param url the URL to sanitize
+ * @returns the URL without the last slash
+ */
+export const removeTrailingSlashes = (url: string) => {
+  return url.replace(/\/$/, "");
+}
+
 // export const dirsSanitizeNested = (dirs: string[]): string => {
 //   return '\'"' + dirs.map((d) => sanitize(d)).join('/').replaceAll('\"', '\'').replaceAll('\'', '\'"\'"\'') + '"\'';
 // }

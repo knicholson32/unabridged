@@ -10,6 +10,8 @@ import { BookDownloadError } from './audible/types';
 import type { Issuer, ModalTheme } from '$lib/types';
 import { ConversionError } from './AAXtoMP3/types';
 import { ProcessError } from '$lib/types';
+import * as Plex from '$lib/server/plex';
+import * as helpers from '$lib/server/helpers';
 import cron from 'node-cron';
 
 enum ProcessState {
@@ -615,11 +617,24 @@ export namespace Cron {
         libSync: 0,
         booksAdded: 0,
         booksUpdated: 0,
+        plexTest: {
+          success: false,
+          message: '',
+          source: ''
+        },
         startTime: lastCronStartTime,
         endTime: lastCronStartTime
       }
       cronRunning = true;
       if (debug) console.log('CRON PROCESS');
+
+      // Test Plex Integration -----------------------------------------------------------------------------
+      if (await settings.get('plex.enable') === true) {
+        if (debug) console.log('Test Plex Integration');
+        const results = await Plex.testPlexConnection(await settings.get('plex.address'), await helpers.decrypt(await settings.get('plex.token')));
+        if (debug > 1) console.log(results);
+        cronRecord.plexTest = results;
+      }
 
       // Library Sync (Audible) ----------------------------------------------------------------------------
       if (await settings.get('general.autoSync') === true) {
@@ -651,7 +666,7 @@ export namespace Cron {
             if (results !== null) console.log(JSON.stringify(results));
             else console.log('Sync failed');
           }
-          if (await checkCronTime(debug)) throw Error('Cron time expired');
+          if (await checkCronTime(debug > 0)) throw Error('Cron time expired');
         }
 
         // Check to see if the cron should exit yet
@@ -659,7 +674,7 @@ export namespace Cron {
       }
 
       // Check to see if the cron should exit yet
-      if (await checkCronTime(debug)) throw Error('Cron time expired');
+      if (await checkCronTime(debug > 0)) throw Error('Cron time expired');
 
 
     } finally {

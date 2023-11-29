@@ -40,7 +40,8 @@
   // Debug
   let debugUpdate: () => {};
   let debugUnsavedChanges = false;
-  let debug = data.settingValues['system.debug'];
+  let debugEnabled = data.settingValues['system.debug'] > 0;
+  let debugVerbose = data.settingValues['system.debug'] > 1;
 
   // Utilities
   beforeNavigate(({ cancel }) => {
@@ -76,6 +77,8 @@
     hoverTitle={cronEnable ? 'A cron string that describes when scheduled tasks should be performed' : 'Disabled because scheduled processing is disabled'}/>
 
   <Settings.NumericalInput name="plex.library.autoScanDelay" title="Alloted Run Time" update={cronUpdate} bind:value={maxRun}
+    min={5}
+    max={60000}
     disabled={cronEnable === false}
     hoverTitle={cronEnable === false ? 'Disabled because scheduled processing is disabled' : 'The max number of seconds the cron should target to run for. After this many seconds, new cron tasks will not be started (but current ones will finish).'}
     showWrapper={{start: 'Max', end: 'seconds'}} />
@@ -100,7 +103,11 @@
   <span slot="title">Debug</span>
   <span slot="description">General debugging features and logs.</span>
 
-  <Settings.Switch name="system.debug" form={form} title="Enable Debug" update={debugUpdate} bind:value={debug} 
+  <Settings.Switch name="system.debug" form={form} title="Enable Debug" update={debugUpdate} bind:value={debugEnabled} 
+    hoverTitle={'Whether or not to enable general debugging features and logs'} />
+
+  <Settings.Switch name="system.debug.verbose" form={form} title="Verbose Debug" update={debugUpdate} bind:value={debugVerbose} 
+    disabled={debugEnabled === false}
     hoverTitle={'Whether or not to enable general debugging features and logs'} />
 
   

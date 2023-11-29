@@ -3,18 +3,19 @@
 # create-pi:
 # 	docker -H tcp://192.168.1.100:2375 build --push --file ./Dockerfile.base -t keenanrnicholson/audible-plex-base .
 create:
-	docker build --file ./docker/Dockerfile --target prod -t keenanrnicholson/unabridged:latest .
+	docker build --file ./docker/Dockerfile --build-arg GIT_COMMIT=$(shell git rev-parse HEAD) --target prod -t keenanrnicholson/unabridged:latest .
 	docker push keenanrnicholson/unabridged
 create-local:
-	docker build --file ./docker/Dockerfile --target prod -t keenanrnicholson/unabridged:latest .
+	docker build --file ./docker/Dockerfile --build-arg GIT_COMMIT=$(shell git rev-parse HEAD) --target prod -t keenanrnicholson/unabridged:latest .
 create-all:
 	# docker buildx create --name mybuilder --platform linux/arm64,linux/amd64
-	docker buildx build --builder mybuilder --file ./docker/Dockerfile --push --target prod --platform linux/arm64,linux/amd64 --tag keenanrnicholson/unabridged:latest .
+	docker buildx build --builder mybuilder --file ./docker/Dockerfile --push --build-arg GIT_COMMIT=$(shell git rev-parse HEAD) --target prod --platform linux/arm64,linux/amd64 --tag keenanrnicholson/unabridged:latest .
 	# docker buildx build --builder mybuilder --file ./docker/Dockerfile --push --target prod-mongo --platform linux/arm64,linux/amd64 --tag keenanrnicholson/unabridged:latest-mongo .
 setup:
 	docker volume rm --force nodemodules-unabridged
 	docker volume create nodemodules-unabridged
-	docker build --file ./docker/Dockerfile --target dev -t unabridged-dev .
+	docker build --bu
+	ild-arg GIT_COMMIT=$(shell git rev-parse HEAD) --file ./docker/Dockerfile --target dev -t unabridged-dev .
 install:
 	docker-compose -f ./docker/docker-compose.builder.yml -p unabridged run --rm =
 dev:

@@ -8,7 +8,7 @@
   export let action: string;
 	export { classExport as class };
   export let confirmAction: string | null = null;
-  export let form: { success: boolean, action: string } | null = null;
+  export let form: { success: boolean, action: string, invalidatedParams?: boolean } | null = null;
 
   export let submitting = false;
   export let unsavedChanges = false;
@@ -23,7 +23,7 @@
   }
 
   const clearChangesFlag = () => {
-    if (form?.success === false && form?.action === action) unsavedChanges = true;
+    if (form?.success === false && form?.action === action && form?.invalidatedParams !== false) unsavedChanges = true;
     else unsavedChanges = false;
   }
   
@@ -60,12 +60,15 @@
         </p>
       </div>
       <div class="flex-grow"></div>
-      <div class="sm:mr-3 inline-flex relative">
+      <div class="sm:mr-3 inline-flex gap-2 relative">
+        <slot name="button"></slot>
         <Submit
           class="w-full sm:w-auto" 
           theme={{primary: 'white', done: 'white', fail: 'white'}} 
           actionText={unsavedChanges ? "Save Changes" : "Saved"}
           doneText="Saved"
+          disabled={!unsavedChanges}
+          hoverTitle={!unsavedChanges ? 'No changes to save' : ''}
           actionTextInProgress="Saving" 
           submitting={submitting}
           failed={form?.success === false && form?.action === action}

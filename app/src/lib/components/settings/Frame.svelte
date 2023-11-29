@@ -1,6 +1,7 @@
 <script lang="ts">
   export let title: string;
   export let error: string | null = null;
+  export let success: string | null = null;
   export let link: {href: string, title: string, icon?: string} | null = null;
 </script>
 
@@ -24,6 +25,9 @@
       </div>
       {#if error !== null}
         <p class="text-xs leading-6 text-red-500">{error}</p>
+      {/if}
+      {#if success !== null}
+        <p class="text-xs leading-6 text-green-500">{success}</p>
       {/if}
     </dt>
     <dd class="flex flex-auto items-center justify-end">

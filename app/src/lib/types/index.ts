@@ -279,6 +279,18 @@ export type DownloadStatusAPI = {
     progress?: Progress
 }
 
+
+
+// -------------------------------------------------------------------------------------------------
+// Plex
+// -------------------------------------------------------------------------------------------------
+
+export type ConnectionTestResult = {
+    success: boolean,
+    message: string,
+    source: string
+}
+
 // -------------------------------------------------------------------------------------------------
 // Library
 // -------------------------------------------------------------------------------------------------
@@ -291,6 +303,7 @@ export namespace Cron {
         booksUpdated: number, // Number of books whose metadata was updated during the library sync
         startTime: number,    // When the cron started
         endTime: number,      // When the cron finished
+        plexTest: ConnectionTestResult,  // Results of the Plex cron test
     }
 }
 

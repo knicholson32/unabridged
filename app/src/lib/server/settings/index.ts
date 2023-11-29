@@ -18,11 +18,10 @@ export type TypeName =
   'system.cron' |
 
   'plex.enable' |
+  'plex.apiTimeout' |
   'plex.address' |
-  'plex.useToken' |
   'plex.token' |
-  'plex.username' |
-  'plex.password' |
+  'plex.friendlyName' |
   'plex.library.autoScan' |
   'plex.library.autoScanDelay' |
   'plex.library.scheduled' |
@@ -46,18 +45,17 @@ export type ObjectType<T> =
 
   T extends 'search.autoSubmit' ? boolean :          // Boolean
 
-  T extends 'system.debug' ? boolean :               // Boolean
+  T extends 'system.debug' ? number :                // Integer
   T extends 'system.cron.enable' ? boolean :         // Boolean
   T extends 'system.cron.maxRun' ? number :          // Integer
   T extends 'system.cron.record' ? string :          // String
   T extends 'system.cron' ? string :                 // String
 
   T extends 'plex.enable' ? boolean :                // Boolean
+  T extends 'plex.apiTimeout' ? number :             // Integer
   T extends 'plex.address' ? string :                // String
-  T extends 'plex.useToken' ? boolean :              // Boolean
   T extends 'plex.token' ? string :                  // String
-  T extends 'plex.username' ? string :               // String
-  T extends 'plex.password' ? string :               // String
+  T extends 'plex.friendlyName' ? string :           // String
   T extends 'plex.library.autoScan' ? boolean :      // Boolean
   T extends 'plex.library.scheduled' ? boolean :     // Boolean
   T extends 'plex.library.autoScanDelay' ? number :  // Integer
@@ -81,18 +79,17 @@ export const defaultSettings: { [key in TypeName]: any } = {
 
   'search.autoSubmit': true,
 
-  'system.debug': false,
+  'system.debug': 0,
   'system.cron.enable': true,
   'system.cron.maxRun': 7200, // Seconds (2hr)
   'system.cron.record': '',
   'system.cron': '0 4 * * *',
 
   'plex.enable': false,
+  'plex.apiTimeout': 3000, // ms
   'plex.address': '127.0.0.1',
-  'plex.useToken': true,
   'plex.token': '',
-  'plex.username': '',
-  'plex.password': '',
+  'plex.friendlyName': '',
   'plex.library.autoScan': true,
   'plex.library.scheduled': true,
   'plex.library.autoScanDelay': 60,
@@ -138,10 +135,8 @@ export const get = async <T extends TypeName>(setting: T): Promise<ObjectType<T>
       case 'progress.startPaused':
       case 'search.autoSubmit':
       case 'general.autoSync':
-      case 'system.debug':
       case 'system.cron.enable':
       case 'plex.enable':
-      case 'plex.useToken':
       case 'plex.collections.enable':
       case 'plex.library.autoScan':
       case 'plex.library.scheduled':
@@ -151,6 +146,8 @@ export const get = async <T extends TypeName>(setting: T): Promise<ObjectType<T>
       case 'progress.startTime':
       case 'progress.endTime':
       case 'system.cron.maxRun':
+      case 'system.debug':
+      case 'plex.apiTimeout':
       case 'plex.library.autoScanDelay':
         return parseInt(settingVal.value) as ObjectType<T>;
 
@@ -163,8 +160,7 @@ export const get = async <T extends TypeName>(setting: T): Promise<ObjectType<T>
       case 'system.cron.record':
       case 'plex.address':
       case 'plex.token':
-      case 'plex.username':
-      case 'plex.password':
+      case 'plex.friendlyName':
       case 'general.encKey':
       case 'general.string':
       case 'library.location':
@@ -185,6 +181,7 @@ export const get = async <T extends TypeName>(setting: T): Promise<ObjectType<T>
     if (setting === 'general.encKey') {
       // It is. Generate the default
       const defaultVal = crypto.randomBytes(32).toString('hex') as ObjectType<T>;
+      console.log('def', setting, defaultVal);
       await prisma.settings.create({ data: { setting, value: defaultVal.toString() } });
       // Return the default value
       return defaultVal;  

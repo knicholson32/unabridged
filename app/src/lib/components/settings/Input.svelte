@@ -17,11 +17,9 @@
   export let update = () => {};
   export let updatedContents = (e: string) => {};
 
-  const _update = (e: Event & { currentTarget: EventTarget & HTMLInputElement; }) => {
-    // updatedContents(value);
-    console.log(e);
-    update();
-  }
+  // const _update = (e: Event & { currentTarget: EventTarget & HTMLInputElement; }) => {
+  //   update();
+  // }
 
 </script>
 
@@ -35,7 +33,7 @@
     <input 
       disabled={disabled} 
       title={hoverTitle} 
-      on:input={_update}
+      on:input={update}
       on:keyup={() => { updatedContents(value) }}
       type="text"
       name={name} 
