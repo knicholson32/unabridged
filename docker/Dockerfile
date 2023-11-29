@@ -105,9 +105,6 @@ FROM python:3.11.4-alpine3.18 as dev
 ARG NODE_VERSION
 ARG USR_LOCAL_EXPORT
 ARG WHEEL_EXPORT
-ARG GIT_COMMIT
-
-ENV GIT_COMMIT=$GIT_COMMIT
 
 # Copy artifacts from the previous stage ()
 COPY --from=dependancies "${USR_LOCAL_EXPORT}/" "/usr/local/"
@@ -130,6 +127,9 @@ RUN echo "---- INSTALL AUDIBLE-CLI ----" \
   && pip3 install  audible-cli markdownify natsort
   # && rm -rf /tmp/*
 # && pip3 install --no-index --find-links=/tmp/whl audible-cli markdownify natsort \
+
+ARG GIT_COMMIT
+ENV GIT_COMMIT=$GIT_COMMIT
 
 ######### Node Modules & Build #####################################################################
 FROM node:${NODE_VERSION}-alpine as build
@@ -164,10 +164,8 @@ ARG USR_LOCAL_EXPORT
 ARG ROOT_EXPORT
 ARG WHEEL_EXPORT
 ARG SERVER_PORT
-ARG GIT_COMMIT
 
 # Set environmental variables
-ENV GIT_COMMIT=$GIT_COMMIT
 ENV AAXtoMP3_VERSION=${AAXtoMP3_VERSION}
 ENV TONE_VERSION=${TONE_VERSION}
 ENV PORT=${SERVER_PORT}
@@ -213,6 +211,9 @@ COPY --from=build "/app/build/" "/app/"
 # RUN echo "---- Prepare the Database ----" \
 #   && cd /app \
 #   && npx prisma generate
+
+ARG GIT_COMMIT
+ENV GIT_COMMIT=$GIT_COMMIT
 
 STOPSIGNAL SIGKILL
 # Set Docker command entry point and expose the proper port

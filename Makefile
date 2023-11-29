@@ -8,9 +8,7 @@ create:
 create-local:
 	docker build --file ./docker/Dockerfile --build-arg GIT_COMMIT=$(shell git rev-parse HEAD) --target prod -t keenanrnicholson/unabridged:latest .
 create-all:
-	# docker buildx create --name mybuilder --platform linux/arm64,linux/amd64
 	docker buildx build --builder mybuilder --file ./docker/Dockerfile --push --build-arg GIT_COMMIT=$(shell git rev-parse HEAD) --target prod --platform linux/arm64,linux/amd64 --tag keenanrnicholson/unabridged:latest .
-	# docker buildx build --builder mybuilder --file ./docker/Dockerfile --push --target prod-mongo --platform linux/arm64,linux/amd64 --tag keenanrnicholson/unabridged:latest-mongo .
 setup:
 	docker volume rm --force nodemodules-unabridged
 	docker volume create nodemodules-unabridged
