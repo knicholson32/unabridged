@@ -58,6 +58,10 @@
     }
   });
 
+  $: {
+    if(form?.success === true && form?.action === '?/updatePlexIntegration') data.plex.issueDetected = false;
+  }
+
   // onMount(() => {
   //   let alert = $page.url.searchParams.get('a');
   //   if (alert !== null) {
@@ -72,7 +76,15 @@
 
 <!-- Plex Integration -->
 <Settings.List class="" form={form} action="?/updatePlexIntegration" bind:unsavedChanges={plexIntegrationUnsavedChanges} bind:update={plexIntegrationUpdate}>
-  <span slot="title">Plex Integration</span>
+  <span slot="title" class="relative inline-flex items-center">
+    Plex Integration
+    {#if data.plex.issueDetected}
+      <span class="absolute flex h-3 w-3 -left-4">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+      </span>
+    {/if}
+  </span>
   <span slot="description" class="block">
     <span class="block">Direct Unabridged where and how to interact with Plex.</span>
     {#if data.plex.signedIn === true}
@@ -87,8 +99,8 @@
       </span>
     {/if}
   </span>
-  <span slot="button" class="inline-flex gap-2">
-    <form method="POST" action={'?/testPlexIntegration'} use:enhance={({cancel}) => {
+  <span slot="button" class="inline-flex">
+    <form method="POST" action={'?/testPlexIntegration'} class="relative inline-flex items-center gap-2" use:enhance={({cancel}) => {
       testingPlexIntegration = true;
       return async ({ update }) => {
         testingPlexIntegration = false;
@@ -98,7 +110,7 @@
       <Submit
         class="w-full sm:w-auto" 
         theme={{primary: 'white', done: 'white', fail: 'white'}} 
-        actionText={"Test"}
+        actionText={'Test'}
         doneText="Success"
         actionTextInProgress="Testing" 
         submitting={testingPlexIntegration}
@@ -113,7 +125,7 @@
     hoverTitle={'Whether or not to enable Plex integration'} />
 
   <Settings.Input name="plex.address" form={form} title="Plex Address" mono={true} update={plexIntegrationUpdate} bind:value={plexAddress} 
-    placeholder="127.0.0.1"
+    placeholder="http://127.0.0.1:32400/"
     hoverTitle={'Plex Address'} />
 
   <Settings.Password name="plex.token" form={form} title="Plex Token" update={plexIntegrationUpdate} bind:value={token} 

@@ -27,16 +27,19 @@ export const load = async ({ params, url }) => {
   }
 
   let signedIn = false;
+  let issueDetected = false;
 
   if (settingValues['plex.enable'] === true && settingValues['plex.address']?.length > 0 && settingValues['plex.token']?.length > 0) {
     const results = await Plex.testPlexConnection(settingValues['plex.address'], settingValues['plex.token']);
     if (results.success === true) signedIn = true;
+    else issueDetected = true;
   }
 
   return {
     settingValues,
     plex: {
       signedIn,
+      issueDetected,
       name: await settings.get('plex.friendlyName')
     },
   }

@@ -36,6 +36,7 @@ export const createNotification = async (notification: Notification) => {
  * @param urgentOnly whether or not to only show the urgent notifications
  */
 export const showNotifications = async (alertsComponent: Alerts, notifications: Notification[], urgentOnly = false) => {
+  if (alertsComponent === undefined) return;
   const deleteList: string[] = [];
   for (const notification of notifications) {
     if (urgentOnly && notification.auto_open === false) continue;
