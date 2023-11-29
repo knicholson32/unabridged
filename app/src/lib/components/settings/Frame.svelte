@@ -3,13 +3,30 @@
   export let error: string | null = null;
   export let success: string | null = null;
   export let link: {href: string, title: string, icon?: string} | null = null;
+  export let titleLink: string | null = null;
+  export let titleImg: string | null = null;
+  export let indent = false;
+
+  console.log(titleImg);
 </script>
 
 <div class="sm:mr-3 mt-2 sm:mt-0" >
   <div class="pt-6 flex items-center">
     <dt class="pr-6 font-medium text-gray-900 sm:w-64" id="timezone-option-label">
-      <div class="flex-none sm:flex sm:gap-x-2 ">
-        {title}
+      <div class="flex gap-x-2 items-center {indent ? 'ml-5 font-mono' : ''}">
+        {#if titleLink !== null}
+          <a href={titleLink} class="flex gap-x-2 items-center">
+            {#if titleImg !== null}
+              <img src="{titleImg}/56" class="h-8 w-8 rounded-full" alt="{title}">
+            {/if}
+            {title}
+          </a>
+        {:else}
+          {#if titleImg !== null}
+            <img src="{titleImg}/56" class="h-8 w-8 rounded-full" alt="{title}">
+          {/if}
+          {title}
+        {/if}
         {#if link !== null}
           <p class="text-xs leading-6 italic text-indigo-400">
             <a class="inline-flex items-center" href="{link.href}" target="_blank">

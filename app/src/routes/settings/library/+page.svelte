@@ -57,6 +57,12 @@
   <span slot="title">Auto Sync</span>
   <span slot="description">Configure which sources should auto sync.</span>
 
-  <Settings.Switch name="general.autoSync" form={form} title="Audible" update={autoSyncUpdate} bind:value={autoSyncAudible} 
+  <Settings.Switch name="general.autoSync" form={form} title="Audible Accounts" update={autoSyncUpdate} bind:value={autoSyncAudible} 
     hoverTitle="Start Paused" />
+
+  {#each data.profiles as profile}
+    <Settings.Switch indent={true} titleImg={profile.profile_image_url} titleLink={`/accounts/${profile.id}`} name="{profile.id}" form={form} title="{profile.email ?? 'Unknown'}" update={autoSyncUpdate} bind:value={profile.auto_sync} 
+    disabled={autoSyncAudible === false}
+    hoverTitle={autoSyncAudible === false ? 'Disabled because Auto Sync is disabled.' : `Auto Sync '${profile.email??'Unknown'}'`} />
+  {/each}
 </Settings.List>
