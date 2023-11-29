@@ -32,6 +32,7 @@ export type TypeName =
 
   'general.autoSync' |
   'general.encKey' |
+  'general.timezone' |
   'general.string' |
   'general.float'
   ;
@@ -66,6 +67,7 @@ export type ObjectType<T> =
 
   T extends 'general.autoSync' ? boolean :           // Boolean
   T extends 'general.encKey' ? string :              // String
+  T extends 'general.timezone' ? string :            // String
   T extends 'general.string' ? string :              // String
   T extends 'general.float' ? number :               // Float
   never;
@@ -100,6 +102,7 @@ export const defaultSettings: { [key in TypeName]: any } = {
 
   'general.autoSync': true,
   'general.encKey': 'UNSET',
+  'general.timezone': process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
   'general.string': 'test',
   'general.float': 3.14
 }
@@ -162,6 +165,7 @@ export const get = async <T extends TypeName>(setting: T): Promise<ObjectType<T>
       case 'plex.token':
       case 'plex.friendlyName':
       case 'general.encKey':
+      case 'general.timezone':
       case 'general.string':
       case 'library.location':
         return settingVal.value as ObjectType<T>;

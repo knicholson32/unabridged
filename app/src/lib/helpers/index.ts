@@ -2,7 +2,9 @@ import { browser } from '$app/environment';
 import * as https from 'https';
 import * as dateFns from 'date-fns'
 import icons from '$lib/components/icons'
+import { getTimeZones } from "@vvo/tzdb";
 
+const timeZonesWithUtc = getTimeZones({ includeUtc: true });
 
 /**
  * Validate a URL
@@ -202,6 +204,19 @@ export class RunTime {
         return hms.h.toString().padStart(2, '0') + ':' + hms.m.toString().padStart(2, '0') + ':' + hms.s.toString().padStart(2, '0');
     }
     
+}
+
+/**
+ * Get the ISO string for the local timezone
+ * @param date_ms the date in ms
+ * @param tz the TZ
+ * @returns the ISO string for the local timezone
+ */
+export const toISOStringTZ = (date_ms: number, tz: string) => {
+    const match = timeZonesWithUtc.find((v) => v.name === tz);
+    if (match === undefined) return new Date(date_ms).toISOString();
+    var tzoffset = -match.rawOffsetInMinutes * 60000; //offset in milliseconds
+    return (new Date(date_ms - tzoffset)).toISOString().slice(0, -1) + match.abbreviation;
 }
 
 

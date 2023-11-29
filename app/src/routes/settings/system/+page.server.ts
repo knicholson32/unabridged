@@ -37,7 +37,9 @@ export const load = async ({ params }) => {
       'system.cron.maxRun': await settings.get('system.cron.maxRun'),
       'system.cron.record': recordParsed,
       'system.cron': await settings.get('system.cron'),
-    }
+      'general.timezone': await settings.get('general.timezone'),
+    },
+    tz: await settings.get('general.timezone') ?? 'UTC'
   }
 }
 
@@ -100,6 +102,12 @@ export const actions = {
       const verbose = (data.get('system.debug.verbose') ?? undefined) as undefined | string;
       await settings.set('system.debug', debug === 'false' ? 0 : verbose === 'true' ? 2 : 1);
     }
+  },
+  updateLocalization: async ({ request }) => {
 
+    const data = await request.formData();
+
+    const timezone = (data.get('general.timezone') ?? undefined) as undefined | string;
+    if (timezone !== undefined) await settings.set('general.timezone', timezone);
   }
 }

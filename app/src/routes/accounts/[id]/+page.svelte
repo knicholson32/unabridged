@@ -8,6 +8,7 @@
 	import { Submit, Switch } from '$lib/components/buttons';
   import Number from '$lib/components/decorations/Number.svelte';
 	import Accordion from '$lib/components/decorations/Accordion.svelte';
+  import { toISOStringTZ } from '$lib/helpers';
 	import { intlFormatDistance } from 'date-fns';
 	import { invalidate } from '$app/navigation';
   import { v4 as uuidv4 } from 'uuid';
@@ -177,6 +178,7 @@
   let profileAutoSync = data.profile.auto_sync;
 
   let lastSyncPretty = data.profile.last_sync === null ? 'Never' : intlFormatDistance(new Date(data.profile.last_sync * 1000), new Date());
+  let lastSyncSpecific = data.profile.last_sync === null ? 'Never' : toISOStringTZ(data.profile.last_sync * 1000, data.tz);
   setInterval(() => {
     lastSyncPretty = data.profile.last_sync === null ? 'Never' : intlFormatDistance(new Date(data.profile.last_sync * 1000), new Date());
   }, 1000);
@@ -358,7 +360,7 @@
               </svg>
             </div>
             <p class="ml-16 truncate text-sm font-medium text-gray-500">Profile Library
-              <span on:click={profileSync.click} on:keypress={profileSync.click} tabindex="0" role="button" class="inline-flex select-none cursor-pointer ml-1 text-xs items-baseline rounded-full px-2.5 py-0.5 font-medium bg-gray-100 text-gray-500 md:mt-2 lg:mt-0">
+              <span on:click={profileSync.click} on:keypress={profileSync.click} title={lastSyncSpecific} tabindex="0" role="button" class="inline-flex select-none cursor-pointer ml-1 text-xs items-baseline rounded-full px-2.5 py-0.5 font-medium bg-gray-100 text-gray-500 md:mt-2 lg:mt-0">
                 <svg class="w-3 h-3 m-auto -ml-[0.3rem] mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clip-rule="evenodd" />
                 </svg>

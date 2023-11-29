@@ -4,7 +4,8 @@ import * as settings from '$lib/server/settings';
 export const load = async ({ params }) => {
   return {
     settingValues: {
-      'search.autoSubmit': await settings.get('search.autoSubmit')
+      'search.autoSubmit': await settings.get('search.autoSubmit'),
+      'general.timezone': await settings.get('general.timezone'),
     }
   }
 }
@@ -16,6 +17,12 @@ export const actions = {
 
     const autoSubmit = (data.get('search.autoSubmit') ?? undefined) as undefined | string;
     if (autoSubmit !== undefined) await settings.set('search.autoSubmit', autoSubmit === 'true');
+  },
+  updateLocalization: async ({ request }) => {
 
+    const data = await request.formData();
+
+    const timezone = (data.get('general.timezone') ?? undefined) as undefined | string;
+    if (timezone !== undefined) await settings.set('general.timezone', timezone);
   }
 }

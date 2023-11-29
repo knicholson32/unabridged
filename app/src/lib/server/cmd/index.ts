@@ -710,7 +710,9 @@ export namespace Cron {
     
     // Check if we are in debug
     const debug = await settings.get('system.debug');
-    if (debug) console.log('start cron');
+    const tz = await settings.get('general.timezone') ?? 'UTC';
+    if (debug) console.log('start cron with tz:', tz);
+
 
     // Stop the current cron if one exists
     if (global.manager.cronTask !== undefined) global.manager.cronTask.stop();
@@ -732,10 +734,7 @@ export namespace Cron {
     }
 
     // Start the cron
-    global.manager.cronTask = cron.schedule(cronString, process, {
-      // TODO: Load this timezone from settings
-      timezone: 'America/New_York'
-    });
+    global.manager.cronTask = cron.schedule(cronString, process, { timezone: tz });
 
     // Start the cron task
     global.manager.cronTask.start();

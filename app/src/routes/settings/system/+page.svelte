@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { beforeNavigate } from "$app/navigation";
-	import { icons } from "$lib/components";
 	import * as Settings from "$lib/components/settings";
   import { DataContainer, DataEntry } from "$lib/components/decorations/data";
+  import { toISOStringTZ } from '$lib/helpers';
   import cronstrue from 'cronstrue';
 	import { intlFormatDistance, formatDistanceToNow } from "date-fns";
+  import { timeZonesNames } from "@vvo/tzdb";
 
   export let data: import('./$types').PageData;
   export let form: import('./$types').ActionData;
@@ -43,9 +44,14 @@
   let debugEnabled = data.settingValues['system.debug'] > 0;
   let debugVerbose = data.settingValues['system.debug'] > 1;
 
+  // Localization
+  let localizationUpdate: () => {};
+  let localizationUnsavedChanges = false;
+  let timezone = data.settingValues['general.timezone'];
+
   // Utilities
   beforeNavigate(({ cancel }) => {
-    if (cronUnsavedChanges || debugUnsavedChanges) {
+    if (cronUnsavedChanges || debugUnsavedChanges || localizationUnsavedChanges) {
       if (!confirm('Are you sure you want to leave this page? You have unsaved changes that will be lost.')) {
         cancel();
       }
@@ -53,7 +59,7 @@
   });
 
   const lastCron = records === undefined ? 'Unknown' : intlFormatDistance(new Date(records.startTime * 1000), new Date());
-  const lastCronTime = records === undefined ? 'Unknown' : new Date(records.startTime * 1000).toISOString();
+  const lastCronTime = records === undefined ? 'Unknown' : toISOStringTZ(records.startTime * 1000, data.tz);
   const lastCronDuration = records === undefined ? 'Unknown' : formatDistanceToNow(new Date(Math.floor(Date.now()) - (records.endTime * 1000 - records.startTime * 1000)));
   const lastCronDurationTime = records === undefined ? 'Unknown' : (records.endTime - records.startTime) + ' seconds';
 
@@ -110,8 +116,15 @@
     disabled={debugEnabled === false}
     hoverTitle={'Whether or not to enable general debugging features and logs'} />
 
-  
+</Settings.List>
 
+<!-- Localization -->
+<Settings.List class="" form={form} action="?/updateLocalization" bind:unsavedChanges={localizationUnsavedChanges} bind:update={localizationUpdate}>
+  <span slot="title">Localization</span>
+  <span slot="description">Configure localization info for Unabridged.</span>
+
+  <Settings.Select form={form} name="general.timezone" title="Local Timezone" update={localizationUpdate} bind:value={timezone} 
+    options={timeZonesNames.concat('UTC')}/>
 </Settings.List>
 
 <div>

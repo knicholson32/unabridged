@@ -3,7 +3,7 @@ import prisma from '$lib/server/prisma';
 import { error, redirect } from '@sveltejs/kit';
 import type { Decimal } from '@prisma/client/runtime/library.js';
 import { v4 as uuidv4 } from 'uuid';
-import { createNotification, encodeURLAlert } from '$lib/components/alerts';
+import * as settings from '$lib/server/settings';
 import { icons } from '$lib/components';
 import * as serverHelpers from '$lib/server/helpers';
 import type { GenerateAlert, Issuer, ModalTheme, ProgressAPI, ProgressStatus } from '$lib/types';
@@ -52,7 +52,8 @@ export const load = async ({ params, fetch }) => {
 
     return {
         profile,
-        syncing
+        syncing,
+        tz: await settings.get('general.timezone')
     };
 
     // if (params.id === 'hello-world') {

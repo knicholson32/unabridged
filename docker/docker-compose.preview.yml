@@ -13,6 +13,7 @@ services:
 
     environment:
       ORIGIN: 'http://localhost:4173'
+      TZ: 'America/New_York'
 
     stop_signal: SIGKILL
     working_dir: /app
