@@ -51,7 +51,7 @@
     </nav>
   </aside>
 
-  <main class="px-4 py-16 sm:px-6 xl:flex-auto xl:px-0 xl:py-8 overflow-y-scroll">
+  <main class="px-4 py-16 sm:px-6 xl:flex-auto xl:px-0 xl:py-8">
     <div class="mx-auto max-w-2xl space-y-16 sm:space-y-20 xl:mx-0 xl:max-w-none">
       <slot/>
     </div>

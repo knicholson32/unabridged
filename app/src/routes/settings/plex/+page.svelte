@@ -79,7 +79,7 @@
   <span slot="title" class="relative inline-flex items-center">
     Plex Integration
     {#if data.plex.issueDetected}
-      <span class="absolute flex h-3 w-3 -left-4" title="Unabridged could not connect to the Plex server. Check settings.">
+      <span class="absolute flex h-3 w-3 -right-4 sm:right-auto sm:-left-4" title="Unabridged could not connect to the Plex server. Check settings.">
         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
         <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
       </span>
