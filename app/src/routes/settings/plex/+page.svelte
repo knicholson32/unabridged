@@ -29,7 +29,7 @@
   let plexEnable = data.settingValues['plex.enable'];
   let plexAddress = data.settingValues['plex.address'];
   let token = data.settingValues['plex.token'];
-
+  let library = data.settingValues['plex.library.id'];
 
   // Plex API
   let plexAPIUpdate: () => {};
@@ -46,6 +46,7 @@
   // Plex Collections
   let plexCollectionsUpdate: () => {};
   let plexCollectionsUnsavedChanges = false;
+  let libraryIDSaved = data.settingValues['plex.library.id'];
   let collectionsEnable = data.settingValues['plex.collections.enable'];
   let collectBy = data.settingValues['plex.collections.by'];
 
@@ -60,6 +61,7 @@
 
   $: {
     if(form?.success === true && form?.action === '?/updatePlexIntegration') data.plex.issueDetected = false;
+    libraryIDSaved = data.settingValues['plex.library.id'];
   }
 
   // onMount(() => {
@@ -143,6 +145,11 @@
     </button>
   </Settings.Password>
 
+  <Settings.Select form={form} name="plex.library.id" badge={libraryIDSaved === '' && data.plex.signedIn === true} title="Plex Library" update={plexIntegrationUpdate} bind:value={library} 
+    disabled={data.plex.signedIn === false}
+    hoverTitle={data.plex.signedIn === false ? 'Disabled because Plex is not signed in.' : 'Select which library Unabridged is saving to.'}
+    options={ data.plex.sections } />
+
   <Settings.Frame title={'Clear Integration'}>
     <form method="POST" action={'?/clearPlexIntegration'}>
       <button 
@@ -160,6 +167,51 @@
 
 </Settings.List>
 
+<!-- Plex Collections -->
+<Settings.List class="" form={form} action="?/updatePlexCollections" bind:unsavedChanges={plexCollectionsUnsavedChanges} bind:update={plexCollectionsUpdate}>
+  <span slot="title" class="relative inline-flex items-center">
+    Plex Collections
+    {#if libraryIDSaved === '' && data.plex.signedIn}
+      <span class="absolute flex h-3 w-3 -right-4 sm:right-auto sm:-left-4" title="No Plex Library is selected. See 'Plex Integration' settings above.">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+      </span>
+    {/if}
+  </span>
+  <span slot="description">Configure automatic Collections management in Plex.</span>
+
+  <Settings.Switch name="plex.collections.enable" title="Enable Collections Management" update={plexCollectionsUpdate} bind:value={collectionsEnable} 
+    disabled={libraryIDSaved === ''}
+    hoverTitle={libraryIDSaved === '' ? 'Disabled because no Plex Library is selected. See \'Plex Integration\' settings above.' : 'Whether or not to enable have Unabridged manage Plex Collections automatically.'} />
+  
+  <Settings.Select form={form} name="plex.collections.by" title="Collect Books Via" update={plexCollectionsUpdate} bind:value={collectBy} 
+    disabled={collectionsEnable === false || libraryIDSaved === ''}
+    options={[CollectionBy.series, CollectionBy.album]}
+    hoverTitle={libraryIDSaved === '' ? 'Disabled because no Plex Library is selected. See \'Plex Integration\' settings above.' : collectionsEnable === false ? 'Disabled because Plex collection management is disabled' : 'Specify how audiobooks could be collected in Plex'} />
+  
+</Settings.List>
+
+<!-- Plex Library -->
+<Settings.List class="" form={form} action="?/updatePlexLibrary" bind:unsavedChanges={plexLibraryUnsavedChanges} bind:update={plexLibraryUpdate}>
+  <span slot="title">Plex Library Scanning</span>
+  <span slot="description">Configure automatic library scanning after books are added via Unabridged.</span>
+
+  <Settings.Switch name="plex.library.autoScan" title="Enable Automatic Scan" update={plexLibraryUpdate} bind:value={autoScan} 
+    hoverTitle={'Whether or not to enable automatic Plex library scans after adding audiobooks via Unabridged'} />
+
+  <Settings.Switch name="plex.library.scheduled" title="Only Scan During Scheduled Time" update={plexLibraryUpdate} bind:value={scheduled} 
+    disabled={autoScan === false}
+    hoverTitle={autoScan === false ? 'Disabled because automatic scan is disabled' : 'Whether or not to enable scheduled Plex library scans, as opposed to immediate scans'} />
+  
+  <Settings.NumericalInput name="plex.library.autoScanDelay" title="Auto Scan Delay" update={plexLibraryUpdate} bind:value={autoScanDelay}
+    min={0}
+    max={600}
+    disabled={autoScan === false || scheduled === true}
+    hoverTitle={autoScan === false ? 'Disabled because automatic sync is disabled' : (scheduled === true ? 'Disabled because scheduled sync is enabled' : 'How long to wait after books are downloaded before triggering a Plex library scan')}
+    showWrapper={{start: 'Delay', end: 'seconds'}} />
+  
+
+</Settings.List>
 
 <!-- Plex API -->
 <Settings.List class="" form={form} action="?/updatePlexAPI" bind:unsavedChanges={plexAPIUnsavedChanges} bind:update={plexAPIUpdate}>
@@ -174,47 +226,10 @@
 
 </Settings.List>
 
-<!-- Plex Library -->
-<Settings.List class="" form={form} action="?/updatePlexLibrary" bind:unsavedChanges={plexLibraryUnsavedChanges} bind:update={plexLibraryUpdate}>
-  <span slot="title">Plex Library</span>
-  <span slot="description">Configure automatic library scanning after books are added via Unabridged.</span>
-
-  <Settings.Switch name="plex.library.autoScan" title="Enable Automatic Sync" update={plexLibraryUpdate} bind:value={autoScan} 
-    hoverTitle={'Whether or not to enable automatic Plex library scans after adding audiobooks via Unabridged'} />
-
-  <Settings.Switch name="plex.library.scheduled" title="Only Sync During Scheduled Time" update={plexLibraryUpdate} bind:value={scheduled} 
-    disabled={autoScan === false}
-    hoverTitle={autoScan === false ? 'Disabled because automatic sync is disabled' : 'Whether or not to enable scheduled Plex library scans, as opposed to immediate scans'} />
-  
-  <Settings.NumericalInput name="plex.library.autoScanDelay" title="Auto Scan Delay" update={plexLibraryUpdate} bind:value={autoScanDelay}
-    min={0}
-    max={600}
-    disabled={autoScan === false || scheduled === true}
-    hoverTitle={autoScan === false ? 'Disabled because automatic sync is disabled' : (scheduled === true ? 'Disabled because scheduled sync is enabled' : 'How long to wait after books are downloaded before triggering a Plex library scan')}
-    showWrapper={{start: 'Delay', end: 'seconds'}} />
-  
-
-</Settings.List>
-
-<!-- Plex Collections -->
-<Settings.List class="" form={form} action="?/updatePlexCollections" bind:unsavedChanges={plexCollectionsUnsavedChanges} bind:update={plexCollectionsUpdate}>
-  <span slot="title">Plex Collections</span>
-  <span slot="description">Configure automatic Collections management in Plex.</span>
-
-  <Settings.Switch name="plex.collections.enable" title="Enable Collections Management" update={plexCollectionsUpdate} bind:value={collectionsEnable} 
-    hoverTitle={'Whether or not to enable have Unabridged manage Plex Collections automatically.'} />
-  
-  <Settings.Select form={form} name="plex.collections.by" title="Collect Books Via" update={plexCollectionsUpdate} bind:value={collectBy} 
-    disabled={collectionsEnable === false}
-    options={[CollectionBy.series, CollectionBy.album]}
-    hoverTitle={collectionsEnable === false ? 'Disabled because Plex collection management is disabled' : 'Specify how audiobooks could be collected in Plex'} />
-  
-</Settings.List>
-
 <!-- Library Location -->
 <Settings.List class="" form={form} action="?/updateLibraryLocation" bind:unsavedChanges={libraryLocationUnsavedChanges} bind:update={libraryLocationUpdate} confirmAction={'This will cause file de-sync if there are books currently downloaded.'}>
   <span slot="title">Library Location</span>
-  <span slot="description">Specify where Unabridged should save audiobooks. If you intend to use plex, this should be a folder accessible by plex.</span>
+  <span slot="description">Specify where Unabridged should save audiobooks. If you intend to use plex, this should be a folder accessible by Plex via the Plex library selected in the Plex Integration settings.</span>
 
   <Settings.Input name="library.location" form={form} mono={true} title="Library Location" update={libraryLocationUpdate} bind:value={libraryLocation} 
     hoverTitle="Library location" />

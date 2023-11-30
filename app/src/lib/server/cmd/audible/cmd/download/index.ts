@@ -3,9 +3,11 @@ import * as fs from 'fs'
 import { v4 as uuidv4 } from 'uuid';
 import { isLocked } from '../../';
 import prisma from '$lib/server/prisma';
+import sharp from 'sharp';
 import * as helpers from '$lib/helpers';
 import * as tools from '$lib/server/cmd/tools';
 import * as aax from '$lib/server/cmd/AAXtoMP3';
+import * as settings from '$lib/server/settings';
 import * as media from '$lib/server/media';
 import * as path from 'node:path';
 import { BookDownloadError } from '../../types';
@@ -26,7 +28,8 @@ import { AUDIBLE_FOLDER, AUDIBLE_CMD } from '$lib/server/env';
 
 const cancelMap: { [key: string]: {
   canceled: boolean,
-  proc: child_process.ChildProcessWithoutNullStreams
+  proc: child_process.ChildProcessWithoutNullStreams,
+  error: BookDownloadError
 } } = {}
 
 export const cancel = async (asin: string) => {
@@ -39,6 +42,8 @@ export const cancel = async (asin: string) => {
 export const download = async (asin: string, processID: string, tmpDir: string): Promise<BookDownloadError> => {
   // Check if audible is locked
   if (isLocked()) return BookDownloadError.AUDIBLE_LOCKED;
+
+  const debug = await settings.get('system.debug');
 
   // Get the book from the DB
   const book = await prisma.book.findUnique({ 
@@ -92,7 +97,8 @@ export const download = async (asin: string, processID: string, tmpDir: string):
   // Assign cancel map
   cancelMap[asin] = {
     proc: audible,
-    canceled: false
+    canceled: false,
+    error: BookDownloadError.NO_ERROR
   }
 
   // Wrap this in a promise so we can respond from this function
@@ -104,6 +110,12 @@ export const download = async (asin: string, processID: string, tmpDir: string):
       const data = d.toString();
 
       console.log(data.replaceAll('\n', '\\n\n').replaceAll('\r', '\\r\n'));
+
+      // Check for a network error
+      if (data.indexOf('audible.exceptions.NetworkError') !== -1) {
+        cancelMap[asin].error = BookDownloadError.NETWORK_ERROR;
+        audible.kill();
+      }
 
     }
 
@@ -164,6 +176,10 @@ export const download = async (asin: string, processID: string, tmpDir: string):
       if (cancelMap[asin].canceled === true) {
         delete cancelMap[asin];
         resolve(BookDownloadError.CANCELED);
+      } else if (cancelMap[asin].error !== BookDownloadError.NO_ERROR) {
+        const err = cancelMap[asin].error;
+        delete cancelMap[asin];
+        resolve(err);
       } else {
         delete cancelMap[asin];
         resolve(BookDownloadError.NO_ERROR);
@@ -179,15 +195,53 @@ export const download = async (asin: string, processID: string, tmpDir: string):
   if (results === BookDownloadError.NO_ERROR) {
     // We need to register each artifact
 
+    // Before we get started, we need to see if a cover image was created. If not, we will copy in one we have.
+    // This is so the cover can be encoded in the file properly by AAXtoMP3
+    // Before we bother, check if we have a cover
+    if (book.cover !== null) {
+      // We have a cover. Get the files in the directory
+      const files = fs.readdirSync(tmpDir);
+      // Make a variable to tell if we have found an image
+      let foundImage = false;
+      // Loop through the files and see if we find an image
+      for (const file of files) {
+        // If we do, break
+        if (path.extname(file) === '.jpg') {
+          foundImage = true;
+          break;
+        }
+      }
+      // Check if we found an image
+      if (foundImage === false) {
+        // We didn't. Add one. Must match this format: .*(####).jpg
+        // Check if this is a UI Avatars image
+        let cover: Buffer;
+        if (book.cover.url_500.indexOf('ui-avatars.com')) {
+          // We can request a png and convert it to a jpg, otherwise it will be an SVG
+          cover = helpers.toBuffer(await (await fetch(book.cover.url_500 + '&format=png')).arrayBuffer());
+        } else {
+          // Just grab the image
+          cover = helpers.toBuffer(await (await fetch(book.cover.url_500)).arrayBuffer());
+        }
+        // Make sure the image is a jpg
+        cover = await sharp(cover).toFormat('jpeg').jpeg({ quality: 100, force: true }).toBuffer();
+        // We will name it starting with zzz so AAXtoMP3 picks another image if one exists
+        const r = fs.writeFileSync(path.join(tmpDir, 'zzz_provided_cover_(500).jpg'), cover)
+        console.log(book.cover.url_500, cover, r);
+
+        if (debug) console.log('Created cover image because one could not be found');
+      }
+    }
+
     // Get the files that are in the temp folder
     const filesToAdd = fs.readdirSync(tmpDir);
     const jsonFiles: string[] = [];
 
     // Remove files associated with this book if any exist
-    await prisma.media.deleteMany({ where: { bookAsin: book.asin } })
+    await prisma.media.deleteMany({ where: { bookAsin: book.asin } });
 
     // Clean the media folder before we begin
-    await media.clean()
+    await media.clean();
 
     // Add each file
     for (const file of filesToAdd) {

@@ -471,7 +471,9 @@ validate_extra_files() {
 
   # Cover
   extra_dirname="$(dirname "${extra_media_file}")"
-  extra_find_command='$FIND "${extra_dirname}" -maxdepth 1 -regex ".*/${extra_title##*/}_([0-9]+)\.jpg"'
+  # extra_find_command='$FIND "${extra_dirname}" -maxdepth 1 -regex ".*/${extra_title##*/}_([0-9]+)\.jpg"'
+  # Modified to use any image in directory and just pick the first one. This ONLY works because we are using AAXtoMP3 in a one-at-a-time context (only one file per folder)
+  extra_find_command='$FIND "${extra_dirname}" -maxdepth 1 -regex ".*([0-9]+)\.jpg" | sort -f | head -n 1'
   # We want the output of the find command, we will turn errexit on later
   set +e errexit
   extra_cover_file="$(eval ${extra_find_command})"
@@ -498,7 +500,7 @@ validate_extra_files() {
   fi
   if [[ "x${extra_cover_file}" == "x" ]] ; then
     log "ERROR Cover File NOT Found"
-    return 1
+    # return 1
   fi
 
   # Test for library file
@@ -816,7 +818,7 @@ do
   # Grab the cover art if available.
   cover_file="${output_directory}/${currentFileNameScheme}.jpg"
   if [ "${continue}" == "0" ]; then
-    if [ "${audibleCli}" == "1" ]; then
+    if [[ "${audibleCli}" == "1" && "x${extra_cover_file}" != "x" ]]; then
       # We have a better quality cover file, copy it.
       if [ "$((${loglevel} > 1))" == "1" ]; then
         log "Copy cover file to ${cover_file}..."

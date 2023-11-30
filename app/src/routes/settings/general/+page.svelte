@@ -45,7 +45,6 @@
 
   <Settings.Select form={form} name="general.timezone" title="Local Timezone" update={localizationUpdate} bind:value={timezone} 
     options={timeZonesNames.concat('UTC')}/>
-
 </Settings.List>
 
 <div>

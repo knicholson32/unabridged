@@ -22,6 +22,9 @@ export type TypeName =
   'plex.address' |
   'plex.token' |
   'plex.friendlyName' |
+  'plex.library.id' |
+  'plex.library.key' |
+  'plex.library.name' |
   'plex.library.autoScan' |
   'plex.library.autoScanDelay' |
   'plex.library.scheduled' |
@@ -56,6 +59,9 @@ export type ObjectType<T> =
   T extends 'plex.apiTimeout' ? number :             // Integer
   T extends 'plex.address' ? string :                // String
   T extends 'plex.token' ? string :                  // String
+  T extends 'plex.library.id' ? string :             // String
+  T extends 'plex.library.key' ? string :            // String
+  T extends 'plex.library.name' ? string :           // String
   T extends 'plex.friendlyName' ? string :           // String
   T extends 'plex.library.autoScan' ? boolean :      // Boolean
   T extends 'plex.library.scheduled' ? boolean :     // Boolean
@@ -92,10 +98,13 @@ export const defaultSettings: { [key in TypeName]: any } = {
   'plex.address': '127.0.0.1',
   'plex.token': '',
   'plex.friendlyName': '',
+  'plex.library.id': '',
+  'plex.library.key': '',
+  'plex.library.name': '',
   'plex.library.autoScan': true,
   'plex.library.scheduled': true,
   'plex.library.autoScanDelay': 60,
-  'plex.collections.enable': true,
+  'plex.collections.enable': false,
   'plex.collections.by': types.CollectionBy.series,
 
   'library.location': '/library',
@@ -167,6 +176,9 @@ export const get = async <T extends TypeName>(setting: T): Promise<ObjectType<T>
       case 'general.encKey':
       case 'general.timezone':
       case 'general.string':
+      case 'plex.library.id':
+      case 'plex.library.key':
+      case 'plex.library.name':
       case 'library.location':
         return settingVal.value as ObjectType<T>;
 

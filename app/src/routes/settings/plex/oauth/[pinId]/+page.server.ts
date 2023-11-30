@@ -26,7 +26,7 @@ export const load = async ({ params }) => {
       if (debug) console.log('token', await helpers.decrypt(await settings.get('plex.token')));
       success = true;
       const results = await Plex.testPlexConnection(await settings.get('plex.address'), await helpers.decrypt(await settings.get('plex.token')));
-      console.log(results);
+      if (debug) console.log(results);
       if (results.success) {
         await settings.set('plex.enable', true);
         tested = true;
@@ -44,7 +44,7 @@ export const load = async ({ params }) => {
           issuer: 'account.sync' satisfies Issuer,
           theme: 'ok' satisfies ModalTheme,
           text: 'Successfully added Plex Account',
-          sub_text: 'An auth token has been successfully generated and Plex is fully enabled.',
+          sub_text: 'An auth token has been successfully generated and the Plex integration is enabled.',
           linger_time: 6000,
           needs_clearing: false,
           auto_open: true

@@ -95,7 +95,7 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
   // TODO: Save the directory and filename so we can just save them to the DB to make deleting books easier
   const args = ['-e:m4b', `-L`, `/db/audible/${profileID}.library.tsv`, '-s', '--author', `"${book.authors[0].name}"`, '--title', `"${book.title}"`, '--authcode', authCode, '--dir-naming-scheme', `'"${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}"'`, '--file-naming-scheme', `'"${sanitizeFile(book.title)}"'`, '--use-audible-cli-data', '-t', LIBRARY_FOLDER, './*.aaxc']
   // Check if we should use debug mode
-  if (await settings.get('system.debug') === true) args.unshift('--debug');
+  if (await settings.get('system.debug') > 0) args.unshift('--debug');
   console.log(`${AAXtoMP3_COMMAND} ${args.join(' ')}`);
   const aax = child_process.spawn(
     AAXtoMP3_COMMAND,

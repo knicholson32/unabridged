@@ -60,6 +60,40 @@ export type Base = {
   }
 }
 
+export type Sections = {
+  MediaContainer: {
+    size: number,
+    allowSync: boolean,
+    title1: string,
+    Directory: {
+      allowSync: boolean,
+      art: string,
+      composite: string,
+      filters: boolean,
+      refreshing: boolean,
+      thumb: string,
+      key: string,
+      type: 'artist' | 'photo' | 'movie',
+      title: string,
+      agent: string,
+      scanner: string,
+      language: string,
+      uuid: string,
+      updatedAt: number,
+      createdAt: number,
+      scannedAt: number,
+      content: boolean,
+      directory: boolean,
+      contentChangedAt: number,
+      hidden: number,
+      Location: {
+        id: number,
+        path: string
+      }[]
+    }[]
+  }
+}
+
 
 // -------------------------------------------------------------------------------------------------
 // Plex OAuth

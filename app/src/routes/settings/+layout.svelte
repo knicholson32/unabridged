@@ -24,6 +24,14 @@
           </a>
         </li>
         <li>
+          <a href="/settings/plex" class="{$page.url.pathname === '/settings/plex' ? subMenuActive : subMenuDefault} group flex gap-x-3 rounded-md py-2 pl-2 pr-3 text-sm leading-6 font-semibold">
+            <svg class="h-6 w-6 shrink-0 {$page.url.pathname === '/settings/plex' ? subMenuIconActive : subMenuIconDefault}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="4 4 34 34" stroke-width="2.125" stroke="currentColor">
+              <g id="Plex"><path d="M20,34h0A14,14,0,0,1,6,20H6A14,14,0,0,1,20,6h0A14,14,0,0,1,34,20h0A14,14,0,0,1,20,34Zm0-23.06H15.06L20,20l-4.94,9.06H20L25.76,20Z"/></g>
+            </svg>
+            Plex
+          </a>
+        </li>
+        <li>
           <a href="/settings/system" class="{$page.url.pathname === '/settings/system' ? subMenuActive : subMenuDefault} group flex gap-x-3 rounded-md py-2 pl-2 pr-3 text-sm leading-6 font-semibold">
             <svg class="h-6 w-6 shrink-0 {$page.url.pathname === '/settings/system' ? subMenuIconActive : subMenuIconDefault}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
               {@html icons.cube}
@@ -37,14 +45,6 @@
               {@html icons.circleStack}
             </svg>
             Library
-          </a>
-        </li>
-        <li>
-          <a href="/settings/plex" class="{$page.url.pathname === '/settings/plex' ? subMenuActive : subMenuDefault} group flex gap-x-3 rounded-md py-2 pl-2 pr-3 text-sm leading-6 font-semibold">
-            <svg class="h-6 w-6 shrink-0 {$page.url.pathname === '/settings/plex' ? subMenuIconActive : subMenuIconDefault}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="4 4 34 34" stroke-width="2.125" stroke="currentColor">
-              <g id="Plex"><path d="M20,34h0A14,14,0,0,1,6,20H6A14,14,0,0,1,20,6h0A14,14,0,0,1,34,20h0A14,14,0,0,1,20,34Zm0-23.06H15.06L20,20l-4.94,9.06H20L25.76,20Z"/></g>
-            </svg>
-            Plex
           </a>
         </li>
       </ul>

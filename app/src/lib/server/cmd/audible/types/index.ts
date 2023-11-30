@@ -159,6 +159,7 @@ export enum BookDownloadError {
     NO_PROFILE_WITH_AUTHCODE = 'NO_PROFILE_WITH_AUTHCODE',
     BOOK_NOT_FOUND = 'BOOK_NOT_FOUND',
     CANCELED = 'CANCELED',
+    NETWORK_ERROR = 'NETWORK_ERROR',
     NO_PROFILE = 'NO_PROFILE'
 }
 
@@ -174,6 +175,8 @@ export const bookDownloadErrorToString = (e: BookDownloadError): string => {
             return 'The audible book does not exist';
         case BookDownloadError.CANCELED:
             return 'The book download process was canceled';
+        case BookDownloadError.NETWORK_ERROR:
+            return 'A network issue exists that is preventing download';
         case BookDownloadError.NO_PROFILE:
             return 'No profile exists to download this book';
         default:

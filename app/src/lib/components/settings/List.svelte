@@ -65,7 +65,7 @@
         <Submit
           class="w-full sm:w-auto" 
           theme={{primary: 'white', done: 'white', fail: 'white'}} 
-          actionText={unsavedChanges ? "Save Changes" : "Saved"}
+          actionText={unsavedChanges ? "Save" : "Saved"}
           doneText="Saved"
           disabled={!unsavedChanges}
           hoverTitle={!unsavedChanges ? 'No changes to save' : ''}

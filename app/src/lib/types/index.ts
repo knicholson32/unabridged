@@ -204,6 +204,7 @@ export enum ProcessError {
     AUDIBLE_LOCKED = 'AUDIBLE_LOCKED',
     BOOK_NOT_FOUND = 'BOOK_NOT_FOUND',
     CANCELED = 'CANCELED',
+    NETWORK_ERROR = 'NETWORK_ERROR',
     NO_PROFILE = 'NO_PROFILE',
     NO_PROFILE_WITH_AUTHCODE = 'NO_PROFILE_WITH_AUTHCODE',
     NO_FOLDER = 'NO_FOLDER',
@@ -221,6 +222,8 @@ export const processErrorToStringShort = (p: ProcessError) => {
             return 'Unknown Book';
         case ProcessError.CANCELED:
             return 'Canceled by User';
+        case ProcessError.NETWORK_ERROR:
+            return 'Network Error';
         case ProcessError.NO_PROFILE:
             return 'No Profile';
         case ProcessError.NO_PROFILE_WITH_AUTHCODE:
@@ -246,6 +249,8 @@ export const processErrorToStringLong = (p: ProcessError) => {
             return 'This book does not appear to exist in the library.';
         case ProcessError.CANCELED:
             return 'This download / conversion was canceled before it completed.';
+        case ProcessError.NETWORK_ERROR:
+            return 'A network issue exists that is preventing download.'
         case ProcessError.NO_PROFILE:
             return 'There is no profile that owns this book, therefore it could not be downloaded.';
         case ProcessError.NO_PROFILE_WITH_AUTHCODE:
@@ -278,8 +283,6 @@ export type DownloadStatusAPI = {
     inProgress: boolean,
     progress?: Progress
 }
-
-
 
 // -------------------------------------------------------------------------------------------------
 // Plex

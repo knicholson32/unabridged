@@ -93,10 +93,10 @@ export const testPlexConnection = async (address: string, token: string, saveDat
 }
 
 
-export const get = async (resource: string): Promise<null | unknown> => {
+export const get = async (resource: string, plexURL?: string, plexToken?: string): Promise<null | unknown> => {
   if (await settings.get('plex.enable') !== true) return null;
-  const plexToken = await helpers.decrypt(await settings.get('plex.token'));
-  let plexURL = await settings.get('plex.address');
+  if (plexToken === undefined) plexToken = await helpers.decrypt(await settings.get('plex.token'));
+  if (plexURL === undefined) plexURL = await settings.get('plex.address');
   if (plexToken === '') return null;
 
   if (plexURL.endsWith('/')) plexURL = plexURL.substring(0, plexURL.length - 1);
@@ -119,7 +119,14 @@ export const get = async (resource: string): Promise<null | unknown> => {
 }
 
 export const getServerInformation = async () : Promise<null | types.Base> => {
-  const res = await get('/');
-  if (res === null) return null;
-  return res as unknown as types.Base;
+  const results = await get('/');
+  if (results === null) return null;
+  return results as unknown as types.Base;
+}
+
+
+export const getSections = async (plexURL?: string, plexToken?: string): Promise<null | types.Sections> => {
+  const results = get('/library/sections', plexURL, plexToken);
+  if (results === null) return null;
+  return results as unknown as types.Sections;
 }

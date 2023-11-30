@@ -219,6 +219,14 @@ export const toISOStringTZ = (date_ms: number, tz: string) => {
     return (new Date(date_ms - tzoffset)).toISOString().slice(0, -1) + match.abbreviation;
 }
 
+/**
+ * Capitalize the first letter of a string
+ * @param string the string
+ * @returns the string with the first letter capitalized
+ */
+export const capitalizeFirstLetter = (string: string): string => {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
 
 export const truncateString = (str: string, num: number) => {
     // If the length of str is less than or equal to num

@@ -17,7 +17,7 @@
     }
 </script>
 
-<div class="flex items-center">
+<div class="flex items-center shadow-sm rounded-full">
     {#if title !== ''}
         <span class="mr-2 text-sm" id="annual-billing-label">
         <span class="text-gray-600">{title}</span>

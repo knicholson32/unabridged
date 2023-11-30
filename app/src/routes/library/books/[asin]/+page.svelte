@@ -171,8 +171,8 @@
   </ol>
 </nav>
 
-<div class="relative w-full p-6 {coverBright ? 'text-gray-800' : 'text-white'} flex flex-col align-middle items-center sm:flex-row gap-6 shadow-black/10" style="background-color: {coverHEX};">
-  <div class="absolute top-6 right-6  bottom-6 flex flex-col gap-1">
+<div class="relative w-full p-0 sm:p-6 {coverBright ? 'text-gray-800' : 'text-white'} flex flex-col align-middle items-center sm:flex-row gap-6 shadow-black/10" style="background-color: {coverHEX};">
+  <div class="absolute sm:top-6 right-6  bottom-6 flex-col gap-1 hidden sm:flex">
     <a href="https://www.audible.com/pd/{data.book.asin}" target="_blank" class="group">
       <span class="inline-flex h-8 w-8 align-bottom rounded-full bg-[#FF9800]">
         <svg class="h-5 w-5 ml-1.5 mt-1.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="audible">
@@ -197,7 +197,7 @@
         </span>
       </a>
     {/if}
-    <div class="flex-grow"></div>
+    <div class="flex-grow hidden sm:block"></div>
     {#if data.book.downloaded}
       <button on:click={() => {console.log(fetch(`/api/library/remove/book/${data.book.asin}`))}} type="button" class="px-1 py-1 transition-colors duration-100 rounded-lg {data.book.cover?.hex_dom_bright ? 'text-gray-800 hover:text-white hover:bg-gray-800': 'text-white hover:text-gray-800 hover:bg-white'}" >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-7 h-7">
@@ -213,10 +213,10 @@
       </button>
     {/if}
   </div>
-  <div class="h-72 shrink-0">
-    <img src="{data.book.cover?.url_500}" class="h-full rounded-lg drop-shadow-xl-centered" alt=""/>
+  <div class="w-full sm:w-auto sm:h-72 shrink-0 flex justify-center">
+    <img src="{data.book.cover?.url_500}" class="h-full sm:rounded-lg sm:drop-shadow-xl-centered" alt=""/>
   </div>
-  <div class="flex flex-col">
+  <div class="flex flex-col px-6 pb-6 sm:px-0 sm:pb-0">
     <div>
       <h1 class="font-medium text-2xl uppercase tracking-widest font-serif">
         {data.book.title}

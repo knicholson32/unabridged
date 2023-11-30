@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as helpers from '$lib/server/helpers';
+import * as helpersPublic from '$lib/helpers';
 import * as settings from '$lib/server/settings';
 import { CollectionBy, type GenerateAlert, type URLAlert } from '$lib/types';
 import * as Plex from '$lib/server/plex';
@@ -18,6 +19,8 @@ export const load = async ({ params, url }) => {
     'plex.apiTimeout': await settings.get('plex.apiTimeout'),
     'plex.address': await settings.get('plex.address'),
     'plex.token': await helpers.decrypt(await settings.get('plex.token')),
+    'plex.library.id': await settings.get('plex.library.id'),
+    'plex.library.name': await settings.get('plex.library.name'),
     'plex.library.autoScan': await settings.get('plex.library.autoScan'),
     'plex.library.scheduled': await settings.get('plex.library.scheduled'),
     'plex.library.autoScanDelay': await settings.get('plex.library.autoScanDelay'),
@@ -26,21 +29,63 @@ export const load = async ({ params, url }) => {
     'library.location': await settings.get('library.location')
   }
 
+  // Declare some variables to hold whether the Plex integration is signed in and whether it might have issues
   let signedIn = false;
   let issueDetected = false;
 
+  // Declare a variable to hold the libraries in the Plex server
+  let sections: Plex.types.Sections['MediaContainer']['Directory'] = [];
+
+  // Only perform plex API requests if the Plex integration is enabled and certain required values exist (address and token)
   if (settingValues['plex.enable'] === true && settingValues['plex.address']?.length > 0 && settingValues['plex.token']?.length > 0) {
+    // Test the Plex connection
     const results = await Plex.testPlexConnection(settingValues['plex.address'], settingValues['plex.token']);
-    if (results.success === true) signedIn = true;
+    // check that Plex was communicated with successfully
+    if (results.success === true) {
+      // Set signedIn to true
+      signedIn = true;
+      // Get the libraries in the Plex Server
+      const results = await Plex.getSections(settingValues['plex.address'], settingValues['plex.token']);
+      // Assign the libraries so we can process it later
+      sections = results?.MediaContainer.Directory?? [];
+    }
     else issueDetected = true;
   }
 
+  // Create an array that we will pass to the front-end that will hold the library options
+  const filteredSections: { value: string, title: string, unset?: boolean }[] = [];
+  // Check if we are signed in
+  if (signedIn) {
+    // We are, which means we most likely have libraries to parse. Loop through the libraries in the Plex server
+    for (const section of sections) {
+      // If the library type is correct, add it as a valid option
+      if (section.type === 'artist') filteredSections.push({ value: section.uuid, title: section.title });
+      // Otherwise add it as an un-selectable option
+      else filteredSections.push({ value: section.uuid, title: `${section.title} (${helpersPublic.capitalizeFirstLetter(section.type)} Library)`, unset: true });
+    }
+    // If the currently selection option isn't a current option, clear our selection and add an 'Unset' option to match
+    if (sections.findIndex((v) => v.uuid === settingValues['plex.library.id']) === -1) {
+      settingValues['plex.library.id'] = '';
+      filteredSections.push({ value: '', title: 'Unset', unset: true });
+    }
+  } else {
+    // We are not. The selection box will be disabled, fill the current value
+    // If the currently selection option isn't a current option, clear our selection and add an 'Unset' option to match
+    if (settingValues['plex.library.name'] === '' || settingValues['plex.library.id'] === '') {
+      filteredSections.push({ value: '', title: 'Unset', unset: true });
+    } else {
+      filteredSections.push({ value: settingValues['plex.library.id'], title: settingValues['plex.library.name'], unset: true });
+    }
+  }
+
+  // Return the data to the front-end
   return {
     settingValues,
     plex: {
       signedIn,
       issueDetected,
-      name: await settings.get('plex.friendlyName')
+      name: await settings.get('plex.friendlyName'),
+      sections: filteredSections
     },
   }
 }
@@ -93,6 +138,7 @@ export const actions = {
       const plexEnable = (data.get('plex.enable') ?? undefined) as undefined | string;
       const address = (data.get('plex.address') ?? undefined) as undefined | string;
       const token = (data.get('plex.token') ?? undefined) as undefined | string;
+      const library = (data.get('plex.library.id') ?? undefined) as undefined | string;
 
       let results;
       if (plexEnable ?? await settings.get('plex.enable')) {
@@ -103,6 +149,21 @@ export const actions = {
           if (plexEnable !== undefined) await settings.set('plex.enable', plexEnable === 'true');
           if (address !== undefined) await settings.set('plex.address', address);
           if (token !== undefined) await settings.set('plex.token', await helpers.encrypt(token));
+          if (library !== undefined) {
+            // Get the libraries available on the Plex server
+            const results = await Plex.getSections(address ?? await settings.get('plex.address'), token ?? await helpers.decrypt(await settings.get('plex.token')));
+            // If libraries could not be fetched, we can't continue
+            if (results === null || results.MediaContainer.Directory.length === 0) return { action: '?/updatePlexIntegration', name: 'plex.library.id', success: false, message: 'Could not get library information' };
+            // Make sure the one that was selected is both in the Plex server and is the correct type
+            const index = results.MediaContainer.Directory.findIndex((v) => v.uuid === library);
+            if (index == -1) return { action: '?/updatePlexIntegration', name: 'plex.library.id', success: false, message: 'Library does not exist' };
+            if (results.MediaContainer.Directory[index].type !== 'artist') return { action: '?/updatePlexIntegration', name: 'plex.library.id', success: false, message: 'Invalid library type. Please select a valid option.' };
+
+            // Everything looks good, save the data
+            await settings.set('plex.library.id', library);
+            await settings.set('plex.library.key', results.MediaContainer.Directory[index].key);
+            await settings.set('plex.library.name', results.MediaContainer.Directory[index].title);
+          }
         }
         // Message the user of the results
         return { action: '?/updatePlexIntegration', name: results.source, success: results.success, message: results.message };
@@ -118,6 +179,10 @@ export const actions = {
     await settings.set('plex.address', '');
     await settings.set('plex.friendlyName', '');
     await settings.set('plex.token', '');
+    await settings.set('plex.library.id', '');
+    await settings.set('plex.library.key', '');
+    await settings.set('plex.library.name', '');
+    await settings.set('plex.collections.enable', false);
   },
   updatePlexAPI: async ({ request }) => {
     const data = await request.formData();

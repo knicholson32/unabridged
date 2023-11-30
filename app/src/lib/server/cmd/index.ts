@@ -212,6 +212,10 @@ export namespace LibraryManager {
             // The user has canceled. We can just delete this entry
             await processFailed(queueEntry.id, ProcessError.CANCELED, 0, 0);
             break;
+          case BookDownloadError.NETWORK_ERROR:
+            // There was a network error that prevented the download. We can just delete this entry
+            await processFailed(queueEntry.id, ProcessError.NETWORK_ERROR, 0, 0);
+            break;
           case BookDownloadError.NO_PROFILE:
             // This book has no account that owns it. It should be deleted.
             await tools.deleteBook(queueEntry.book.asin);
