@@ -7,6 +7,7 @@ import * as Plex from '$lib/server/plex';
 import { PlexOauth } from 'plex-oauth'
 import { redirect } from '@sveltejs/kit';
 import { getContext } from 'svelte';
+import prisma from '$lib/server/prisma';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params, url }) => {
@@ -216,5 +217,65 @@ export const actions = {
         return { action: '?/updatePlexCollections', name: 'plex.collections.by', success: false, message: 'Invalid collection type. Please choose a valid selection.' };
       } else await settings.set('plex.collections.by', collectBy);
     }
+  },
+  test: async ({ request }) => {
+    const data = await request.formData();
+    const asin = (data.get('asin') ?? undefined) as undefined | string;
+
+    const series = await prisma.series.findMany({
+      where: {
+        books: {
+          some: {
+            processed: true
+          }
+        }
+      },
+      include: {
+        books: true
+      }
+    });
+    for (const s of series) {
+      console.log('collect', await Plex.collectBySeries(s));
+    }
+
+    // // const books = await prisma.book.findMany({ where: { processed: true } });
+    // let counter = 0;
+    // let failed = 0;
+    // // for (const b of books) {
+    // //   const r = await Plex.matchBookToPlexEntry(b.asin);
+    // //   console.log('result', b.asin, r);
+    // //   if (r === true) counter++
+    // //   else failed++
+    // //   // if (counter > 10) break;
+    // // }
+    // console.log('succeeded', counter, 'failed', failed);
+
+    // const series = await prisma.series.findMany({
+    //   where: {
+    //     books: {
+    //       some: {
+    //         processed: true
+    //       }
+    //     }
+    //   },
+    //   include: {
+    //     books: true
+    //   }
+    // });
+
+    // for (const s of series) {
+    //   for (const book of s.books) {
+    //     const r = await Plex.matchBookToPlexEntry(book.asin);
+    //     console.log('result', book.asin, r);
+    //     if (r !== null) counter++
+    //     else failed++
+    //   }
+
+    //   console.log(s);
+
+
+
+    // }
+
   }
 }

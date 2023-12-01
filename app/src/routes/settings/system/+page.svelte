@@ -42,7 +42,13 @@
   let debugUpdate: () => {};
   let debugUnsavedChanges = false;
   let debugEnabled = data.settingValues['system.debug'] > 0;
-  let debugVerbose = data.settingValues['system.debug'] > 1;
+  // let debugVerbose = data.settingValues['system.debug'] > 1;
+  let debug = `${data.settingValues['system.debug']}`;
+
+  $: {
+    if (debugEnabled === false) debug = '0';
+    if (debugEnabled === true) debug = `${data.settingValues['system.debug'] > 0 ? data.settingValues['system.debug'] : 1}`;
+  }
 
   // Localization
   let localizationUpdate: () => {};
@@ -109,12 +115,20 @@
   <span slot="title">Debug</span>
   <span slot="description">General debugging features and logs.</span>
 
-  <Settings.Switch name="system.debug" form={form} title="Enable Debug" update={debugUpdate} bind:value={debugEnabled} 
+  <Settings.Switch name="system.debug.switch" form={form} title="Enable Debug" update={debugUpdate} bind:value={debugEnabled} 
     hoverTitle={'Whether or not to enable general debugging features and logs'} />
 
-  <Settings.Switch name="system.debug.verbose" form={form} title="Verbose Debug" update={debugUpdate} bind:value={debugVerbose} 
+  <!-- <Settings.Switch name="system.debug.verbose" form={form} title="Verbose Debug" update={debugUpdate} bind:value={debugVerbose} 
     disabled={debugEnabled === false}
     hoverTitle={'Whether or not to enable general debugging features and logs'} />
+
+  <Settings.Switch name="system.debug.verbose.verbose" form={form} title="Very Verbose Debug" update={debugUpdate} bind:value={debugVerbose} 
+    disabled={debugEnabled === false}
+    hoverTitle={'Whether or not to enable general debugging features and logs'} /> -->
+
+    <Settings.Select form={form} name="system.debug" title="Debug Verbose Level" update={debugUpdate} bind:value={debug} 
+    disabled={debugEnabled === false}
+    options={[{title: 'None', value: '0', unset: true}, {title: 'Debug', value: '1'}, {title: 'Verbose', value: '2'}, {title: 'Very Verbose', value: '3'}]} />
 
 </Settings.List>
 

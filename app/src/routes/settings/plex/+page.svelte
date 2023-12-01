@@ -234,3 +234,9 @@
   <Settings.Input name="library.location" form={form} mono={true} title="Library Location" update={libraryLocationUpdate} bind:value={libraryLocation} 
     hoverTitle="Library location" />
 </Settings.List>
+
+<!-- 
+<form method="POST" action={'?/test'} class="relative inline-flex items-center gap-2">
+  <input name="asin" value=""/>
+  <button type="submit">Submit</button>
+</form> -->

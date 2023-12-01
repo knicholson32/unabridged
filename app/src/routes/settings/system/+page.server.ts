@@ -97,11 +97,11 @@ export const actions = {
 
     const data = await request.formData();
 
+    const debugSwitch = (data.get('system.debug.switch') ?? undefined) as undefined | string;
+    if (debugSwitch !== undefined && debugSwitch === 'false') await settings.set('system.debug', 0);
+
     const debug = (data.get('system.debug') ?? undefined) as undefined | string;
-    if (debug !== undefined) {
-      const verbose = (data.get('system.debug.verbose') ?? undefined) as undefined | string;
-      await settings.set('system.debug', debug === 'false' ? 0 : verbose === 'true' ? 2 : 1);
-    }
+    if (debug !== undefined) await settings.set('system.debug', parseInt(debug));
   },
   updateLocalization: async ({ request }) => {
 

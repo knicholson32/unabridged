@@ -94,6 +94,54 @@ export type Sections = {
   }
 }
 
+export enum SearchType {
+  ARTIST = 8,
+  ALBUM = 9,
+  TRACK = 10,
+}
+
+export type SearchMetadata = {
+  ratingKey: string,
+  key: string,
+  guid: string,
+  type: string,
+  title: string,
+  titleSort: string,
+  summary: string,
+  parentKey: string,
+  parentTitle: string,
+  index: number,
+  year: number,
+  viewCount: number,
+  lastViewedAt: number,
+  thumb: string,
+  addedAt: number,
+  updatedAt: number,
+  Genre: {
+    tag: string
+  }[]
+}
+
+export type SearchResult = {
+	MediaContainer: {
+		size: number,
+		allowSync: boolean,
+		art: string,
+		identifier: string,
+		librarySectionID: number,
+		librarySectionTitle: string,
+		librarySectionUUID: string,
+		mediaTagPrefix: string,
+		mediaTagVersion: number,
+		nocache: boolean,
+		thumb: string,
+		title1: string,
+		title2: string,
+		viewGroup: string,
+		viewMode: number,
+		Metadata: SearchMetadata[]
+	}
+}
 
 // -------------------------------------------------------------------------------------------------
 // Plex OAuth

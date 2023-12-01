@@ -56,8 +56,9 @@ model ProfileImage {
 }
 
 model Author {
-  name  String @id
-  books Book[]
+  name    String  @id
+  plexKey String?
+  books   Book[]
 
   @@map("authors")
 }
@@ -77,9 +78,10 @@ model Genre {
 }
 
 model Series {
-  id    String @id
-  title String
-  books Book[]
+  id      String  @id
+  title   String
+  plexKey String?
+  books   Book[]
 
   @@map("series")
 }
@@ -91,6 +93,7 @@ model Book {
   title              String
   subtitle           String?
   authors            Author[]
+  plexKey            String?
   narrators          Narrator[]
   series             Series?    @relation(fields: [seriesId], references: [id])
   series_sequence    Int?
