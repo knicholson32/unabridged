@@ -75,6 +75,8 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
   }
   if (!fs.existsSync(destinationFolder)) fs.mkdirSync(destinationFolder, { recursive: true });
 
+  // TODO: Check if destinationFolder is writable at this point
+
   // Update process progress for process to 0
   await prisma.processQueue.update({ where: { id: processID }, data: { process_progress: 0 } });
 
@@ -93,7 +95,7 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
   // AAXtoMP3 -e:m4b -s --author "Martha Wells" --authcode 4165af03 --dir-naming-scheme '$artist/$title' --file-naming-scheme '$title' --use-audible-cli-data -t /app/db/export ./*.aaxc
   // '--debug', `--audible-cli-library-file`, `"/db/audible/${profileID}.library.tsv"`
   // TODO: Save the directory and filename so we can just save them to the DB to make deleting books easier
-  const args = ['-e:m4b', `-L`, `/db/audible/${profileID}.library.tsv`, '-s', '--author', `"${book.authors[0].name}"`, '--title', `"${book.title}"`, '--authcode', authCode, '--dir-naming-scheme', `'"${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}"'`, '--file-naming-scheme', `'"${sanitizeFile(book.title)}"'`, '--use-audible-cli-data', '-t', LIBRARY_FOLDER, './*.aaxc']
+  const args = ['-e:m4b', `-L`, `/db/audible/${profileID}.library.tsv`, '-s', '--skip-dir-checks', '--author', `"${book.authors[0].name}"`, '--title', `"${book.title}"`, '--authcode', authCode, '--dir-naming-scheme', `'"${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}"'`, '--file-naming-scheme', `'"${sanitizeFile(book.title)}"'`, '--use-audible-cli-data', '-t', LIBRARY_FOLDER, './*.aaxc']
   // Check if we should use debug mode
   if (await settings.get('system.debug') > 0) args.unshift('--debug');
   console.log(`${AAXtoMP3_COMMAND} ${args.join(' ')}`);
@@ -124,7 +126,13 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
       if (data.indexOf('ERROR') !== -1) {
         console.error(data);
         aax.kill();
-        reject(ConversionError.CONVERSION_ERROR);
+        if (data.indexOf('Target Directory does not exist or is not writable') !== -1) {
+          reject(ConversionError.DESTINATION_NOT_WRITABLE);
+        } else if (data.indexOf('Invalid File') !== -1){
+          reject(ConversionError.INVALID_FILE);
+        } else {
+          reject(ConversionError.CONVERSION_ERROR);
+        }
       } else {
         console.log(data.replaceAll('\n', '\\n\n').replaceAll('\r', '\\r\n'));
       }

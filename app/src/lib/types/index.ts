@@ -208,6 +208,8 @@ export enum ProcessError {
     NO_PROFILE = 'NO_PROFILE',
     NO_PROFILE_WITH_AUTHCODE = 'NO_PROFILE_WITH_AUTHCODE',
     NO_FOLDER = 'NO_FOLDER',
+    DESTINATION_NOT_WRITABLE = 'DESTINATION_NOT_WRITABLE',
+    INVALID_FILE = 'INVALID_FILE',
     CONVERSION_ERROR = 'CONVERSION_ERROR',
     COULD_NOT_SAVE = 'COULD_NOT_SAVE',
 }
@@ -230,6 +232,10 @@ export const processErrorToStringShort = (p: ProcessError) => {
             return 'No Authcode';
         case ProcessError.NO_FOLDER:
             return 'Download Error';
+        case ProcessError.DESTINATION_NOT_WRITABLE:
+            return 'No Write Permission'
+        case ProcessError.INVALID_FILE:
+            return 'Invalid File'
         case ProcessError.CONVERSION_ERROR:
             return 'Conversion Error';
         case ProcessError.COULD_NOT_SAVE:
@@ -257,6 +263,10 @@ export const processErrorToStringLong = (p: ProcessError) => {
             return 'There is no profile with authorization to download this book.';
         case ProcessError.NO_FOLDER:
             return 'Something went wrong while downloading this book; no files were saved.';
+        case ProcessError.DESTINATION_NOT_WRITABLE:
+            return 'The destination folder was not writable. Check library settings.'
+        case ProcessError.INVALID_FILE:
+            return 'The file to convert is not a valid file.'
         case ProcessError.CONVERSION_ERROR:
             return 'Something went wrong while converting this book\'s audio file.';
         case ProcessError.COULD_NOT_SAVE:

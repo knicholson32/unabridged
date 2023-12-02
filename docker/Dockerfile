@@ -130,6 +130,7 @@ RUN echo "---- INSTALL AUDIBLE-CLI ----" \
 
 ARG GIT_COMMIT
 ENV GIT_COMMIT=$GIT_COMMIT
+ENV PROC_SHELL='/bin/sh'
 
 ######### Node Modules & Build #####################################################################
 FROM node:${NODE_VERSION}-alpine as build
@@ -169,8 +170,9 @@ ARG SERVER_PORT
 ENV AAXtoMP3_VERSION=${AAXtoMP3_VERSION}
 ENV TONE_VERSION=${TONE_VERSION}
 ENV PORT=${SERVER_PORT}
-ENV DATABSE_URL="file:/db/unabridged.db?connection_limit=1"
+ENV DATABASE_URL="file:/db/unabridged.db?connection_limit=1"
 ENV ORIGIN="http://localhost:3000"
+ENV PROC_SHELL='/bin/sh'
 
 # Install production dependancies
 RUN echo "---- INSTALL DEPENDENCIES ----" \
@@ -218,5 +220,5 @@ ENV GIT_COMMIT=$GIT_COMMIT
 STOPSIGNAL SIGKILL
 # Set Docker command entry point and expose the proper port
 EXPOSE ${SERVER_PORT}/tcp
-CMD ["sh","-c","cd /app && DATABASE_URL=${DATABSE_URL} npx prisma migrate deploy && DATABASE_URL=${DATABSE_URL} ORIGIN=${ORIGIN} PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host /usr/local/bin/node /app"]
+CMD ["sh","-c","cd /app && npx prisma migrate deploy && PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host /usr/local/bin/node /app"]
 # ENTRYPOINT ["/init"]app

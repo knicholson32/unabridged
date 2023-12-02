@@ -6,6 +6,8 @@ export enum ConversionError {
     NO_PROFILE = 'NO_PROFILE',
     NO_FOLDER = 'NO_FOLDER',
     NO_PROFILE_WITH_AUTHCODE = 'NO_PROFILE_WITH_AUTHCODE',
+    DESTINATION_NOT_WRITABLE = 'DESTINATION_NOT_WRITABLE',
+    INVALID_FILE = 'INVALID_FILE',
     CONVERSION_ERROR = 'CONVERSION_ERROR',
     COULD_NOT_SAVE = 'COULD_NOT_SAVE',
     CANCELED = 'CANCELED'
@@ -23,6 +25,10 @@ export const conversionErrorToString = (e: ConversionError): string => {
             return 'The required files do not exist';
         case ConversionError.NO_PROFILE_WITH_AUTHCODE:
             return 'None of the profiles have authcodes downloaded';
+        case ConversionError.DESTINATION_NOT_WRITABLE:
+            return 'The destination folder was not writable';
+        case ConversionError.INVALID_FILE:
+            return 'The file to convert is not valid'
         case ConversionError.CONVERSION_ERROR:
             return 'Something went wrong when converting the book';
         case ConversionError.COULD_NOT_SAVE:

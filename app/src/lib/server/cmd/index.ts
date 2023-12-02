@@ -309,6 +309,14 @@ export namespace LibraryManager {
               // Delete this entry
               await processFailed(queueEntry.id, ProcessError.CONVERSION_ERROR, 1, 0);
               break;
+            case ConversionError.DESTINATION_NOT_WRITABLE:
+              // The destination folder was not writable
+              // Delete this entry
+              await processFailed(queueEntry.id, ProcessError.DESTINATION_NOT_WRITABLE, 1, 0);
+            case ConversionError.INVALID_FILE:
+              // The file is not valid
+              // Delete this entry
+              await processFailed(queueEntry.id, ProcessError.INVALID_FILE, 1, 0);
             case ConversionError.COULD_NOT_SAVE:
               // Delete this entry
               await processFailed(queueEntry.id, ProcessError.COULD_NOT_SAVE, 1, 0);
