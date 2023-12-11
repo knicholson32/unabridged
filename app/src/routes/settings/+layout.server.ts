@@ -13,6 +13,12 @@ export async function load({ params }) {
     },
     {
       type: 'link',
+      title: 'Plex',
+      iconSVG: icons.chevronRight,
+      href: '/settings/plex'
+    },
+    {
+      type: 'link',
       title: 'System',
       iconSVG: icons.cube,
       href: '/settings/system'
@@ -23,12 +29,6 @@ export async function load({ params }) {
       iconSVG: icons.circleStack,
       href: '/settings/library'
     },
-    {
-      type: 'link',
-      title: 'Plex',
-      iconSVG: icons.chevronRight,
-      href: '/settings/plex'
-    }
   ];
 
   return {

@@ -1,11 +1,13 @@
 import * as types from './types';
-import type * as publicTypes from '$lib/types';
+import * as publicTypes from '$lib/types';
 import * as settings from '$lib/server/settings';
 import prisma from '../prisma';
 import * as helpers from '$lib/server/helpers';
 import Fuse from 'fuse.js';
 import fetch, { AbortError } from 'node-fetch';
 import type { Prisma } from '@prisma/client';
+import * as websocket from 'websocket';
+import { LibraryManager } from '../cmd';
 
 export * as types from './types';
 
@@ -84,6 +86,38 @@ export const testPlexConnection = async (address: string, token: string, saveDat
       if (serverIdentity !== null) await settings.set('plex.machineId', serverIdentity.MediaContainer.machineIdentifier);
     }
 
+    // Test the websocket connection
+    const connectTest = new Promise<void>((resolve, reject) => {
+      // Create a new websocket client
+      const client = new websocket.client();
+      // Set a timeout for the connect
+      const timeout = setTimeout(() => reject(), 3000);
+      // Reject on failed connection
+      client.on('connectFailed', function (error) {
+        clearTimeout(timeout);
+        reject(error);
+      });
+      // Resolve on succeeded connections
+      client.on('connect', function (connection) {
+        clearTimeout(timeout);
+        connection.close();
+        resolve();
+      });
+      console.log(helpers.convertToWebsocketURL(plexURL));
+      // Create the connection
+      client.connect(helpers.convertToWebsocketURL(plexURL) + '/:/websockets/notifications', undefined, undefined, {
+        'X-Plex-Token': plexToken
+      });
+    });
+
+    // Try the websocket test
+    try {
+      await connectTest;
+    } catch (e) {
+      console.log(e);
+      return { success: false, source: 'plex.address', message: 'Could not connect to Plex API Websocket' };
+    }
+
     // Return success
     return { success: true, source: defaultSource, message: `Success. Account '${base.MediaContainer.myPlexUsername}' detected.` };
   } catch (e) {
@@ -100,131 +134,112 @@ export const testPlexConnection = async (address: string, token: string, saveDat
   }
 }
 
-const get = async (resource: string, plexURL?: string, plexToken?: string, debug=0): Promise<null | unknown> => {
-  if (await settings.get('plex.enable') !== true) return null;
-  if (plexToken === undefined) plexToken = await helpers.decrypt(await settings.get('plex.token'));
-  if (plexURL === undefined) plexURL = await settings.get('plex.address');
-  if (plexToken === '') return null;
+enum Method {
+  GET = 'get',
+  POST = 'post',
+  PUT = 'put',
+  DELETE = 'delete',
+}
 
+type ResourceResult = {
+  status: number,
+  value: unknown
+} | null;
+
+const resource = async (resource: string, method: Method, params: { [key: string]: string }, plexURL: string, plexToken: string, debug = 0, parseJSON=true): Promise<ResourceResult> => {
+  // Make sure the params make sense
+  if (plexToken === '' || plexURL === '' || plexToken === undefined || plexURL === undefined) return null;
+  // Make sure we are allowed to interact with the Plex API
+  if (await settings.get('plex.enable') !== true) return null;
+  // Adjust the plexURL so it doesn't have a '/' at the end
+  // TODO: Do this adjustment when storing it in the DB instead
   if (plexURL.endsWith('/')) plexURL = plexURL.substring(0, plexURL.length - 1);
 
-  if (debug) console.log('get ', `${plexURL}${resource}`)
+  // Initialize a variable to hold the url
+  let url;
 
+  // const escapedParams: { [key: string]: string } = {};
+  // // Make sure the param values are escaped
+  // for (const key of Object.keys(params)) {
+  //   if (debug > 2) console.log(params[key], 'to', encodeURI(params[key]));
+  //   escapedParams[key] = encodeURI(params[key]);
+  // }
+
+  // Parse the params
+  const paramsString = new URLSearchParams(params).toString();
+
+  // Assign the URL based on if we have params or not
+  if (paramsString === '') url = `${plexURL}${resource}`;
+  else url = `${plexURL}${resource}?${paramsString}`;
+
+  // Debug message
+  if (debug) console.log(`${method}: ${url}`);
+
+  // Initialize a variable to hold the status so we can return it if there is a parse error
+  let status: number | null = null;
+
+  // Get the data
   try {
-    const response = await fetch(`${plexURL}${resource}`, {
-      method: 'get',
+    // Make the fetch requiest
+    const response = await fetch(url, {
+      method: method,
       headers: {
         'Accept': 'application/json',
         'X-Plex-Token': plexToken
       }
     });
 
-    if (response.status === 401) {
-      if (debug) console.log('unauthorized', response.status, response.statusText, plexToken)
-      return null;
-    }
+    // Print some extra data if debugging
+    if (debug && response.status === 401) console.log('unauthorized', response.status, response.statusText, plexToken);
 
-    if (debug) console.log('get cover to json with response', response.status, response.statusText)
-    const json = await response.json();
-    if (debug > 2) console.log('json parsed', json)
-    else console.log('json parsed')
-    return json;
-  } catch (e) {
-    const err = e as Error;
-    console.error('get error', err.message);
-    return null;
-  }
-}
+    // Assign status just in case we error
+    status = response.status;
 
-// const additionalURLParams = {
-//   '[context][device][deviceName]': 'Unabridged',
-//   '[context][device][version]': process.env.GIT_COMMIT?.substring(0, 7) ?? 'unknown',
-//   'forwardUrl': `${helpers.removeTrailingSlashes(process.env.ORIGIN ?? '127.0.0.1')}/settings/plex/oauth/${pinId}`
-// }
-// new URLSearchParams(additionalURLParams).toString()
-
-const put = async (resource: string, params: { [key: string]: string }, plexURL?: string, plexToken?: string, debug = 0): Promise<null | unknown> => {
-  if (await settings.get('plex.enable') !== true) return null;
-  if (plexToken === undefined) plexToken = await helpers.decrypt(await settings.get('plex.token'));
-  if (plexURL === undefined) plexURL = await settings.get('plex.address');
-  if (plexToken === '') return null;
-
-  if (plexURL.endsWith('/')) plexURL = plexURL.substring(0, plexURL.length - 1);
-
-  if (debug) console.log('put ', `${plexURL}${resource}?${new URLSearchParams(params).toString()}`)
-
-  try {
-    const response = await fetch(`${plexURL}${resource}?${new URLSearchParams(params).toString()}`, {
-      method: 'put',
-      headers: {
-        'Accept': 'application/json',
-        'X-Plex-Token': plexToken
+    // Switch based on if we are expecting JSON or TEXT
+    if (parseJSON) {
+      // Parse the response
+      const j = await response.json();
+      // Debug if required
+      if (debug > 2) console.log('json parsed', JSON.stringify(j));
+      // Return
+      return {
+        status: response.status,
+        value: j
       }
-    });
-
-    if (response.status === 401) {
-      if (debug) console.log('unauthorized', response.status, response.statusText, plexToken)
-      return null;
-    }
-
-    if (debug) console.log('get cover to json with response', response.status, response.statusText)
-    const json = await response.json();
-    if (debug > 2) console.log('json parsed', json)
-    else console.log('json parsed')
-    return json;
-  } catch (e) {
-    const err = e as Error;
-    console.error('get error', err.message);
-    return null;
-  }
-}
-
-const post = async (resource: string, params: { [key: string]: string }, plexURL?: string, plexToken?: string, debug = 0): Promise<null | unknown> => {
-  if (await settings.get('plex.enable') !== true) return null;
-  if (plexToken === undefined) plexToken = await helpers.decrypt(await settings.get('plex.token'));
-  if (plexURL === undefined) plexURL = await settings.get('plex.address');
-  if (plexToken === '') return null;
-
-  if (plexURL.endsWith('/')) plexURL = plexURL.substring(0, plexURL.length - 1);
-
-  if (debug) console.log('post ', `${plexURL}${resource}?${new URLSearchParams(params).toString()}`)
-
-  try {
-    const response = await fetch(`${plexURL}${resource}?${new URLSearchParams(params).toString()}`, {
-      method: 'post',
-      headers: {
-        'Accept': 'application/json',
-        'X-Plex-Token': plexToken
+    } else {
+      // Parse the response
+      const t = await response.text();
+      // Debug if required
+      if (debug > 2) console.log('text parsed', t);
+      // Return
+      return {
+        status: response.status,
+        value: t
       }
-    });
-
-    if (response.status === 401) {
-      if (debug) console.log('unauthorized', response.status, response.statusText, plexToken)
-      return null;
     }
-
-    if (debug) console.log('get cover to json with response', response.status, response.statusText)
-    const json = await response.json();
-    if (debug > 2) console.log('json parsed', json)
-    else console.log('json parsed')
-    return json;
   } catch (e) {
+    // We had a parse error
     const err = e as Error;
-    console.error('get error', err.message);
-    return null;
+    // Debug if required
+    if (debug) console.error('get error', err.message);
+    // Return
+    return {
+      status: status ?? 0,
+      value: null
+    }
   }
 }
 
-export const getServerIdentity = async (plexURL?: string, plexToken?: string): Promise<null | types.IdentityResult> => {
-  const results = await get('/identity', plexURL, plexToken);
-  if (results === null) return null;
-  return results as unknown as types.IdentityResult;
+export const getServerIdentity = async (plexURL: string, plexToken: string): Promise<null | types.IdentityResult> => {
+  const results = await resource('/identity', Method.GET, {}, plexURL, plexToken);
+  if (results === null || results.status !== 200) return null;
+  return results.value as unknown as types.IdentityResult;
 }
 
-export const getSections = async (plexURL?: string, plexToken?: string): Promise<null | types.Sections> => {
-  const results = get('/library/sections', plexURL, plexToken);
-  if (results === null) return null;
-  return results as unknown as types.Sections;
+export const getSections = async (plexURL: string, plexToken: string): Promise<null | types.Sections> => {
+  const results = await resource('/library/sections', Method.GET, {}, plexURL, plexToken);
+  if (results === null || results.status !== 200 || results.value === null) return null;
+  return results.value as types.Sections;
 }
 
 // TODO: Optimize these options for book searching
@@ -320,7 +335,7 @@ export const matchBookToPlexEntry = async (asin: string, plexURL?: string, plexT
   const debug = await settings.get('system.debug');
   // Populate the plex URL and token if they are not populated
   if (plexURL === undefined) plexURL = await settings.get('plex.address');
-  if (plexToken === undefined) plexToken = await helpers.decrypt(await settings.get('plex.token'));
+  if (plexToken === undefined) plexToken = await settings.get('plex.token');
   if (debug) console.log('associate', asin);
   // Get the book from the BB
   const book: BookType | null = await prisma.book.findUnique({ where: { asin: asin }, include: { authors: true } });
@@ -339,6 +354,7 @@ export const matchBookToPlexEntry = async (asin: string, plexURL?: string, plexT
     if (author.plexKey === null) {
       // We don't. We'll start with this
       const authorSearch = await search(sectionKey, author.name, types.SearchType.ARTIST, plexURL, plexToken, debug);
+      console.log('author search', authorSearch);
       if (authorSearch !== null && authorSearch.MediaContainer.size > 0 && authorSearch.MediaContainer.Metadata.length > 0) {
         // We found an author (or more than one. We'll pick the first one)
         authorKey = authorSearch.MediaContainer.Metadata[0].ratingKey;
@@ -362,12 +378,15 @@ export const matchBookToPlexEntry = async (asin: string, plexURL?: string, plexT
     if (debug) console.log('author lookup');
     // We can. Use it to make better searches
     // First, check that the author exists. If it doesn't, we can use recursion to try again once.
-    const authorLookup = await get(`/library/metadata/${authorKey}`, plexURL, plexToken, debug) as unknown as null | types.SearchResult;
-    if (authorLookup !== null && authorLookup.MediaContainer.size > 0 && authorLookup.MediaContainer.Metadata.length > 0 && authorLookup.MediaContainer.Metadata[0].type === 'artist') {
+    const authorLookup = await resource(`/library/metadata/${authorKey}`, Method.GET, {}, plexURL, plexToken, debug)// as unknown as null | types.SearchResult;
+    if (authorLookup !== null && authorLookup.status === 200 && authorLookup.value !== null && (authorLookup.value as types.SearchResult).MediaContainer.size > 0 && (authorLookup.value as types.SearchResult).MediaContainer.Metadata.length > 0 && (authorLookup.value as types.SearchResult).MediaContainer.Metadata[0].type === 'artist') {
       if (debug) console.log('author validated', authorKey);
       // We have an author key and the author exists in Plex. Good start.
-      const bookLookup = await get(`/library/metadata/${authorKey}/children?title=${encodeURIComponent(book.title)}&type=${types.SearchType.ALBUM}`, plexURL, plexToken, debug) as unknown as null | types.SearchResult;
-      const selectedBook = selectBestResult(bookLookup, book, debug);
+      const bookLookup = await resource(`/library/metadata/${authorKey}/children`, Method.GET, {
+        title: book.title,
+        type: types.SearchType.ALBUM.toString()
+      }, plexURL, plexToken, debug);
+      const selectedBook = selectBestResult(bookLookup?.value as null | types.SearchResult, book, debug);
       if (selectedBook !== null) {
         // We found the book
         const bookKey = selectedBook.ratingKey;
@@ -416,22 +435,99 @@ export const matchBookToPlexEntry = async (asin: string, plexURL?: string, plexT
 
 type SeriesType = Prisma.SeriesGetPayload<{ include: { books: true } }>;
 
-const createCollection = async (title: string, sectionId: string, plexURL?: string, plexToken?: string, debug=0): Promise<string | null> => {
+const createCollection = async (title: string, sectionId: string, plexURL: string, plexToken: string, debug=0): Promise<string | null> => {
   // Make the collection
-  const results = await post('/library/collections', {
+  const results = await resource('/library/collections', Method.POST, {
     'type': types.SearchType.ALBUM.toString(),
     'smart': '0',
     'sectionId': sectionId,
     'title': title
   }, plexURL, plexToken, debug);
   // Exit if it failed
-  if (results === null) return null;
+  if (results === null || results.status !== 200 || results.value === null) return null;
   // Convert the results
-  const parsed = results as unknown as types.SearchResult;
+  const parsed = results.value as types.SearchResult;
   // Check if the results have any content and return if it does
   if (parsed.MediaContainer.size > 0 && parsed.MediaContainer.Metadata.length > 0) return parsed.MediaContainer.Metadata[0].ratingKey;
   // Failed
   return null;
+}
+
+/**
+ * Get the URL that would point to a collection
+ * @param collectionKey the plex key for the collection
+ * @param plexURL the URL of the plex install
+ * @param serverID the serverID / machineID for the plex install
+ * @returns 
+ */
+export const getCollectionWebURL = async (collectionKey: string, plexURL?: string, serverID?: string): Promise<string | null> => { 
+  // Populate the plex URL and token if they are not populated
+  if (await settings.get('plex.enable') === false) return null;
+  if (plexURL === undefined) plexURL = await settings.get('plex.address');
+  if (plexURL.endsWith('/')) plexURL = plexURL.substring(0, plexURL.length - 1);
+  if (serverID === undefined) serverID = await settings.get('plex.machineId');
+  if (serverID === '') return null;
+  console.log(plexURL, serverID, collectionKey);
+  return `${plexURL}/web/index.html#!/server/${serverID}/details?key=%2Flibrary%2Fcollections%2F${collectionKey}`;
+}
+
+/**
+ * For a list of collection keys, get the current thumbnail icon
+ * @param collectionKeys an array of collection keys
+ * @param plexURL the plex URL
+ * @param plexToken the plex Token
+ * @returns an object of collection key - value format
+ */
+export const getCollectionThumbnailURLs = async (collectionKeys: string[], plexURL?: string, plexToken?: string): Promise<{[key: string]: string} | null> => {
+  // Populate the plex URL and token if they are not populated
+  const debug = await settings.get('system.debug');
+  if (plexToken === undefined) plexToken = await settings.get('plex.token');
+  if (plexURL === undefined) plexURL = await settings.get('plex.address');
+  if (plexURL.endsWith('/')) plexURL = plexURL.substring(0, plexURL.length - 1);
+
+  const promiseList: Promise<null | unknown>[] = [];
+  for (const collectionKey of collectionKeys) promiseList.push(resource(`/library/collections/${collectionKey}`, Method.GET, {}, plexURL, plexToken, debug));
+  const results = await Promise.allSettled(promiseList);
+  const exportResults: { [key: string]: string } = {};
+
+  for (const r of results) {
+    if (r.status === 'rejected' || r.value === null) continue;
+    const rParsed = r.value as Awaited<ReturnType<typeof resource>>;
+    if (rParsed !== null && rParsed.status === 200 && rParsed.value !== null && (rParsed.value as types.SearchResult).MediaContainer.size > 0 && (rParsed.value as types.SearchResult).MediaContainer.Metadata.length > 0) {
+      const metadata = (rParsed.value as types.SearchResult).MediaContainer.Metadata[0];
+      exportResults[metadata.ratingKey] = `${plexURL}${metadata.thumb}&X-Plex-Token=${plexToken}`;
+    }
+  }
+
+  return exportResults;
+}
+
+/**
+ * Delete a collection with the specified plex key
+ * @param plexKey the plex key of the collection
+ * @param plexURL the plex api URL
+ * @param plexToken the plex token
+ * @param debug debug
+ * @returns whether or not the debug was successful
+ */
+export const deleteCollection = async (plexKey: string, plexURL?: string, plexToken?: string, debug?: number): Promise<boolean> => {
+  // Check that plex is enabled
+  if (await settings.get('plex.enable') !== true) return false;
+  // Get debug
+  if (debug === undefined) debug = await settings.get('system.debug');
+  // Populate the plex URL and token if they are not populated
+  if (plexURL === undefined) plexURL = await settings.get('plex.address');
+  if (plexToken === undefined) plexToken = await settings.get('plex.token');
+  if (debug) console.log('delete', plexKey);
+
+
+  console.log(plexToken);
+
+  // Make the collection
+  const results = await resource(`/library/collections/${plexKey}`, Method.DELETE, {}, plexURL, plexToken, debug, false);
+  // Exit if it failed
+  if (results === null || results.status !== 200) return false;
+  else return true
 }
 
 /**
@@ -449,7 +545,7 @@ export const collectBySeries = async (series: SeriesType, plexURL?: string, plex
   const libraryKey = await settings.get('plex.library.key');
   // Populate the plex URL and token if they are not populated
   if (plexURL === undefined) plexURL = await settings.get('plex.address');
-  if (plexToken === undefined) plexToken = await helpers.decrypt(await settings.get('plex.token'));
+  if (plexToken === undefined) plexToken = await settings.get('plex.token');
   if (debug) console.log('series', series.id);
 
   // Create an array to hold the keys to add
@@ -480,14 +576,14 @@ export const collectBySeries = async (series: SeriesType, plexURL?: string, plex
   // Check if a collection already exists for this series
   if (series.plexKey !== null) {
     // We need to verify that the collection exists in Plex also
-    const collectionLookup = await get(`/library/collections/${series.plexKey}`, plexURL, plexToken, debug) as unknown as null | types.SearchResult;
-    if (collectionLookup !== null && collectionLookup.MediaContainer.size > 0 && collectionLookup.MediaContainer.Metadata.length > 0) {
+    const collectionLookup = await resource(`/library/collections/${series.plexKey}`, Method.GET, {}, plexURL, plexToken, debug);
+    if (collectionLookup !== null && collectionLookup.status === 200 && collectionLookup.value !== null && (collectionLookup.value as types.SearchResult).MediaContainer.size > 0 && (collectionLookup.value as types.SearchResult).MediaContainer.Metadata.length > 0) {
       // The collection exists. Assign the collection key
       collectionKey = series.plexKey;
       // Check the title to see if it is the one we want
-      if (collectionLookup.MediaContainer.Metadata[0].title !== series.title) {
+      if ((collectionLookup.value as types.SearchResult).MediaContainer.Metadata[0].title !== series.title) {
         // It is not. Rename it to match.
-        await put(`/library/collections/${series.plexKey}`, { 'title': series.title }, plexURL, plexToken, debug);
+        await resource(`/library/collections/${series.plexKey}`, Method.PUT, { 'title': series.title }, plexURL, plexToken, debug, false);
       }
     } else {
       // The collection does not exist. Create one.
@@ -518,21 +614,322 @@ export const collectBySeries = async (series: SeriesType, plexURL?: string, plex
   }
 
   // Add the books to the collection
-  const results = await put(`/library/collections/${collectionKey}/items`, { 
+  const results = await resource(`/library/collections/${collectionKey}/items`, Method.PUT, { 
     'uri': `server://${serverID}/com.plexapp.plugins.library/library/metadata/${keysToAdd.join(',')}`
-  }, plexURL, plexToken, debug);
+  }, plexURL, plexToken, debug, false);
 
   // Exit as failed if the command failed
-  if (results === null) return false
+  if (results === null || results.status !== 200) return false
 
   // Done!
   return true;
 
 }
 
+let registeredPlexCompleteFunction: (() => void) | null = null;
+const plexScanComplete = () => {
+  console.log('Plex scan complete!');
+  if (registeredPlexCompleteFunction !== null) registeredPlexCompleteFunction();
+}
 
-export const search = async (sectionKey: string, title: string, type: types.SearchType, plexURL?: string, plexToken?: string, debug=0): Promise<null | types.SearchResult> => {
-  const results = get(`/library/sections/${sectionKey}/all?type=${type}&title=${encodeURIComponent(title)}`, plexURL, plexToken, debug);
-  if (results === null) return null;
-  return results as unknown as types.SearchResult;
+let plexNotificationConnection: websocket.connection | null = null;
+
+const activateWebsocketConnection = async (sectionId: string, plexURL: string, plexToken: string) => {
+  return new Promise<void>(async (resolve, reject) => {
+    if (plexNotificationConnection !== null) {
+      resolve();
+      return;
+    }
+
+    // Clear all in-progress items (as we might have missed things)
+    await prisma.progress.deleteMany({ where: { ref: 'plex' } });
+
+    // Create a new websocket client
+    const client = new websocket.client();
+
+    // Set a timeout for the connect
+    const timeout = setTimeout(() => {
+      client.abort();
+      plexNotificationConnection = null;
+      reject();
+    }, 3000);
+    // Reject on failed connection
+    client.on('connectFailed', function (error) {
+      clearTimeout(timeout);
+      plexNotificationConnection = null;
+      reject();
+    });
+    // Resolve on succeeded connections
+    client.on('connect', (connection) => {
+      // Clear the connection timeout restriction
+      clearTimeout(timeout);
+      // Assign the connection
+      plexNotificationConnection = connection;
+      // Create a function that will process each message
+      connection.on('message', async (d) => {
+        // Check that the message is string (not binary)
+        if (d.type === 'utf8') {
+          // Parse the message as a notification
+          const data = JSON.parse(d.utf8Data) as types.Notification;
+          // Nothing to do if there is no content
+          if (data.NotificationContainer.size === 0) return;
+          // Switch based on the type
+          if (data.NotificationContainer.type === 'activity') {
+            // Loop through each activity notification
+            for (const entry of data.NotificationContainer.ActivityNotification) {
+              // If there is no library context, the id doesn't match the library that Unabridged has access to, or it isn't for a library scan, nothing to do
+              if (entry.Activity.Context === undefined) continue;
+              if (entry.Activity.Context.librarySectionID !== sectionId) continue;
+              if (entry.Activity.type !== 'library.update.section') continue;
+              // Switch based on the type of activity
+              if (entry.event === 'updated') {
+                await settings.set('plex.library.autoScan.progress', entry.Activity.progress / 100);
+              } else if (entry.event === 'ended') {
+                console.log('Message: ended', entry.uuid);
+                await settings.set('plex.library.autoScan.progress', 1);
+                plexScanComplete();
+                connection.close();
+              }
+            }
+          }
+        }
+      });
+      // Clean up if disconnected
+      connection.on('close', () => {
+        console.log('websocket closed');
+        plexNotificationConnection = null;
+      });
+      connection.on('error', (err) => {
+        console.log('Websocker error', err);
+        plexNotificationConnection = null;
+      });
+      resolve();
+    });
+    // Create the connection
+    client.connect(helpers.convertToWebsocketURL(plexURL) + '/:/websockets/notifications', undefined, undefined, {
+      'X-Plex-Token': plexToken
+    });
+  });
+}
+
+/**
+ * Start a library file scan with Plex
+ * @returns whether or not the library scan was started
+ */
+export const scanLibraryFiles = async (): Promise<void> => {
+
+  // The scan is starting, so should no longer be scheduled
+  await settings.set('plex.library.autoScan.nextRun', -1);
+
+  // Return a promise for the duration of the scan
+  return new Promise(async (resolve, reject) => {
+
+    // Get settings
+    const plexSettings = await settings.getSet('plex');
+    const constSettings = await settings.getMany('system.debug');
+
+    // Get debug
+    const debug = constSettings['system.debug'];
+
+    // Check that plex is enabled
+    if (plexSettings['plex.enable'] !== true || plexSettings['plex.library.autoScan.enable'] !== true) return reject();
+
+    // Set some initial settings
+    await settings.set('plex.library.autoScan.inProgress', true);
+    await settings.set('plex.library.autoScan.progress', 0);
+
+    // Populate the plex URL and token
+    const plexURL = plexSettings['plex.address'];
+    const plexToken = plexSettings['plex.token'];
+    const sectionId = plexSettings['plex.library.key'];
+
+    // If the book does not exist or we have no section key, exit
+    if (sectionId === '') return reject('no section id');
+
+    // Save a variable to hold the timeoout
+    let timeoutIndex: NodeJS.Timeout | undefined;
+    try {
+      // Register an entry in the processFinish table
+      registeredPlexCompleteFunction = () => {
+        // If this function is fired, we are done and can resolve
+        registeredPlexCompleteFunction = null;
+        clearTimeout(timeoutIndex);
+        resolve();
+      };
+
+      // Make sure the websocket connection is active
+      await activateWebsocketConnection(sectionId, plexURL, plexToken);
+
+      // Start a timeout that will reject if this takes way too long
+      timeoutIndex = setTimeout(() => {
+        registeredPlexCompleteFunction = null;
+        reject('timeout');
+      }, plexSettings['plex.library.autoScan.timeout'] * 1000);
+
+      // Issue the library refresh
+      const result = await resource(`/library/sections/${sectionId}/refresh`, Method.GET, {}, plexURL, plexToken, debug, false);
+      // If it is a failure, reject
+      if (result === null || result.status !== 200) {
+        registeredPlexCompleteFunction = null;
+        clearTimeout(timeoutIndex);
+        reject(result)
+        return;
+      }
+      
+    } catch (e) {
+      console.log('ERROR: Could not establish a websocket connection');
+      registeredPlexCompleteFunction = null;
+      clearTimeout(timeoutIndex);
+    }
+  });
+}
+
+/**
+ * Reset the Plex subsystem. Should be ran on system start.
+ */
+export const reset = async () => {
+  await settings.set('plex.library.autoScan.inProgress', false);
+  await settings.set('plex.library.autoScan.nextRun', -1);
+  if (global.plex === undefined) global.plex = { interval: undefined };
+  if (global.plex.interval !== undefined) clearInterval(global.plex.interval);
+}
+
+const scheduler = async (overrideChecks=false) => {
+  console.log('scheduler run')
+  // Get the next run time
+  const constSettings = await settings.getMany('plex.library.autoScan.nextRun', 'plex.library.autoScan.inProgress');
+  // Check to see if we are ready to run
+  if (overrideChecks || (constSettings['plex.library.autoScan.nextRun'] !== -1 && constSettings['plex.library.autoScan.inProgress'] === false && Math.floor(Date.now() / 1000) - constSettings['plex.library.autoScan.nextRun'] > 0)) {
+    console.log('scheduler trigger')
+    // Stop the scheduler
+    await settings.set('plex.library.autoScan.nextRun', -1);
+    if (global.plex === undefined) global.plex = { interval: undefined };
+    if (global.plex.interval !== undefined) clearInterval(global.plex.interval);
+    // Get settings
+    let plexSettings = await settings.getSet('plex');
+
+    // Check permissions
+    if (plexSettings['plex.enable'] === false || plexSettings['plex.library.autoScan.enable'] === false || LibraryManager.getNoneWorking() === false) return;
+
+    // We are now in-progress
+    await settings.set('plex.library.autoScan.inProgress', true);
+    // Surround with a try-catch so we don't de-sync params
+    try {
+      // Test the plex connection
+      const result = await testPlexConnection(plexSettings['plex.address'], plexSettings['plex.token'], false);
+      console.log('test result', result)
+      if (result.success === true) {
+        // The connection worked
+        try {
+          // Scan the library files
+          console.log('start scan');
+          await scanLibraryFiles();
+          console.log('scan done');
+          // Delay for 1 second to give Plex time to catch up
+          await helpers.delay(1000);
+          // Get settings since it may have been a while
+          let plexSettings = await settings.getSet('plex');
+          // Check if we should do a collection update
+          if (plexSettings['plex.collections.enable'] === true) {
+            try {
+              if (plexSettings['plex.collections.by'] === publicTypes.CollectionBy.series) {
+                console.log('collection by series');
+                const series = await prisma.series.findMany({
+                  where: { books: { some: { processed: true } } },
+                  include: { books: true }
+                });
+                console.log('start collecting');
+                for (const s of series) await collectBySeries(s);
+                console.log('done collecting');
+              } else if (plexSettings['plex.collections.by'] === publicTypes.CollectionBy.album) {
+                console.log(`ERROR: Unimplemented collection by: ${plexSettings['plex.collections.by']}`);
+              } else {
+                console.log(`ERROR: Unimplemented collection by: ${plexSettings['plex.collections.by']}`);
+              }
+            } catch(e) {
+              // There was an error adding the collections
+              console.log(e);
+            }
+          }
+        } catch(e) {
+          // The library scan failed
+          console.log(e);
+        }
+      }
+      await settings.set('plex.library.autoScan.inProgress', false);
+    } catch(e) {
+      console.log('ERROR', e);
+      await settings.set('plex.library.autoScan.inProgress', false);
+    }
+  }
+}
+
+/**
+ * Scan the library and collect right now
+ * @returns whether or not it was successful
+ */
+export const scanLibraryFilesAndCollect = async () => {
+  // Get settings
+  const plexSettings = await settings.getSet('plex');
+  const constSettings = await settings.getMany('system.debug');
+
+  // Check that we have permission to do this sync
+  if (plexSettings['plex.enable'] === false || plexSettings['plex.library.autoScan.enable'] === false) return true;
+
+  // Check if there is one running right now. If so, don't schedule but also don't resolve the schedule request.
+  if (plexSettings['plex.library.autoScan.inProgress'] === true) return false;
+
+  // Test the plex connection
+  const result = await testPlexConnection(plexSettings['plex.address'], plexSettings['plex.token'], false);
+  if (result.success === false) return true;
+
+  // Reset the scheduler
+  if (global.plex === undefined) global.plex = { interval: undefined };
+  if (global.plex.interval !== undefined) clearInterval(global.plex.interval);
+
+  // Trigger the scheduler
+  await scheduler(true);
+
+  // Done!
+  return true;
+}
+
+/**
+ * Trigger a scheduled library scan, after the correct delay
+ * @returns 
+ */
+export const scheduleScanLibraryFilesAndCollect = async () => {
+  // Get settings
+  const plexSettings = await settings.getSet('plex');
+  const constSettings = await settings.getMany('system.debug');
+
+  // Check that we have permission to do this sync
+  if (plexSettings['plex.enable'] === false || plexSettings['plex.library.autoScan.enable'] === false || plexSettings['plex.library.autoScan.scheduled'] === true) return true;
+
+  // Check if there is one running right now. If so, don't schedule but also don't resolve the schedule request.
+  if (plexSettings['plex.library.autoScan.inProgress'] === true) return false;
+
+  // Test the plex connection
+  const result = await testPlexConnection(plexSettings['plex.address'], plexSettings['plex.token'], false);
+  if (result.success === false) return true;
+
+  // Set the schedule time
+  const scheduleTime = Math.floor(Date.now() / 1000) + plexSettings['plex.library.autoScan.delay'];
+  await settings.set('plex.library.autoScan.nextRun', scheduleTime);
+
+  // Set the scheduler
+  if (global.plex === undefined) global.plex = { interval: undefined };
+  if (global.plex.interval !== undefined) clearInterval(global.plex.interval);
+  global.plex.interval = setInterval(scheduler, 1000);
+  global.plex.interval.unref();
+
+  // Done!
+  return true;
+
+}
+
+export const search = async (sectionKey: string, title: string, type: types.SearchType, plexURL: string, plexToken: string, debug=0): Promise<null | types.SearchResult> => {
+  const results = await resource(`/library/sections/${sectionKey}/all`, Method.GET, { type: type.toString(), title}, plexURL, plexToken, debug);
+  if (results === null || results.status !== 200 || results.value === null) return null;
+  return results.value as types.SearchResult;
 }

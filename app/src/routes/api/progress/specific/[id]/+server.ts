@@ -11,19 +11,23 @@ export const GET = async ({ params }) => {
   if (id === null || id === undefined) throw error(404, 'Not found');
 
   const progress = await prisma.processQueue.findUnique({
-    where: { bookAsin: id },
+    where: { id },
     include: {
       book: {
-        select: {
-          title: true,
-          authors: true,
-          genres: true,
-          cover: {
+        include: {
+          book: {
             select: {
-              url_100: true
+              title: true,
+              authors: true,
+              genres: true,
+              cover: {
+                select: {
+                  url_100: true
+                }
+              }
             }
           }
-        }
+        },
       }
     }
   });

@@ -7,7 +7,7 @@
 
   export let action: string;
 	export { classExport as class };
-  export let confirmAction: string | null = null;
+  export let confirmAction: ((f: FormData) => boolean) | string | null = null;
   export let form: { success: boolean, action: string, invalidatedParams?: boolean } | null = null;
 
   export let submitting = false;
@@ -29,10 +29,16 @@
   
 </script>
 
-<form method="POST" action={action} use:enhance={({cancel}) => {
-  if (confirmAction !== null && !confirm(`Are you sure?\n\n${confirmAction}`)) {
-    cancel();
-    return;
+<form method="POST" action={action} use:enhance={({cancel, formData}) => {
+  if (confirmAction !== null) {
+    if (typeof confirmAction === 'string' && !confirm(`Are you sure?\n\n${confirmAction}`)) {
+      cancel();
+      return;
+    }
+    if (typeof confirmAction === 'function' && !confirmAction(formData)) {
+      cancel();
+      return;
+    }
   }
   submitting = true;
   return async ({ update }) => {

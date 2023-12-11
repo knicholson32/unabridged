@@ -100,18 +100,23 @@
           -->
         {#if seriesMenuVisible}
           <!-- <div class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1"> -->
-          <div in:scale="{{duration: 100, opacity: 0.95, start: 0.95, easing: cubicOut}}" out:scale="{{duration: 75, opacity: 0.95, start: 0.95, easing: cubicOut}}" use:EscapeOrClickOutside={{except: seriesMenuButton, callback: closeSeriesMenu}} class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right" role="menu" aria-orientation="vertical" aria-labelledby="options-menu-button" tabindex="-1">
+          <div in:scale="{{duration: 100, opacity: 0.95, start: 0.95, easing: cubicOut}}" out:scale="{{duration: 75, opacity: 0.95, start: 0.95, easing: cubicOut}}" use:EscapeOrClickOutside={{except: seriesMenuButton, callback: closeSeriesMenu}} class="absolute right-0 z-10 mt-2.5 origin-top-right" role="menu" aria-orientation="vertical" aria-labelledby="options-menu-button" tabindex="-1">
             <div in:fade="{{duration: 100, easing: cubicOut}}" out:fade="{{duration: 75, easing: cubicOut}}" class="divide-y divide-gray-200 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none antialiase">
               <div class="py-1" role="none">
                 {#if !data.series.books.every((b) => b.downloaded === true && b.processed === true)}
-                  <button on:click={downloadAll} class="unstyled text-left font-medium w-full hover:bg-gray-100 hover:text-gray-900 text-gray-700 block px-4 py-2 text-sm !no-underline" role="menuitem" tabindex="-1">
+                  <button on:click={downloadAll} class="unstyled whitespace-nowrap text-left font-medium w-full hover:bg-gray-100 hover:text-gray-900 text-gray-700 block px-4 py-2 text-sm !no-underline" role="menuitem" tabindex="-1">
                     Download All
                   </button>
                 {/if}
                 {#if !data.series.books.every((b) => b.downloaded === false && b.processed === false)}
-                <button on:click={removeAll} class="unstyled text-left font-medium w-full hover:bg-gray-100 hover:text-gray-900 text-gray-700 block px-4 py-2 text-sm !no-underline" role="menuitem" tabindex="-1">
+                <button on:click={removeAll} class="unstyled whitespace-nowrap text-left font-medium w-full hover:bg-gray-100 hover:text-gray-900 text-gray-700 block px-4 py-2 text-sm !no-underline" role="menuitem" tabindex="-1">
                   Remove All
                 </button>
+                {/if}
+                {#if data.collectionURL !== null}
+                <a href={data.collectionURL} target="_blank" class="unstyled whitespace-nowrap text-left font-medium w-full hover:bg-gray-100 hover:text-gray-900 text-gray-700 block px-4 py-2 text-sm !no-underline" role="menuitem" tabindex="-1">
+                  View Plex Collection
+                </a>
                 {/if}
               </div>
             </div>

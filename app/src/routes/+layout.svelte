@@ -7,7 +7,7 @@
   import { page, navigating } from '$app/stores';
   import { onMount } from 'svelte';
   import { setContext, } from 'svelte';
-  import type { PrimaryMenu, ProfileMenu, ProfileMenuWithID, GenerateAlert, AlertSettings, NotificationAPI, Notification, ProcessProgress, UpdateProgress, ProcessProgressAPI, ProcessProgressesAPI, PageNeedsProgress } from '$lib/types';
+  import { type PrimaryMenu, type ProfileMenu, type ProfileMenuWithID, type GenerateAlert, type AlertSettings, type NotificationAPI, type Notification, type ProcessProgress, type ProcessBookProgress, type UpdateProgress, type ProcessProgressAPI, type ProcessProgressesAPI, type PageNeedsProgress, ProcessType } from '$lib/types';
   import CircularClose from '$lib/components/decorations/CircularClose.svelte';
   import { EscapeOrClickOutside, KeyBind, UpDownEnter } from '$lib/events';
   import { fade, scale } from 'svelte/transition';
@@ -86,11 +86,11 @@
   let showStatusButton: HTMLButtonElement;
 
   
-  const progress = writable<ProcessProgress[]>();
+  const progress = writable<ProcessBookProgress[]>();
   const processPaused = writable<boolean>();
   const elapsed_s = writable<number>();
   
-  progress.set(data.progresses);  
+  progress.set(data.progresses.filter(v => v.type === ProcessType.BOOK) as ProcessBookProgress[]);  
   processPaused.set(data.processPaused);
   elapsed_s.set(data.elapsed_s);
 
@@ -98,7 +98,7 @@
   const updateProgress: UpdateProgress = async () => {
     console.log('Progress Update');
     const p = await (await fetch('/api/progress')).json() as ProcessProgressesAPI;
-    if (p.progresses !== undefined) progress.set(p.progresses);
+    if (p.progresses !== undefined) progress.set(p.progresses.filter(v => v.type === ProcessType.BOOK) as ProcessBookProgress[]);
     if (p.paused !== undefined) processPaused.set(p.paused);
     if (p.elapsed_s !== undefined) elapsed_s.set(p.elapsed_s);
   }
@@ -674,7 +674,7 @@
                       {#if booksInProgress > 0}
                         <div class="border-b my-1"></div>
                         <div class="flex flex-col" role="none">
-                          {#each $progress.filter((p) => p.in_progress === true) as p (p.bookAsin)}
+                          {#each $progress.filter((p) => p.in_progress === true) as p (p.id)}
                             <StatusBar progress={p}/>
                           {/each}
                         </div>
@@ -691,7 +691,7 @@
                           <div class="font-mono grow pl-2 text-sm">{booksWaiting}<span class="ml-1 text-xs text-gray-600 font-sans">{helpers.basicPlural('Book', booksWaiting)} Waiting{$processPaused ? ' - Paused' : ''}</span></div>
                         </div>
                         <ul class="flex flex-col max-h-56 overflow-y-scroll overflow-hidden bg-white" role="none">
-                          {#each $progress.filter((p) => p.in_progress === false && p.is_done === false) as p (p.bookAsin)}
+                          {#each $progress.filter((p) => p.in_progress === false && p.is_done === false) as p (p.id)}
                             <li class="odd:bg-gray-100"><QueuedBook progress={p}/></li>
                           {/each}
                         </ul>
@@ -707,7 +707,7 @@
                           </button>
                         </div>
                         <ul class="flex flex-col max-h-56 overflow-y-scroll overflow-hidden bg-white" role="none">
-                          {#each $progress.filter((p) => p.is_done === true) as p (p.bookAsin)}
+                          {#each $progress.filter((p) => p.is_done === true) as p (p.id)}
                             <li class="odd:bg-gray-100"><FinishedBook progress={p}/></li>
                           {/each}
                         </ul>

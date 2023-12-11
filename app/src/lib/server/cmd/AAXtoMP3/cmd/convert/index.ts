@@ -75,10 +75,16 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
   }
   if (!fs.existsSync(destinationFolder)) fs.mkdirSync(destinationFolder, { recursive: true });
 
-  // TODO: Check if destinationFolder is writable at this point
+
+  // Check that the destination folder is writable
+  try {
+    fs.accessSync(destinationFolder, fs.constants.R_OK | fs.constants.W_OK);
+  } catch (err) {
+    return ConversionError.DESTINATION_NOT_WRITABLE;
+  }
 
   // Update process progress for process to 0
-  await prisma.processQueue.update({ where: { id: processID }, data: { process_progress: 0 } });
+  await prisma.processQueue.update({ where: { id: processID }, data: { book: { update: { process_progress: 0 } } } });
 
   // // Create the progress entry
   // await prisma.progress.create({
@@ -137,9 +143,7 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
         console.log(data.replaceAll('\n', '\\n\n').replaceAll('\r', '\\r\n'));
       }
 
-
     }
-
 
     const bookRuntime_s = (book.runtime_length_min ?? 0 ) * 60;
 
@@ -177,8 +181,12 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
           await prisma.processQueue.update({
             where: { id: processID },
             data: {
-              process_progress: isNaN(progress) ? 0 : progress,
-              speed: isNaN(speed) ? null : speed
+              book: {
+                update: {
+                  process_progress: isNaN(progress) ? 0 : progress,
+                  speed: isNaN(speed) ? null : speed
+                }
+              }
             }
           });
         } catch (e) {
@@ -221,10 +229,14 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
       await prisma.processQueue.update({
         where: { id: processID },
         data: {
-          process_progress: 1,
-          downloaded_mb: null,
-          total_mb: null,
-          speed: null
+          book: {
+            update: {
+              process_progress: 1,
+              downloaded_mb: null,
+              total_mb: null,
+              speed: null
+            }
+          }
         }
       });
 
@@ -245,6 +257,16 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
       where: { asin: book.asin },
       data: { processed: false }
     });
+  }
+
+  // Delete the tmp folder (if not debug)
+  const debug = await settings.get('system.debug');
+  if (debug === 0) {
+    try {
+      fs.rmSync('tmpDir')
+    } catch(e) {
+      // Nothing to do
+    }
   }
 
   return results;

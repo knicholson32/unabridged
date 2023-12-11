@@ -22,10 +22,10 @@ export const load = async ({ params }) => {
     const authToken = await plexOauth.checkForAuthToken(parseInt(pinId))
     if (authToken !== null) {
       if (debug) console.log('Setting Auth Token');
-      await settings.set('plex.token', await helpers.encrypt(authToken));
-      if (debug) console.log('token', await helpers.decrypt(await settings.get('plex.token')));
+      await settings.set('plex.token', authToken);
+      if (debug) console.log('token', await settings.get('plex.token'));
       success = true;
-      const results = await Plex.testPlexConnection(await settings.get('plex.address'), await helpers.decrypt(await settings.get('plex.token')));
+      const results = await Plex.testPlexConnection(await settings.get('plex.address'), await settings.get('plex.token'));
       if (debug) console.log(results);
       if (results.success) {
         await settings.set('plex.enable', true);

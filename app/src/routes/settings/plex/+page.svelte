@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { beforeNavigate, goto } from "$app/navigation";
+	import { beforeNavigate, goto, invalidate } from "$app/navigation";
 	import { icons } from "$lib/components";
-	import { Switch } from "$lib/components/buttons";
+	import { Switch, VerifyButton } from "$lib/components/buttons";
 	import Submit from "$lib/components/buttons/Submit.svelte";
   import * as Settings from "$lib/components/settings";
 	import { CollectionBy, type GenerateAlert, type URLAlert } from "$lib/types";
@@ -9,6 +9,8 @@
   import { page } from '$app/stores';
 	import { decodeURLAlert } from "$lib/components/alerts";
 	import { enhance } from "$app/forms";
+	import CollectionList from "$lib/components/settings/CollectionList.svelte";
+	import Collection from "$lib/components/settings/Collection.svelte";
 
   export let data: import('./$types').PageData;
   export let form: import('./$types').ActionData;
@@ -39,9 +41,9 @@
   // Plex Library
   let plexLibraryUpdate: () => {};
   let plexLibraryUnsavedChanges = false;
-  let autoScan = data.settingValues['plex.library.autoScan'];
-  let autoScanDelay = data.settingValues['plex.library.autoScanDelay'];
-  let scheduled = data.settingValues['plex.library.scheduled'];
+  let autoScan = data.settingValues['plex.library.autoScan.enable'];
+  let autoScanDelay = data.settingValues['plex.library.autoScan.delay'];
+  let scheduled = data.settingValues['plex.library.autoScan.scheduled'];
 
   // Plex Collections
   let plexCollectionsUpdate: () => {};
@@ -60,7 +62,15 @@
   });
 
   $: {
-    if(form?.success === true && form?.action === '?/updatePlexIntegration') data.plex.issueDetected = false;
+    if(form?.success === true) {
+      if(form.action === '?/updatePlexIntegration') data.plex.issueDetected = false;
+      else if (form.action === '?/clearPlexIntegration') {
+        form = null;
+        plexEnable = false;
+        plexAddress = '';
+        token = '';
+      }
+    }
     libraryIDSaved = data.settingValues['plex.library.id'];
   }
 
@@ -151,17 +161,28 @@
     options={ data.plex.sections } />
 
   <Settings.Frame title={'Clear Integration'}>
-    <form method="POST" action={'?/clearPlexIntegration'}>
-      <button 
-        title={(data.settingValues['plex.address'] === '' && data.settingValues['plex.token'] === '') ? 'No settings to erase' : 'Click to erase Plex integration settings'} 
-        type="submit" 
-        disabled={data.settingValues['plex.address'] === '' && data.settingValues['plex.token'] === ''}
-        class="hover:bg-yellow-100/20 hover:text-yellow-800 hover:ring-yellow-400/80 select-none w-full sm:w-auto flex justify-center items-center whitespace-nowrap px-3 py-2 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ring-1 ring-inset ring-gray-300 bg-white text-gray-800 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 disabled:ring-gray-200 focus-visible:outline-grey-500">
-        Erase Settings & Logout
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="ml-1 w-4 h-4">
-          {@html icons.warning}
-        </svg>
-      </button>
+    <form method="POST" action={'?/clearPlexIntegration'} use:enhance={({cancel, formData}) => {
+      if (!confirm(`Are you sure?\n\nThis will disconnect Unabridged from your Plex server${(formData.get('plex.collections.delete') ?? 'false') === 'true' ? ' and delete managed collections.' : '.'}`)) return cancel();
+      return async ({ update }) => {
+        invalidate('/settings/plex');
+        update({ reset: true });
+      }
+    }}>
+      <div class="inline-flex gap-3">
+        <Switch type="button" title="Delete Collections?" forceHiddenInput={true} valueName={'plex.collections.delete'} value={true}
+          disabled={data.settingValues['plex.address'] === '' && data.settingValues['plex.token'] === ''} 
+          hoverTitle="Should Unabridged delete collections it created from the linked Plex server? Why this matters: When Unabridged connects to a Plex library, it always creates it's own collections. If the collections aren't deleted now, duplicates will be created if Unabridged is re-connected." />
+        <button 
+          title={(data.settingValues['plex.address'] === '' && data.settingValues['plex.token'] === '') ? 'No settings to erase' : 'Click to erase Plex integration settings'} 
+          type="submit" 
+          disabled={data.settingValues['plex.address'] === '' && data.settingValues['plex.token'] === ''}
+          class="hover:bg-yellow-100/20 hover:text-yellow-800 hover:ring-yellow-400/80 select-none w-full sm:w-auto flex justify-center items-center whitespace-nowrap px-3 py-2 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ring-1 ring-inset ring-gray-300 bg-white text-gray-800 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 disabled:ring-gray-200 focus-visible:outline-grey-500">
+          Erase Settings & Logout
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="ml-1 w-4 h-4">
+            {@html icons.warning}
+          </svg>
+        </button>
+      </div>
     </form>
   </Settings.Frame>
 
@@ -189,6 +210,12 @@
     options={[CollectionBy.series, CollectionBy.album]}
     hoverTitle={libraryIDSaved === '' ? 'Disabled because no Plex Library is selected. See \'Plex Integration\' settings above.' : collectionsEnable === false ? 'Disabled because Plex collection management is disabled' : 'Specify how audiobooks could be collected in Plex'} />
   
+  <div class="flex flex-col gap-3 pt-4">
+  {#if data.plex.collections.length > 0}
+    <CollectionList collections={data.plex.collections} />
+  {/if}
+  </div>
+
 </Settings.List>
 
 <!-- Plex Library -->
@@ -235,8 +262,7 @@
     hoverTitle="Library location" />
 </Settings.List>
 
-<!-- 
-<form method="POST" action={'?/test'} class="relative inline-flex items-center gap-2">
+<form method="POST" action={'?/generateCollections'} class="relative inline-flex items-center gap-2">
   <input name="asin" value=""/>
   <button type="submit">Submit</button>
-</form> -->
+</form>

@@ -51,7 +51,7 @@ export const cleanBook = async (asin: string) => {
   const book = await prisma.book.findUnique({ where: { asin }, include: { authors: true } });
   if (book === null || book === undefined) return;
   // Delete all the physical files that are associated with books that just got deleted
-  const debug = await settings.get('system.debug') === true;
+  const debug = await settings.get('system.debug') > 0;
   const LIBRARY_FOLDER = await settings.get('library.location');
   try {
     const rm = `${LIBRARY_FOLDER}/${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}`;
@@ -82,7 +82,7 @@ export const cleanBook = async (asin: string) => {
 export const cleanSeries = async (id: string) => {
   const series = await prisma.series.findUnique({ where: { id }, include: { books: { include: { authors: true } } } });
   if (series === null || series === undefined) return;
-  const debug = await settings.get('system.debug') === true;
+  const debug = await settings.get('system.debug') > 0;
   const LIBRARY_FOLDER = await settings.get('library.location');
   for (const book of series.books) {
     // Delete all the physical files that are associated with books that just got deleted
@@ -158,7 +158,7 @@ export const cleanAll = async () => {
     await prisma.narrator.deleteMany({ where: { books: { none: {} } } });
     await prisma.genre.deleteMany({ where: { books: { none: {} } } });
 
-    const debug = await settings.get('system.debug') === true;
+    const debug = await settings.get('system.debug') > 0;
     const LIBRARY_FOLDER = await settings.get('library.location');
 
     // Delete all the physical files that are associated with books that just got deleted

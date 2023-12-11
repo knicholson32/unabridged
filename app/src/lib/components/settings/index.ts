@@ -6,3 +6,5 @@ export { default as Password } from './Password.svelte';
 export { default as Switch } from './Switch.svelte';
 export { default as Select } from './Select.svelte';
 export { default as Frame } from './Frame.svelte';
+export { default as CollectionList } from './CollectionList.svelte';
+export { default as Collection } from './Collection.svelte';

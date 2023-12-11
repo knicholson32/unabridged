@@ -1,23 +1,24 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
-	import type { PageNeedsProgress, ProcessProgress, UpdateProgress } from '$lib/types';
+	import type { PageNeedsProgress, ProcessBookProgress, UpdateProgress } from '$lib/types';
 	import { getContext } from 'svelte';
-  export let progress: ProcessProgress;
+  export let progress: ProcessBookProgress;
   const updateProgress = getContext<UpdateProgress>('updateProgress');
     
+
   const cancel = async () => {
-    await fetch(`/api/library/cancel/book/${progress.bookAsin}`);
+    await fetch(`/api/library/cancel/book/${progress.book?.bookAsin}`);
     updateProgress();
   }
 
 </script>
 
 <div class="relative mx-2 my-1 flex gap-1 items-center">
-  <a href="/library/books/{progress.bookAsin}" class="overflow-hidden whitespace-nowrap inline-flex items-center gap-2">
-    <div class="w-5 inline-flex"><img src="{progress.book.cover?.url_100}" class="rounded-md h-5 w-5" alt="{progress.book.title} Cover Image" /></div>
+  <a href="/library/books/{progress.book?.bookAsin}" class="overflow-hidden whitespace-nowrap inline-flex items-center gap-2">
+    <div class="w-5 inline-flex"><img src="{progress.book?.book.cover?.url_100}" class="rounded-md h-5 w-5" alt="{progress.book?.book.title} Cover Image" /></div>
     <div class="truncate overflow-hidden max-w-[25rem] inline-flex items-baseline gap-1">
-      <span class="font-serif font-bold truncate overflow-hidden" title="{progress.book.title}">{progress.book.title}</span>
-      <span class="text-xs text-gray-500 truncate overflow-hidden">By {progress.book.authors[0].name}</span>
+      <span class="font-serif font-bold truncate overflow-hidden" title="{progress.book?.book.title}">{progress.book?.book.title}</span>
+      <span class="text-xs text-gray-500 truncate overflow-hidden">By {progress.book?.book.authors[0].name}</span>
     </div>
   </a>
   <div class="grow"></div>

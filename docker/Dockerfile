@@ -113,7 +113,7 @@ COPY --from=dependancies "${USR_LOCAL_EXPORT}/" "/usr/local/"
 # Install development dependancies
 RUN echo "---- INSTALL DEPENDENCIES ----" \
   # && echo http://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories \
-  && apk --no-cache add bash x264 x265 mediainfo grep findutils ffmpeg jq
+  && apk --no-cache add bash x264 x265 mediainfo grep findutils ffmpeg jq build-base
 
 # Copy NodeJS Install
 COPY --from=node_install /usr/lib /usr/lib

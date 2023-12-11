@@ -4,7 +4,7 @@ import * as AAXtoMP3 from './AAXtoMP3';
 import prisma from '$lib/server/prisma';
 import * as tools from './tools';
 import * as settings from '$lib/server/settings';
-import type * as types from '$lib/types';
+import * as types from '$lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { BookDownloadError } from './audible/types';
 import type { Issuer, ModalTheme } from '$lib/types';
@@ -94,45 +94,62 @@ export namespace LibraryManager {
    * @param id the entry to adjust
    * @param cooldown the cooldown in seconds
    */
-  const tryAgainLater = async (id: string, cooldown: number, result: ProcessError) => {
+  const tryAgainLater = async (id: string, type: types.ProcessType, cooldown: number, result: ProcessError) => {
     // There are. We need to try this entry again in a bit
-    await prisma.processQueue.update({
-      where: { id },
-      data: {
-        in_progress: false,
-        is_done: false,
-        process_progress: 0,
-        download_progress: 0,
-        speed: null,
-        total_mb: null,
-        downloaded_mb: null,
-        try_after_time: Date.now() + cooldown,
-        result
-      }
-    });
+    if (type === 'BOOK') {
+      await prisma.processQueue.update({
+        where: { id },
+        data: {
+          in_progress: false,
+          is_done: false,
+          try_after_time: Date.now() + cooldown,
+          result,
+          book: {
+            update: {
+              process_progress: 0,
+              download_progress: 0,
+              speed: null,
+              total_mb: null,
+              downloaded_mb: null,
+            }
+          }
+        }
+      });
+    } else {
+      console.log(`ERROR: Unimplemented process type: ${type}`, id);
+    }
     // In a bit, restart the processors just in case none of them are running by then
     setTimeout(global.manager.runProcess, cooldown + 100);
   }
 
-  const processFailed = async (id: string, result: ProcessError, downloadProgress: number, processProgress: number) => {
-    await prisma.processQueue.update({ where: { id },
-      data: {
-        in_progress: false,
-        is_done: true,
-        result: result,
-        download_progress: downloadProgress,
-        process_progress: processProgress,
-        speed: null,
-        total_mb: null,
-        downloaded_mb: null,
-        try_after_time: null
-      }
-    });
+  const processFailed = async (id: string, type: types.ProcessType, result: ProcessError, downloadProgress: number, processProgress: number) => {
+    if (type === 'BOOK') {
+      await prisma.processQueue.update({
+        where: { id },
+        data: {
+          in_progress: false,
+          is_done: true,
+          result: result,
+          try_after_time: null,
+          book: {
+            update: {
+              download_progress: downloadProgress,
+              process_progress: processProgress,
+              speed: null,
+              total_mb: null,
+              downloaded_mb: null,
+            }
+          }
+        }
+      });
+    } else {
+      console.log(`ERROR: Unimplemented process type: ${type}`, id);
+    }
   }
 
   const getQueueFinder = () => {
     return {
-      include: { book: { include: { profiles: true, cover: true } } },
+      // include: { book: { include: { profiles: true, cover: true } } },
       where: {
         AND: [
           {
@@ -144,6 +161,22 @@ export namespace LibraryManager {
           { in_progress: false },
           { is_done: false }
         ]
+      },
+      include: {
+        book: {
+          include: {
+            book: {
+              include: {
+                profiles: true,
+                cover: {
+                  select: {
+                    url_100: true
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -152,6 +185,7 @@ export namespace LibraryManager {
   const ATTEMPT_COOLDOWN = 5000;
   const ATTEMPT_COOLDOWN_SHORT = 100;
   let processorPromises: (Promise<void> | undefined)[] = Array.from({ length: CONCURRENT_PROCESSES }, (_, i) => undefined);
+  let libraryScanShouldBeIssued = false;
 
   const processFunc = async (resolve: (value: void | PromiseLike<void>) => void, reject: (reason?: any) => void) => {
     // Get the next element from the queue
@@ -160,6 +194,7 @@ export namespace LibraryManager {
     // Loop while there are elements to process
     while (queueEntry !== null && await settings.get('progress.paused') === false) {
       // Make sure we are listed as running
+      // TODO: Should this running counter only apply to some types of processes?
       if (await settings.get('progress.running') === false) {
         const startTime = await settings.get('progress.startTime');
         const endTime = await settings.get('progress.endTime')
@@ -173,116 +208,74 @@ export namespace LibraryManager {
         await settings.set('progress.endTime', -1);
         await settings.set('progress.running', true);
       }
-      // Steps to download and process a book
-      // 1. Select this entry as in-progress
-      await prisma.processQueue.update({ where: { id: queueEntry.id }, data: {
-        in_progress: true,
-        is_done: false,
-        process_progress: 0,
-        download_progress: 0,
-        downloaded_mb: null,
-        total_mb: null,
-        speed: null,
-        result: null
-      }});
-      unlockProcessQueue();
-      let tmpDir: string | undefined = undefined;
-      try {
-        // We are ready to download the book since the queue entry is locked as ours
-        // Create a temporary directory
-        tmpDir = tools.createTempDir(queueEntry.book.asin);
-        // Delete present files relating to this book if they exist, but don't delete the book in the DB
-        await tools.cleanBook(queueEntry.book.asin);
-        // 2. Download the book, updating the book progress as required
-        const bookDownload = await audible.cmd.download.download(queueEntry.book.asin, queueEntry.id,tmpDir);
-        console.log(bookDownload);
-        switch (bookDownload) {
-          case BookDownloadError.NO_ERROR:
-            // Nothing to do, this is the success case
-            break;
-          case BookDownloadError.AUDIBLE_LOCKED:
-            // Audible is locked. We need to try again in a bit. Give this one a delay of a few seconds
-            await tryAgainLater(queueEntry.id, ATTEMPT_COOLDOWN, ProcessError.AUDIBLE_LOCKED);
-            break;
-          case BookDownloadError.BOOK_NOT_FOUND:
-            // The book could not be found. We can just delete this entry
-            await processFailed(queueEntry.id, ProcessError.BOOK_NOT_FOUND, 0, 0);
-            break;
-          case BookDownloadError.CANCELED:
-            // The user has canceled. We can just delete this entry
-            await processFailed(queueEntry.id, ProcessError.CANCELED, 0, 0);
-            break;
-          case BookDownloadError.NETWORK_ERROR:
-            // There was a network error that prevented the download. We can just delete this entry
-            await processFailed(queueEntry.id, ProcessError.NETWORK_ERROR, 0, 0);
-            break;
-          case BookDownloadError.NO_PROFILE:
-            // This book has no account that owns it. It should be deleted.
-            await tools.deleteBook(queueEntry.book.asin);
-            // Delete this entry
-            await processFailed(queueEntry.id, ProcessError.NO_PROFILE, 0, 0);
-            break;
-          case BookDownloadError.NO_PROFILE_WITH_AUTHCODE:
-            // The profiles need metadata pulled
-            for (const p of queueEntry.book.profiles)
-              if (p.activation_bytes === null) await audible.cmd.profile.fetchMetadata(p.id, false);
-            // We need to re-pull these accounts and make sure there are now bytes. If not, we can't re-add them to the queue
-            const book = await prisma.book.findUnique({ where: { asin: queueEntry.bookAsin }, include: { profiles: true }});
-            // Check if the book still exists
-            if (book !== null) {
-              // Assume there are no bytes
-              let bytes = false;
-              // Loop through profiles and if any have bytes, set to true
-              for (const p of book.profiles) if (p.activation_bytes !== null) bytes = true;
-              // Check if there are bytes
-              if (bytes === true) {
-                await tryAgainLater(queueEntry.id, ATTEMPT_COOLDOWN_SHORT, ProcessError.NO_PROFILE_WITH_AUTHCODE);
-                break;
-              }
+      // Get the process type
+      const type = queueEntry.type as types.ProcessType;
+
+      // Switch based on the task type
+      if (type === 'BOOK' && queueEntry.book !== null) {
+        // Steps to download and process a book
+        // 1. Select this entry as in-progress
+        await prisma.processQueue.update({ where: { id: queueEntry.id }, data: {
+          in_progress: true,
+          is_done: false,
+          result: null,
+          book: {
+            update: {
+              process_progress: 0,
+              download_progress: 0,
+              downloaded_mb: null,
+              total_mb: null,
+              speed: null,
             }
-            // Delete this queued entry
-            await processFailed(queueEntry.id, ProcessError.NO_PROFILE_WITH_AUTHCODE, 0, 0);
-            break;
-          default:
-            console.log('ERROR: Unexpected BookDownloadError:', bookDownload);
-            // Delete this queued entry
-            await processFailed(queueEntry.id, bookDownload as unknown as ProcessError, 0, 0);
-            break;
-        }
-        // Only continue if there was no error
-        if (bookDownload === BookDownloadError.NO_ERROR) {
-          // Update the progress to show the download done
-          await prisma.processQueue.update({ where: { id: queueEntry.id }, data: { download_progress: 1, result: null } });
-          // 3. Process the book, updating the book progress as required
-          const bookProcess = await AAXtoMP3.cmd.convert.exec(queueEntry.book.asin, queueEntry.id, tmpDir);
-          switch (bookProcess) {
-            case ConversionError.NO_ERROR:
+          }
+        }});
+        unlockProcessQueue();
+        // const queueEntrySpecific = await prisma.processQueue.findUnique({
+        //   where: { id: queueEntry.id },
+        //   include: { book: { include: { book: true }}}
+        // });
+        let tmpDir: string | undefined = undefined;
+        try {
+          // We are ready to download the book since the queue entry is locked as ours
+          // Create a temporary directory
+          tmpDir = tools.createTempDir(queueEntry.book.book.asin);
+          // Delete present files relating to this book if they exist, but don't delete the book in the DB
+          await tools.cleanBook(queueEntry.book.book.asin);
+          // 2. Download the book, updating the book progress as required
+          const bookDownload = await audible.cmd.download.download(queueEntry.book.book.asin, queueEntry.id,tmpDir);
+          console.log(bookDownload);
+          switch (bookDownload) {
+            case BookDownloadError.NO_ERROR:
               // Nothing to do, this is the success case
               break;
-            case ConversionError.BOOK_NOT_FOUND:
-              // Delete this queued entry
-              await processFailed(queueEntry.id, ProcessError.BOOK_NOT_FOUND, 1, 0);
+            case BookDownloadError.AUDIBLE_LOCKED:
+              // Audible is locked. We need to try again in a bit. Give this one a delay of a few seconds
+              await tryAgainLater(queueEntry.id, type, ATTEMPT_COOLDOWN, ProcessError.AUDIBLE_LOCKED);
               break;
-            case ConversionError.CANCELED:
+            case BookDownloadError.BOOK_NOT_FOUND:
+              // The book could not be found. We can just delete this entry
+              await processFailed(queueEntry.id, type, ProcessError.BOOK_NOT_FOUND, 0, 0);
+              break;
+            case BookDownloadError.CANCELED:
               // The user has canceled. We can just delete this entry
-              await processFailed(queueEntry.id, ProcessError.CANCELED, 1, 0);
+              await processFailed(queueEntry.id, type, ProcessError.CANCELED, 0, 0);
               break;
-            case ConversionError.NO_FOLDER:
-              // Delete this queued entry
-              await processFailed(queueEntry.id, ProcessError.NO_FOLDER, 1, 0);
-              // The download must have failed. Set the book as not downloaded
-              // Assign the book as downloaded
-              await prisma.book.update({
-                where: { asin: queueEntry.book.asin },
-                data: { downloaded: false }
-              });
+            case BookDownloadError.NETWORK_ERROR:
+              // There was a network error that prevented the download. We can just delete this entry
+              await processFailed(queueEntry.id, type, ProcessError.NETWORK_ERROR, 0, 0);
               break;
-            case ConversionError.NO_PROFILE_WITH_AUTHCODE:
+            case BookDownloadError.NO_PROFILE:
+              // This book has no account that owns it. It should be deleted.
+              await tools.deleteBook(queueEntry.book.book.asin);
+              // Delete this entry
+              await processFailed(queueEntry.id, type, ProcessError.NO_PROFILE, 0, 0);
+              break;
+            case BookDownloadError.NO_PROFILE_WITH_AUTHCODE:
               // The profiles need metadata pulled
-              for (const p of queueEntry.book.profiles)
+              for (const p of queueEntry.book.book.profiles)
                 if (p.activation_bytes === null) await audible.cmd.profile.fetchMetadata(p.id, false);
               // We need to re-pull these accounts and make sure there are now bytes. If not, we can't re-add them to the queue
-              const book = await prisma.book.findUnique({ where: { asin: queueEntry.bookAsin }, include: { profiles: true } });
+              const book = await prisma.book.findUnique({ where: { asin: queueEntry.book.bookAsin }, include: { profiles: true }});
               // Check if the book still exists
               if (book !== null) {
                 // Assume there are no bytes
@@ -291,105 +284,175 @@ export namespace LibraryManager {
                 for (const p of book.profiles) if (p.activation_bytes !== null) bytes = true;
                 // Check if there are bytes
                 if (bytes === true) {
-                  await tryAgainLater(queueEntry.id, ATTEMPT_COOLDOWN_SHORT, ProcessError.NO_PROFILE_WITH_AUTHCODE);
+                  await tryAgainLater(queueEntry.id, type, ATTEMPT_COOLDOWN_SHORT, ProcessError.NO_PROFILE_WITH_AUTHCODE);
                   break;
                 }
               }
               // Delete this queued entry
-              await processFailed(queueEntry.id, ProcessError.NO_PROFILE_WITH_AUTHCODE, 1, 0);
-              break;
-            case ConversionError.NO_PROFILE:
-              // This book has no account that owns it. It should be deleted.
-              await tools.deleteBook(queueEntry.book.asin);
-              // Delete this entry
-              await processFailed(queueEntry.id, ProcessError.NO_PROFILE, 1, 0);
-              break;
-            case ConversionError.CONVERSION_ERROR:
-              // We had a general error during the conversion process. This could be one of many issues
-              // Delete this entry
-              await processFailed(queueEntry.id, ProcessError.CONVERSION_ERROR, 1, 0);
-              break;
-            case ConversionError.DESTINATION_NOT_WRITABLE:
-              // The destination folder was not writable
-              // Delete this entry
-              await processFailed(queueEntry.id, ProcessError.DESTINATION_NOT_WRITABLE, 1, 0);
-            case ConversionError.INVALID_FILE:
-              // The file is not valid
-              // Delete this entry
-              await processFailed(queueEntry.id, ProcessError.INVALID_FILE, 1, 0);
-            case ConversionError.COULD_NOT_SAVE:
-              // Delete this entry
-              await processFailed(queueEntry.id, ProcessError.COULD_NOT_SAVE, 1, 0);
+              await processFailed(queueEntry.id, type, ProcessError.NO_PROFILE_WITH_AUTHCODE, 0, 0);
               break;
             default:
-              console.log('ERROR: Unexpected ConversionError:', bookDownload);
+              console.log('ERROR: Unexpected BookDownloadError:', bookDownload);
               // Delete this queued entry
-              await processFailed(queueEntry.id, bookDownload as unknown as ProcessError, 1, 0);
+              await processFailed(queueEntry.id, type, bookDownload as unknown as ProcessError, 0, 0);
               break;
           }
+          // Only continue if there was no error
+          if (bookDownload === BookDownloadError.NO_ERROR) {
+            // Update the progress to show the download done
+            await prisma.processQueue.update({ where: { id: queueEntry.id }, data: { result: null, book: { update: { download_progress: 1 } } } });
+            // 3. Process the book, updating the book progress as required
+            const bookProcess = await AAXtoMP3.cmd.convert.exec(queueEntry.book.book.asin, queueEntry.id, tmpDir);
+            switch (bookProcess) {
+              case ConversionError.NO_ERROR:
+                // Nothing to do, this is the success case
+                break;
+              case ConversionError.BOOK_NOT_FOUND:
+                // Delete this queued entry
+                await processFailed(queueEntry.id, type, ProcessError.BOOK_NOT_FOUND, 1, 0);
+                break;
+              case ConversionError.CANCELED:
+                // The user has canceled. We can just delete this entry
+                await processFailed(queueEntry.id, type, ProcessError.CANCELED, 1, 0);
+                break;
+              case ConversionError.NO_FOLDER:
+                // Delete this queued entry
+                await processFailed(queueEntry.id, type, ProcessError.NO_FOLDER, 1, 0);
+                // The download must have failed. Set the book as not downloaded
+                // Assign the book as downloaded
+                await prisma.book.update({
+                  where: { asin: queueEntry.book.book.asin },
+                  data: { downloaded: false }
+                });
+                break;
+              case ConversionError.NO_PROFILE_WITH_AUTHCODE:
+                // The profiles need metadata pulled
+                for (const p of queueEntry.book.book.profiles)
+                  if (p.activation_bytes === null) await audible.cmd.profile.fetchMetadata(p.id, false);
+                // We need to re-pull these accounts and make sure there are now bytes. If not, we can't re-add them to the queue
+                const book = await prisma.book.findUnique({ where: { asin: queueEntry.book.bookAsin }, include: { profiles: true } });
+                // Check if the book still exists
+                if (book !== null) {
+                  // Assume there are no bytes
+                  let bytes = false;
+                  // Loop through profiles and if any have bytes, set to true
+                  for (const p of book.profiles) if (p.activation_bytes !== null) bytes = true;
+                  // Check if there are bytes
+                  if (bytes === true) {
+                    await tryAgainLater(queueEntry.id, type, ATTEMPT_COOLDOWN_SHORT, ProcessError.NO_PROFILE_WITH_AUTHCODE);
+                    break;
+                  }
+                }
+                // Delete this queued entry
+                await processFailed(queueEntry.id, type, ProcessError.NO_PROFILE_WITH_AUTHCODE, 1, 0);
+                break;
+              case ConversionError.NO_PROFILE:
+                // This book has no account that owns it. It should be deleted.
+                await tools.deleteBook(queueEntry.book.book.asin);
+                // Delete this entry
+                await processFailed(queueEntry.id, type, ProcessError.NO_PROFILE, 1, 0);
+                break;
+              case ConversionError.CONVERSION_ERROR:
+                // We had a general error during the conversion process. This could be one of many issues
+                // Delete this entry
+                await processFailed(queueEntry.id, type, ProcessError.CONVERSION_ERROR, 1, 0);
+                break;
+              case ConversionError.DESTINATION_NOT_WRITABLE:
+                // The destination folder was not writable
+                // Delete this entry
+                await processFailed(queueEntry.id, type, ProcessError.DESTINATION_NOT_WRITABLE, 1, 0);
+              case ConversionError.INVALID_FILE:
+                // The file is not valid
+                // Delete this entry
+                await processFailed(queueEntry.id, type, ProcessError.INVALID_FILE, 1, 0);
+              case ConversionError.COULD_NOT_SAVE:
+                // Delete this entry
+                await processFailed(queueEntry.id, type, ProcessError.COULD_NOT_SAVE, 1, 0);
+                break;
+              default:
+                console.log('ERROR: Unexpected ConversionError:', bookDownload);
+                // Delete this queued entry
+                await processFailed(queueEntry.id, type, bookDownload as unknown as ProcessError, 1, 0);
+                break;
+            }
 
-          // Check if the conversion succeeded
-          if (bookProcess === ConversionError.NO_ERROR) {
-            // Update this queued entry
-            await prisma.processQueue.update({
-              where: { id: queueEntry.id },
-              data: {
-                in_progress: false,
-                is_done: true,
-                process_progress: 1,
-                download_progress: 1,
-                speed: null,
-                total_mb: null,
-                downloaded_mb: null,
-                result: ProcessError.NO_ERROR
-              }
-            });
-            // Send a notification
-            await prisma.notification.create({
-              data: {
-                id: uuidv4(),
-                issuer: 'audible.download' satisfies Issuer,
-                identifier: queueEntry.book.cover?.url_100,
-                theme: 'info' satisfies ModalTheme,
-                text: `<a href="/library/books/${queueEntry.book.asin}">${queueEntry.book.title}</a> <span class="text-gray-600">Downloaded</span>`,
-                sub_text: new Date().toISOString(),
-                linger_time: 10000,
-                needs_clearing: true,
-                auto_open: true
-              }
-            });
+            // Check if the conversion succeeded
+            if (bookProcess === ConversionError.NO_ERROR) {
+              // Update this queued entry
+              await prisma.processQueue.update({
+                where: { id: queueEntry.id },
+                data: {
+                  in_progress: false,
+                  is_done: true,
+                  result: ProcessError.NO_ERROR,
+                  book: {
+                    update: {
+                      process_progress: 1,
+                      download_progress: 1,
+                      speed: null,
+                      total_mb: null,
+                      downloaded_mb: null,
+                    }
+                  }
+                }
+              });
+              // Send a notification
+              await prisma.notification.create({
+                data: {
+                  id: uuidv4(),
+                  issuer: 'audible.download' satisfies Issuer,
+                  identifier: queueEntry.book.book.cover?.url_100,
+                  theme: 'info' satisfies ModalTheme,
+                  text: `<a href="/library/books/${queueEntry.book.book.asin}">${queueEntry.book.book.title}</a> <span class="text-gray-600">Downloaded</span>`,
+                  sub_text: new Date().toISOString(),
+                  linger_time: 10000,
+                  needs_clearing: true,
+                  auto_open: true
+                }
+              });
+              // Note that books were added and a scan should be issued
+              libraryScanShouldBeIssued = true;
+            }
           }
-        }
-        // Get the next element from the queue
-        await lockProcessQueue();
-        queueEntry = await prisma.processQueue.findFirst(getQueueFinder());
-      } catch(e) {
-        try {
-          if (queueEntry !== null) {
-            // Update this queued entry
-            await prisma.processQueue.update({
-              where: { id: queueEntry.id },
-              data: {
-                in_progress: false,
-                is_done: true,
-                process_progress: 0,
-                download_progress: 0,
-                speed: null,
-                total_mb: null,
-                downloaded_mb: null,
-                result: 'UNKNOWN' as ProcessError
-              }
-            });
-          }
+          // Get the next element from the queue
+          await lockProcessQueue();
+          queueEntry = await prisma.processQueue.findFirst(getQueueFinder());
         } catch(e) {
-          // Nothing to do if this fails
+          try {
+            if (queueEntry !== null) {
+              // Update this queued entry
+              await prisma.processQueue.update({
+                where: { id: queueEntry.id },
+                data: {
+                  in_progress: false,
+                  is_done: true,
+                  result: 'UNKNOWN' as ProcessError,
+                  book: {
+                    update: {
+                      process_progress: 0,
+                      download_progress: 0,
+                      speed: null,
+                      total_mb: null,
+                      downloaded_mb: null,
+                    }
+                  }
+                }
+              });
+            }
+          } catch(e) {
+            // Nothing to do if this fails
+          }
+          console.log('Unrecoverable Processor Error', e);
+          // Get the next element from the queue
+          await lockProcessQueue();
+          queueEntry = await prisma.processQueue.findFirst(getQueueFinder());
+        } finally {
+          // if (tmpDir !== undefined) tools.clearDir(tmpDir);
         }
-        console.log('Unrecoverable Processor Error', e);
-        // Get the next element from the queue
-        await lockProcessQueue();
+      } else {
+        // Not sure what kind of process this is. Delete it.
+        await prisma.processQueue.delete({ where: { id: queueEntry.id }});
         queueEntry = await prisma.processQueue.findFirst(getQueueFinder());
-      } finally {
-        // if (tmpDir !== undefined) tools.clearDir(tmpDir);
       }
     }
     unlockProcessQueue();
@@ -402,6 +465,8 @@ export namespace LibraryManager {
       return;
     }
 
+    console.log('run process');
+
     for (let i = 0; i < processorPromises.length; i++) {
       if (processorPromises[i] === undefined) {
         const p = new Promise(processFunc).then(async () => {
@@ -412,6 +477,13 @@ export namespace LibraryManager {
           if (noneWorking && await settings.get('progress.running') === true) {
             await settings.set('progress.running', false);
             await settings.set('progress.endTime', Math.floor(Date.now() / 1000));
+
+            // If a library scan should be issued, check back in the specified amount of time and issue it
+            if (libraryScanShouldBeIssued) {
+              console.log('scan issued');
+              // If we are able to schedule the scan, the scan is resolved.
+              libraryScanShouldBeIssued = await Plex.scheduleScanLibraryFilesAndCollect() ? false : true;
+            }
           }
 
         });
@@ -435,6 +507,8 @@ export namespace LibraryManager {
       where: { in_progress: true },
       data: { in_progress: false }
     });
+
+    await Plex.reset();
 
     console.log(await prisma.processQueue.findMany());
 
@@ -499,8 +573,8 @@ export namespace LibraryManager {
    * @returns true if it is queued for download and processing
    */
   export const getIsQueued = async (asin: string): Promise<boolean> => {
-    const element = await prisma.processQueue.findUnique({ where: { bookAsin: asin } });
-    return element !== null;
+    const element = await prisma.processQueue.findMany({ where: { book: { bookAsin: asin } } });
+    return element.length !== 0;
   }
 
   /**
@@ -513,7 +587,12 @@ export namespace LibraryManager {
         await prisma.processQueue.create({
           data: {
             id: uuidv4(),
-            bookAsin: asin
+            type: types.ProcessType.BOOK,
+            book: {
+              create: {
+                bookAsin: asin
+              }
+            }
           }
         });
       }
@@ -542,11 +621,11 @@ export namespace LibraryManager {
     try {
       console.log('REMOVE QUEUE', asin);
       // Find by the ASIN and the in_progress tag
-      await prisma.processQueue.update({ 
+      await prisma.processQueue.updateMany({ 
         where: { 
-          bookAsin: asin,
           in_progress: false,
-          is_done: false
+          is_done: false,
+          book: { bookAsin: asin }
         },
         data: {
           is_done: true,
@@ -571,9 +650,7 @@ export namespace LibraryManager {
     console.log('REMOVE QUEUEs', asins);
     const removals = await prisma.processQueue.updateMany({
       where: {
-        bookAsin: {
-          in: asins
-        },
+        book: { bookAsin: { in: asins } },
         in_progress: false,
         is_done: false
       },
@@ -582,6 +659,14 @@ export namespace LibraryManager {
       }
     });
     return removals.count;
+  }
+
+  /**
+   * Get if there are no book processors working at this time
+   * @returns if there are no processors working at this time
+   */
+  export const getNoneWorking = () => {
+    return processorPromises.every((p) => p === undefined);
   }
 
   export const getProgress = (asin: string) => prisma.progress.findUnique({ where: { id_type: { id: asin, type: PROGRESS_TYPE } } });
@@ -643,7 +728,7 @@ export namespace Cron {
       // Test Plex Integration -----------------------------------------------------------------------------
       if (await settings.get('plex.enable') === true) {
         if (debug) console.log('Test Plex Integration');
-        const results = await Plex.testPlexConnection(await settings.get('plex.address'), await helpers.decrypt(await settings.get('plex.token')));
+        const results = await Plex.testPlexConnection(await settings.get('plex.address'), await settings.get('plex.token'));
         if (debug > 1) console.log(results);
         cronRecord.plexTest = results;
       }

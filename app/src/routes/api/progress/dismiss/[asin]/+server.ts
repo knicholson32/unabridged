@@ -3,7 +3,7 @@
 import prisma from '$lib/server/prisma';
 import { error, json } from '@sveltejs/kit';
 import * as settings from '$lib/server/settings';
-import type { ProcessProgressesAPI } from '$lib/types';
+import { ProcessType, type ProcessProgressesAPI } from '$lib/types';
 
 export const GET = async ({ params }) => {
 
@@ -15,8 +15,8 @@ export const GET = async ({ params }) => {
   console.log('DISMISS', asin);
 
   try {
-    await prisma.processQueue.delete({
-      where: { bookAsin: asin }
+    await prisma.processQueue.deleteMany({
+      where: {type: ProcessType.BOOK, book: { bookAsin: asin } }
     });
   } catch(e) {
     // Nothing to do if this fails

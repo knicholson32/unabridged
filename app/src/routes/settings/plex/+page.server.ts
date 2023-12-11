@@ -8,26 +8,40 @@ import { PlexOauth } from 'plex-oauth'
 import { redirect } from '@sveltejs/kit';
 import { getContext } from 'svelte';
 import prisma from '$lib/server/prisma';
+import type { Prisma } from '@prisma/client';
+import type { Decimal } from '@prisma/client/runtime/library';
+
+
+type CollectionDetails = (Prisma.SeriesGetPayload<{ include: { books: true } }> & { icon: string, url: string });
+
+// type CollectionDetails = {
+//   key: string,
+//   url: string,
+//   icon: string,
+//   title: string
+// }[];
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params, url }) => {
 
   // const plexSignInSuccess: boolean | undefined = url.searchParams.get('success') === null ? undefined : url.searchParams.get('success') === 'true'
 
+  const extraSettings = await settings.getMany('library.location', 'plex.friendlyName');
 
   const settingValues = {
-    'plex.enable': await settings.get('plex.enable'),
-    'plex.apiTimeout': await settings.get('plex.apiTimeout'),
-    'plex.address': await settings.get('plex.address'),
-    'plex.token': await helpers.decrypt(await settings.get('plex.token')),
-    'plex.library.id': await settings.get('plex.library.id'),
-    'plex.library.name': await settings.get('plex.library.name'),
-    'plex.library.autoScan': await settings.get('plex.library.autoScan'),
-    'plex.library.scheduled': await settings.get('plex.library.scheduled'),
-    'plex.library.autoScanDelay': await settings.get('plex.library.autoScanDelay'),
-    'plex.collections.enable': await settings.get('plex.collections.enable'),
-    'plex.collections.by': await settings.get('plex.collections.by'),
-    'library.location': await settings.get('library.location')
+    ...await settings.getSet('plex'),
+    // 'plex.enable': await settings.get('plex.enable'),
+    // 'plex.apiTimeout': await settings.get('plex.apiTimeout'),
+    // 'plex.address': await settings.get('plex.address'),
+    // 'plex.token': await settings.get('plex.token'),
+    // 'plex.library.id': await settings.get('plex.library.id'),
+    // 'plex.library.name': await settings.get('plex.library.name'),
+    // 'plex.library.autoScan': await settings.get('plex.library.autoScan'),
+    // 'plex.library.scheduled': await settings.get('plex.library.scheduled'),
+    // 'plex.library.autoScanDelay': await settings.get('plex.library.autoScanDelay'),
+    // 'plex.collections.enable': await settings.get('plex.collections.enable'),
+    // 'plex.collections.by': await settings.get('plex.collections.by'),
+    'library.location': extraSettings['library.location']
   }
 
   // Declare some variables to hold whether the Plex integration is signed in and whether it might have issues
@@ -36,6 +50,7 @@ export const load = async ({ params, url }) => {
 
   // Declare a variable to hold the libraries in the Plex server
   let sections: Plex.types.Sections['MediaContainer']['Directory'] = [];
+  const collections: CollectionDetails[] = [];
 
   // Only perform plex API requests if the Plex integration is enabled and certain required values exist (address and token)
   if (settingValues['plex.enable'] === true && settingValues['plex.address']?.length > 0 && settingValues['plex.token']?.length > 0) {
@@ -47,8 +62,30 @@ export const load = async ({ params, url }) => {
       signedIn = true;
       // Get the libraries in the Plex Server
       const results = await Plex.getSections(settingValues['plex.address'], settingValues['plex.token']);
+      console.log(results);
       // Assign the libraries so we can process it later
       sections = results?.MediaContainer.Directory?? [];
+      // Get which collections Unabridged manages
+      const collectBy = settingValues['plex.collections.by'];
+      if (collectBy === CollectionBy.series) {
+        // Get all series that have a collection
+        const collectionsResult = await prisma.series.findMany({ where: { plexKey: { not: null } }, include: { books: true } });
+        const collectionKeys: string[] = [];
+        for (const c of collectionsResult) if (c.plexKey !== null) collectionKeys.push(c.plexKey);
+        const machineId = settingValues['plex.machineId'];
+        const collectionIcons = await Plex.getCollectionThumbnailURLs(collectionKeys, settingValues['plex.address'], settingValues['plex.token']) ?? {};
+        for (const collection of collectionsResult) {
+          if (collection.plexKey === null) continue;
+          const url = await Plex.getCollectionWebURL(collection.plexKey, settingValues['plex.address'], machineId);
+          const icon = collectionIcons[collection.plexKey];
+          if (url === null || icon === undefined) continue;
+          const collectionWithDetails = { ...collection, ...{ icon, url } } satisfies CollectionDetails
+          for (const b of collectionWithDetails.books) b.rating = b.rating.toNumber() as unknown as Decimal;
+          collections.push(collectionWithDetails)
+        }
+      } else if (collectBy === CollectionBy.album) {
+        // TODO: Implement this
+      }
     }
     else issueDetected = true;
   }
@@ -85,8 +122,9 @@ export const load = async ({ params, url }) => {
     plex: {
       signedIn,
       issueDetected,
-      name: await settings.get('plex.friendlyName'),
-      sections: filteredSections
+      name: extraSettings['plex.friendlyName'],
+      sections: filteredSections,
+      collections
     },
   }
 }
@@ -141,18 +179,20 @@ export const actions = {
       const token = (data.get('plex.token') ?? undefined) as undefined | string;
       const library = (data.get('plex.library.id') ?? undefined) as undefined | string;
 
+      const constSettings = await settings.getMany('plex.address', 'plex.token', 'plex.enable');
+
       let results;
-      if (plexEnable ?? await settings.get('plex.enable')) {
+      if (plexEnable ?? constSettings['plex.enable']) {
         // Test the plex connection
-        const results = await Plex.testPlexConnection(address ?? await settings.get('plex.address'), token ?? await helpers.decrypt(await settings.get('plex.token')));
+        const results = await Plex.testPlexConnection(address ?? constSettings['plex.address'], token ?? constSettings['plex.token']);
         if (results.success === true) {
           // The connection was a success. We can save the values
           if (plexEnable !== undefined) await settings.set('plex.enable', plexEnable === 'true');
           if (address !== undefined) await settings.set('plex.address', address);
-          if (token !== undefined) await settings.set('plex.token', await helpers.encrypt(token));
+          if (token !== undefined) await settings.set('plex.token', token);
           if (library !== undefined) {
             // Get the libraries available on the Plex server
-            const results = await Plex.getSections(address ?? await settings.get('plex.address'), token ?? await helpers.decrypt(await settings.get('plex.token')));
+            const results = await Plex.getSections(address ?? await settings.get('plex.address'), token ?? await settings.get('plex.token'));
             // If libraries could not be fetched, we can't continue
             if (results === null || results.MediaContainer.Directory.length === 0) return { action: '?/updatePlexIntegration', name: 'plex.library.id', success: false, message: 'Could not get library information' };
             // Make sure the one that was selected is both in the Plex server and is the correct type
@@ -172,10 +212,44 @@ export const actions = {
     }
   },
   testPlexIntegration: async () => {
-    const results = await Plex.testPlexConnection(await settings.get('plex.address'), await helpers.decrypt(await settings.get('plex.token')));
+    const addressAndToken = await settings.getMany('plex.address', 'plex.token');
+    const results = await Plex.testPlexConnection(addressAndToken['plex.address'], addressAndToken['plex.token']);
     return { action: '?/updatePlexIntegration', invalidatedParams: false, name: results.source, success: results.success, message: results.message };
   },
-  clearPlexIntegration: async () => {
+  clearPlexIntegration: async ({ request }) => {
+    // Debug
+    
+    const constSettings = await settings.getMany('system.debug', 'plex.collections.by', 'plex.address', 'plex.token');
+    const debug = constSettings['system.debug'];
+
+    // Get form data
+    const data = await request.formData();
+
+    if (debug) console.log('Clearing Plex Integration');
+
+    // Delete managed collections if requested to
+    const clearCollections = (data.get('plex.collections.delete') ?? undefined) as undefined | string;
+    if (clearCollections !== undefined && clearCollections === 'true') {
+      // Get the collect-by tag
+      const collectBy = constSettings['plex.collections.by'];
+      const plexURL = constSettings['plex.address'];
+      const plexToken = constSettings['plex.token'];
+      if (collectBy === CollectionBy.series) {
+        // Remove the collections by series
+        // Get all the series that have a plex key assigned
+        const series = await prisma.series.findMany({ where: { plexKey: { not: null } }, select: { plexKey: true, title: debug !== 0 }});
+        // Loop through the collections
+        for (const s of series) {
+          if (s.plexKey === null) continue;
+          const result = await Plex.deleteCollection(s.plexKey, plexURL, plexToken, debug);
+          if (debug) console.log(`Collections: Removing '${s.title}' - ${s.plexKey} : ${result ? 'Successful' : 'Failed'}`);
+        }
+      } else if (collectBy === CollectionBy.album) {
+        // TODO: Implement this
+      }
+    }
+
+    // Clear all plex settings
     await settings.set('plex.enable', false);
     await settings.set('plex.address', '');
     await settings.set('plex.friendlyName', '');
@@ -184,6 +258,19 @@ export const actions = {
     await settings.set('plex.library.key', '');
     await settings.set('plex.library.name', '');
     await settings.set('plex.collections.enable', false);
+
+    // Clear plex correlated db entries
+    try {
+      if (debug) console.log('Clearing Plex Keys from db: book, series, author');
+      await prisma.book.updateMany({ where: { plexKey: { not: null } }, data: { plexKey: null } });
+      await prisma.series.updateMany({ where: { plexKey: { not: null } }, data: { plexKey: null } });
+      await prisma.author.updateMany({ where: { plexKey: { not: null } }, data: { plexKey: null } });
+    } catch (e) {
+      if (debug) console.log('ERROR: Unable to clear Plex Keys');
+    }
+
+    return { action: '?/clearPlexIntegration', name: 'plex.clear', success: true, message: 'Cleared Integration' };
+
   },
   updatePlexAPI: async ({ request }) => {
     const data = await request.formData();
@@ -196,13 +283,13 @@ export const actions = {
     const data = await request.formData();
 
     const autoScan = (data.get('plex.library.autoScan') ?? undefined) as undefined | string;
-    if (autoScan !== undefined) await settings.set('plex.library.autoScan', autoScan === 'true');
+    if (autoScan !== undefined) await settings.set('plex.library.autoScan.enable', autoScan === 'true');
 
     const autoScanDelay = (data.get('plex.library.autoScanDelay') ?? undefined) as undefined | string;
-    if (autoScanDelay !== undefined) await settings.set('plex.library.autoScanDelay', parseInt(autoScanDelay));
+    if (autoScanDelay !== undefined) await settings.set('plex.library.autoScan.delay', parseInt(autoScanDelay));
 
     const scheduled = (data.get('plex.library.scheduled') ?? undefined) as undefined | string;
-    if (scheduled !== undefined) await settings.set('plex.library.scheduled', scheduled === 'true');
+    if (scheduled !== undefined) await settings.set('plex.library.autoScan.scheduled', scheduled === 'true');
   },
   updatePlexCollections: async ({ request }) => {
 
@@ -218,25 +305,31 @@ export const actions = {
       } else await settings.set('plex.collections.by', collectBy);
     }
   },
-  test: async ({ request }) => {
-    const data = await request.formData();
-    const asin = (data.get('asin') ?? undefined) as undefined | string;
+  generateCollections: async ({ request }) => {
 
-    const series = await prisma.series.findMany({
-      where: {
-        books: {
-          some: {
-            processed: true
-          }
-        }
-      },
-      include: {
-        books: true
-      }
-    });
-    for (const s of series) {
-      console.log('collect', await Plex.collectBySeries(s));
-    }
+    Plex.scanLibraryFilesAndCollect();
+
+    // const collectionsEnabled = await settings.get('plex.collections.enable');
+    // if (!collectionsEnabled) return;
+
+    // const data = await request.formData();
+    // const asin = (data.get('asin') ?? undefined) as undefined | string;
+
+    // const series = await prisma.series.findMany({
+    //   where: {
+    //     books: {
+    //       some: {
+    //         processed: true
+    //       }
+    //     }
+    //   },
+    //   include: {
+    //     books: true
+    //   }
+    // });
+    // for (const s of series) {
+    //   console.log('collect', await Plex.collectBySeries(s));
+    // }
 
     // // const books = await prisma.book.findMany({ where: { processed: true } });
     // let counter = 0;

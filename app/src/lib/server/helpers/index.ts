@@ -46,6 +46,17 @@ export const removeTrailingSlashes = (url: string) => {
   return url.replace(/\/$/, "");
 }
 
+/**
+ * Convert a url to a websocket url
+ * @param url the url to convert
+ * @returns the websocket url
+ */
+export const convertToWebsocketURL = (url: string) => {
+  if (url.startsWith('https')) return 'wss' + url.substring(5);
+  else if (url.startsWith('http')) return 'ws' + url.substring(4);
+  else return url
+}
+
 // export const dirsSanitizeNested = (dirs: string[]): string => {
 //   return '\'"' + dirs.map((d) => sanitize(d)).join('/').replaceAll('\"', '\'').replaceAll('\'', '\'"\'"\'') + '"\'';
 // }
@@ -105,4 +116,13 @@ export const decrypt = async (input: string) => {
 
   // Done
   return decryptedData;
+}
+
+/**
+ * Delay for a number of ms
+ * @param ms the number of ms to delay for
+ * @returns the promise
+ */
+export const delay = (ms: number) => {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

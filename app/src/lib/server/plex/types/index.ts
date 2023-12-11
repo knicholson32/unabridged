@@ -143,6 +143,85 @@ export type SearchResult = {
 	}
 }
 
+
+export type IdentityResult = {
+  MediaContainer: {
+    size: number,
+    claimed: boolean,
+    machineIdentifier: string,
+    version: string
+  }
+}
+
+// -------------------------------------------------------------------------------------------------
+// Plex Websocket Notifications
+// -------------------------------------------------------------------------------------------------
+
+export type Notification = StatusNotification | ActivityNotification | ProgressNotification | PlayingNotification;
+
+export interface StatusNotification {
+  NotificationContainer: {
+    type: 'status',
+    size: number,
+    StatusNotification: {
+        title: string,
+        description: string,
+        notificationName: 'LIBRARY_UPDATE'
+    }[]
+  }
+}
+
+export interface ActivityNotification {
+  NotificationContainer: {
+    type: 'activity',
+    size: number,
+    ActivityNotification: {
+      event: 'started' | 'updated' | 'ended',
+      uuid: string,
+      Activity: {
+        uuid: string,
+        type: 'provider.subscriptions.process' | 'library.update.section',
+        cancellable: boolean,
+        userID: number,
+        title: string,
+        subtitle: string,
+        progress: number,
+        Context?: {
+          librarySectionID: string
+        }
+      }
+    }[]
+  }
+}
+
+export interface ProgressNotification {
+  NotificationContainer: {
+    type: 'progress',
+    size: number,
+    ProgressNotification: {
+      message: string
+    }[]
+  }
+}
+
+export interface PlayingNotification {
+	NotificationContainer: {
+		type: 'playing',
+		size: number,
+		PlaySessionStateNotification: {
+      sessionKey: string,
+      clientIdentifier: string,
+      guid: string,
+      ratingKey: string,
+      url: string,
+      key: string,
+      viewOffset: number,
+      state: 'buffering' | 'paused' | 'playing'
+    }[]
+	}
+}
+
+
 // -------------------------------------------------------------------------------------------------
 // Plex OAuth
 // -------------------------------------------------------------------------------------------------

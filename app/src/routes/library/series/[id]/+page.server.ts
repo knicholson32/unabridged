@@ -1,6 +1,7 @@
 import prisma from '$lib/server/prisma';
 import { error, redirect } from '@sveltejs/kit';
 import type { Decimal } from '@prisma/client/runtime/library.js';
+import * as Plex from '$lib/server/plex';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params }) => {
@@ -49,8 +50,12 @@ export const load = async ({ params }) => {
     ratingVal = ratingVal + ((rating * book.num_ratings) / numReviews);
   }
 
+  const collectionURL = series.plexKey === null ? null : await Plex.getCollectionWebURL(series.plexKey);
+  console.log(collectionURL);
+
   return {
     series,
+    collectionURL,
     authors,
     narrators,
     weightedAvgRating: {

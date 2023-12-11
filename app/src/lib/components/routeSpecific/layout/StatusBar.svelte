@@ -1,23 +1,27 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
 	import icons from '$lib/components/icons';
-	import type { PageNeedsProgress, ProcessProgress, UpdateProgress } from '$lib/types';
+	import type { PageNeedsProgress, ProcessBookProgress, UpdateProgress } from '$lib/types';
   import type { Prisma } from "@prisma/client";
 	import { getContext } from 'svelte';
 
-  export let progress: ProcessProgress;
+  export let progress: ProcessBookProgress;
 
   const updateProgress = getContext<UpdateProgress>('updateProgress');
 
-  $: downloaded = progress.download_progress >= 1;
-  $: waitingForDownload = progress.download_progress === 0;
-  $: processed = progress.process_progress >= 1;
-  $: waitingForProcess = downloaded && progress.process_progress === 0;
+  $: {
+    console.log(progress);
+  }
 
-  $: barProgress = (downloaded ? progress.process_progress / 2 + 0.5 : progress.download_progress / 2)
+  $: downloaded = (progress.book?.download_progress ?? 0) >= 1;
+  $: waitingForDownload = progress.book?.download_progress === 0;
+  $: processed = (progress.book?.process_progress ?? 0) >= 1;
+  $: waitingForProcess = downloaded && progress.book?.process_progress === 0;
+
+  $: barProgress = (downloaded ? (progress.book?.process_progress ?? 0) / 2 + 0.5 : (progress.book?.download_progress ?? 0) / 2)
 
   const cancel = async () => {
-    await fetch(`/api/library/cancel/book/${progress.bookAsin}`);
+    await fetch(`/api/library/cancel/book/${progress.book?.bookAsin}`);
     updateProgress();
   }
 
@@ -25,10 +29,10 @@
 
 <div class="relative mx-2 my-2">
   <div class="mx-1 inline-flex overflow-hidden whitespace-nowrap gap-1">
-    <div class="w-10"><img src="{progress.book.cover?.url_100}" class="rounded-md h-10 w-10" alt="{progress.book.title} Cover Image" /></div>
+    <div class="w-10"><img src="{progress.book?.book.cover?.url_100}" class="rounded-md h-10 w-10" alt="{progress.book?.book.title} Cover Image" /></div>
     <div class="truncate max-w-[18rem]">
-      <span class="font-serif font-bold" title="{progress.book.title}">{progress.book.title}</span>
-      <span class="block text-xs text-gray-500">By {progress.book.authors[0].name}</span>
+      <span class="font-serif font-bold" title="{progress.book?.book.title}">{progress.book?.book.title}</span>
+      <span class="block text-xs text-gray-500">By {progress.book?.book.authors[0].name}</span>
     </div>
     <!-- <button on:click={cancel} type="button" title="Cancel" class="absolute right-0 top-0 px-1 py-1 transition-colors duration-100 rounded-lg text-black hover:text-white hover:bg-red-700" >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
@@ -41,7 +45,7 @@
   </div>
   <div class="mx-1">
     <div class="flex justify-between mb-1">
-      <span class="text-xs font-medium text-blue-700 dark:text-white">{@html waitingForDownload ? 'Starting' : (!downloaded ? `Downloading <span class="text-gray-400 font-mono">${progress.downloaded_mb?.toFixed(1)}/${progress.total_mb?.toFixed(1)}MB @ ${progress.speed?.toFixed(1)}Mb/s</span>` : (!processed ? `Processing <span class="text-gray-400 font-mono">${progress.speed ?? '0'}x</span>` : 'Finishing'))}</span>
+      <span class="text-xs font-medium text-blue-700 dark:text-white">{@html waitingForDownload ? 'Starting' : (!downloaded ? `Downloading <span class="text-gray-400 font-mono">${progress.book?.downloaded_mb?.toFixed(1)}/${progress.book?.total_mb?.toFixed(1)}MB @ ${progress.book?.speed?.toFixed(1)}Mb/s</span>` : (!processed ? `Processing <span class="text-gray-400 font-mono">${progress.book?.speed ?? '0'}x</span>` : 'Finishing'))}</span>
       <span class="text-xs font-medium text-blue-700 dark:text-white">{Math.floor(barProgress*100)}%</span>
     </div>
     <div class="px-2">

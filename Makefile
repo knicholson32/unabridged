@@ -12,8 +12,7 @@ create-all:
 setup:
 	docker volume rm --force nodemodules-unabridged
 	docker volume create nodemodules-unabridged
-	docker build --bu
-	ild-arg GIT_COMMIT=$(shell git rev-parse HEAD) --file ./docker/Dockerfile --target dev -t unabridged-dev .
+	docker build --build-arg GIT_COMMIT=$(shell git rev-parse HEAD) --file ./docker/Dockerfile --target dev -t unabridged-dev .
 install:
 	docker-compose -f ./docker/docker-compose.builder.yml -p unabridged run --rm =
 dev:

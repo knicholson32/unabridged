@@ -10,6 +10,9 @@ declare global {
 		// interface Platform {}
 	}
 	declare namespace globalThis {
+		declare namespace plex {
+			let interval: NodeJS.Interval | undefined;
+		}
 		declare namespace manager {
 			let interval: NodeJS.Interval | undefined;
 			let cronTask: cron.ScheduledTask | undefined;

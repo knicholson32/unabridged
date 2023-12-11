@@ -43,6 +43,7 @@ export const showNotifications = async (alertsComponent: Alerts, notifications: 
     if (alertsComponent.isShowingID(notification.id)) continue;
     switch (notification.issuer) {
       case 'audible.download':
+      case 'plex.scan':
         alertsComponent.showNotification(notification.text, {
           id: notification.id,
           theme: notification.theme,

@@ -72,7 +72,13 @@ export const download = async (asin: string, processID: string, tmpDir: string):
   await writeConfigFile();
 
   // Update process progress for download to 0
-  await prisma.processQueue.update({ where: { id: processID }, data: { download_progress: 0 } });
+  await prisma.processQueue.update({ where: { id: processID }, data: { 
+    book: {
+      update: {
+        download_progress: 0
+      }
+    }
+  }});
 
   // // Create the progress entry
   // await prisma.progress.create({
@@ -153,11 +159,15 @@ export const download = async (asin: string, processID: string, tmpDir: string):
           // });
           await prisma.processQueue.update({ 
             where: { id: processID },
-            data: { 
-              download_progress: isNaN(progress) ? 0 : progress,
-              downloaded_mb: isNaN(downloaded) ? null : downloaded,
-              total_mb: isNaN(total) ? null : total,
-              speed: isNaN(speed) ? null : speed
+            data: {
+              book: {
+                update: {
+                  download_progress: isNaN(progress) ? 0 : progress,
+                  downloaded_mb: isNaN(downloaded) ? null : downloaded,
+                  total_mb: isNaN(total) ? null : total,
+                  speed: isNaN(speed) ? null : speed
+                }
+              }
             }
           });
         } catch(e) {
@@ -368,10 +378,14 @@ export const download = async (asin: string, processID: string, tmpDir: string):
   await prisma.processQueue.update({
     where: { id: processID },
     data: {
-      download_progress: 1,
-      downloaded_mb: null,
-      total_mb: null,
-      speed: null
+      book: {
+        update: {
+          download_progress: 1,
+          downloaded_mb: null,
+          total_mb: null,
+          speed: null
+        }
+      }
     }
   });
 

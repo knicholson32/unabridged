@@ -101,7 +101,7 @@ export type URLAlert = {
     settings?: AlertSettings
 }
 
-export type Issuer = 'general' | 'audible.download' | 'account.sync';
+export type Issuer = 'general' | 'audible.download' | 'plex.scan' | 'account.sync';
 export type Notification = {
   id:             string,
   icon_path:      string | null,
@@ -149,22 +149,29 @@ export type Progress = Prisma.ProgressGetPayload<{
     }
 }>;
 
-export type ProcessProgress = Prisma.ProcessQueueGetPayload<{
+export type ProcessBookProgress = Prisma.ProcessQueueGetPayload<{
     include: {
         book: {
-            select: {
-                title: true,
-                authors: true,
-                genres: true,
-                cover: {
+            include: {
+                book: {
                     select: {
-                        url_100: true
+                        title: true,
+                        authors: true,
+                        genres: true,
+                        cover: {
+                            select: {
+                                url_100: true
+                            }
+                        }
                     }
                 }
             }
         }
     }
 }>;
+
+export type ProcessProgress = ProcessBookProgress;
+
 
 export type ProgressAPI = {
     ok: boolean,
@@ -189,6 +196,10 @@ export type ProcessProgressAPI = {
 }
 
 export type ProgressStatus = 'RUNNING' | 'DONE' | 'ERROR'
+
+export enum ProcessType {
+    BOOK = 'BOOK'
+}
 
 export type ProgressManyAPI = {
     ok: boolean,
