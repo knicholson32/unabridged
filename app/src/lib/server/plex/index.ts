@@ -157,15 +157,6 @@ const resource = async (resource: string, method: Method, params: { [key: string
   // Initialize a variable to hold the url
   let url;
 
-  console.log('resource with debug ' + debug);
-
-  // const escapedParams: { [key: string]: string } = {};
-  // // Make sure the param values are escaped
-  // for (const key of Object.keys(params)) {
-  //   if (debug > 2) console.log(params[key], 'to', encodeURI(params[key]));
-  //   escapedParams[key] = encodeURI(params[key]);
-  // }
-
   // Parse the params
   const paramsString = new URLSearchParams(params).toString();
 
@@ -511,19 +502,7 @@ export const getCollectionThumbnailURLs = async (collectionKeys: string[], plexU
  * @param debug debug
  * @returns whether or not the debug was successful
  */
-export const deleteCollection = async (plexKey: string, plexURL?: string, plexToken?: string, debug?: number): Promise<boolean> => {
-  // Check that plex is enabled
-  if (await settings.get('plex.enable') !== true) return false;
-  // Get debug
-  if (debug === undefined) debug = await settings.get('system.debug');
-  // Populate the plex URL and token if they are not populated
-  if (plexURL === undefined) plexURL = await settings.get('plex.address');
-  if (plexToken === undefined) plexToken = await settings.get('plex.token');
-  if (debug) console.log('delete', plexKey);
-
-
-  console.log(plexToken);
-
+export const deleteCollection = async (plexKey: string, plexURL: string, plexToken: string, debug: number): Promise<boolean> => {
   // Make the collection
   const results = await resource(`/library/collections/${plexKey}`, Method.DELETE, {}, plexURL, plexToken, debug, false);
   // Exit if it failed
@@ -572,7 +551,7 @@ export const collectBySeries = async (series: SeriesType, plexURL?: string, plex
   if (keysToAdd.length === 0) return true;
 
   // Initialize the collection key
-  let collectionKey : string | null = null;
+  let collectionKey: string | null = null;
 
   // Check if a collection already exists for this series
   if (series.plexKey !== null) {
@@ -615,7 +594,7 @@ export const collectBySeries = async (series: SeriesType, plexURL?: string, plex
   }
 
   // Add the books to the collection
-  const results = await resource(`/library/collections/${collectionKey}/items`, Method.PUT, { 
+  const results = await resource(`/library/collections/${collectionKey}/items`, Method.PUT, {
     'uri': `server://${serverID}/com.plexapp.plugins.library/library/metadata/${keysToAdd.join(',')}`
   }, plexURL, plexToken, debug, false);
 
@@ -626,6 +605,82 @@ export const collectBySeries = async (series: SeriesType, plexURL?: string, plex
   return true;
 
 }
+
+/**
+ * Ad a book to a specific collection
+ * @param series the book to add
+ * @param collectionKey the collection to add it to
+ * @param plexURL the URL of the plex server
+ * @param plexToken the token of the plex server
+ * @param debug debug
+ * @returns whether or not the collection was made and books were added
+ */
+export const collectToSpecificCollection = async (books: BookType[], collectionKey: string, plexURL: string, plexToken: string, debug=0): Promise<boolean> => {
+  // Check that the collectionKey looks valid
+  if (collectionKey.length === 0 || !(await checkCollectionExists(collectionKey, plexURL, plexToken, debug))) return false;
+
+  // Create an array to hold the keys to add
+  const keysToAdd: string[] = [];
+
+  // Loop through each book and add it to the collection
+  for (const book of books) {
+    // If the book isn't processed, skip
+    if (book.processed !== true) continue;
+    // Get the plex key
+    let bookKey: null | string = book.plexKey;
+    // If the book doesn't have a key, try and match one
+    if (bookKey === null) {
+      bookKey = await matchBookToPlexEntry(book.asin, plexURL, plexToken);
+      // If the key still isn't there, skip
+      if (bookKey === null) continue;
+    }
+    // Add the book to the collection
+    keysToAdd.push(bookKey);
+  }
+
+  // Exit successfully if there were no books to add
+  if (keysToAdd.length === 0) return true;
+
+  // Get the server ID
+  let serverID = await settings.get('plex.machineId');
+  // If it doesn't exist, try to fetch it
+  if (serverID === '') {
+    // Try and fetch it
+    await testPlexConnection(plexURL, plexToken, true);
+    // Get the server ID again
+    serverID = await settings.get('plex.machineId');
+    // If it still doesn't exist, exit
+    if (serverID === '') return false;
+  }
+
+  // Add the books to the collection
+  const results = await resource(`/library/collections/${collectionKey}/items`, Method.PUT, {
+    'uri': `server://${serverID}/com.plexapp.plugins.library/library/metadata/${keysToAdd.join(',')}`
+  }, plexURL, plexToken, debug, false);
+
+  // Exit as failed if the command failed
+  if (results === null || results.status !== 200) return false
+
+  // Done!
+  return true;
+
+}
+
+
+/**
+ * Check that a collection exists in Plex
+ * @param collectionKey the collection to check
+ * @param plexURL the URL of the plex server
+ * @param plexToken the token of the plex server
+ * @returns whether or not the collection currently exists on the plex server
+ */
+export const checkCollectionExists = async (collectionKey: string, plexURL: string, plexToken: string, debug = 0): Promise<boolean> => {
+  // Check if the collection actually exists
+  // We need to verify that the collection exists in Plex also
+  const collectionLookup = await resource(`/library/collections/${collectionKey}`, Method.GET, {}, plexURL, plexToken, debug);
+  return collectionLookup !== null && collectionLookup.status === 200 && collectionLookup.value !== null && (collectionLookup.value as types.SearchResult).MediaContainer.size > 0 && (collectionLookup.value as types.SearchResult).MediaContainer.Metadata.length > 0;
+}
+
 
 /**
  * Start a library file scan with Plex
@@ -769,7 +824,8 @@ export const reset = async () => {
 const scheduler = async (overrideChecks=false) => {
   console.log('scheduler run')
   // Get the next run time
-  const constSettings = await settings.getMany('plex.library.autoScan.nextRun', 'plex.library.autoScan.inProgress');
+  const constSettings = await settings.getMany('plex.library.autoScan.nextRun', 'plex.library.autoScan.inProgress', 'system.debug');
+  const debug = constSettings['system.debug'];
   // Check to see if we are ready to run
   if (overrideChecks || (constSettings['plex.library.autoScan.nextRun'] !== -1 && constSettings['plex.library.autoScan.inProgress'] === false && Math.floor(Date.now() / 1000) - constSettings['plex.library.autoScan.nextRun'] > 0)) {
     console.log('scheduler trigger')
@@ -808,21 +864,47 @@ const scheduler = async (overrideChecks=false) => {
           // Check if we should do a collection update
           if (plexSettings['plex.collections.enable'] === true) {
             console.log('start collecting');
+            // Set the collection progress to 0
             await settings.set('plex.library.collection.progress', 0);
             try {
+              // Switch based on the collection type
               if (plexSettings['plex.collections.by'] === publicTypes.CollectionBy.series) {
                 console.log('collection by series');
+                // Get every series
                 const series = await prisma.series.findMany({
                   where: { books: { some: { processed: true } } },
                   include: { books: true }
                 });
+                // Loop through every series and collect it
                 for (let i = 0; i < series.length; i++) {
                   const s = series[i];
-                  await collectBySeries(s);
+                  await collectBySeries(s, plexSettings['plex.address'], plexSettings['plex.token']);
+                  // Update the collection progress
                   await settings.set('plex.library.collection.progress', i / series.length);
                 }
-              } else if (plexSettings['plex.collections.by'] === publicTypes.CollectionBy.album) {
-                console.log(`ERROR: Unimplemented collection by: ${plexSettings['plex.collections.by']}`);
+                // Get all books that don't have a series
+                const books = await prisma.book.findMany({ where: { processed: true, seriesId: null }, include: { authors: true } });
+                // Check if we should also manage the collection for singles
+                if (plexSettings['plex.collections.groupSingles'] === true && books.length > 0) {
+                  console.log('Collect singles');
+                  // Make a collection for the single books if one doesn't exist
+                  let key: string | null = plexSettings['plex.collections.singlesKey'];
+                  if (key === '') {
+                    key = await createCollection('No Series', plexSettings['plex.library.key'], plexSettings['plex.address'], plexSettings['plex.token'], debug);
+                    await settings.set('plex.collections.singlesKey', key ?? '');
+                  }
+                  // Check to see that the key worked
+                  if (key !== null && key !== '' && await checkCollectionExists(key, plexSettings['plex.address'], plexSettings['plex.token'], debug)) {
+                    console.log('Adding books', books);
+                    // Add all the books to the collection
+                    await collectToSpecificCollection(books, key, plexSettings['plex.address'], plexSettings['plex.token'], debug);
+                  }
+                } else {
+                  // We should not. Delete it if it exists
+                  if (plexSettings['plex.collections.singlesKey'] !== '')
+                    if (await deleteCollection(plexSettings['plex.collections.singlesKey'], plexSettings['plex.address'], plexSettings['plex.token'], debug))
+                      await settings.set('plex.collections.singlesKey', '');
+                }
               } else {
                 console.log(`ERROR: Unimplemented collection by: ${plexSettings['plex.collections.by']}`);
               }

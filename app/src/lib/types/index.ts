@@ -336,6 +336,5 @@ export namespace Cron {
 // -------------------------------------------------------------------------------------------------
 
 export enum CollectionBy {
-    series = 'series',
-    album = 'album'
+    series = 'series'
 }

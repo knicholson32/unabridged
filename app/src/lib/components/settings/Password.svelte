@@ -17,7 +17,7 @@
 
 </script>
 
-<Frame title={title} error={(form?.success === false && form?.name === name) ? form.message ?? null : errorMessage !== null ? errorMessage : null} success={successMessage}>
+<Frame title={title} hoverTitle={hoverTitle} error={(form?.success === false && form?.name === name) ? form.message ?? null : errorMessage !== null ? errorMessage : null} success={successMessage}>
   <div class="-my-2 flex flex-col-reverse gap-2 sm:flex-row sm:inline-flex sm:items-center">
     <slot/>
     <Password 

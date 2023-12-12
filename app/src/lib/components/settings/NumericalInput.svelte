@@ -28,7 +28,7 @@
   }
 </style>
 
-<Frame title={title} error={(form?.success === false && form?.name === name) ? form.message ?? null : null}>
+<Frame title={title} hoverTitle={hoverTitle} error={(form?.success === false && form?.name === name) ? form.message ?? null : null}>
   <!-- <div class="-my-2 flex rounded-md border-0 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
     <span class="flex select-none items-center pl-3 text-gray-500 sm:text-sm">http://</span>
     <input 

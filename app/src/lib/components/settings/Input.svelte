@@ -23,7 +23,7 @@
 
 </script>
 
-<Frame title={title} link={link} error={(form?.success === false && form?.name === name) ? form.message ?? null : null}>
+<Frame title={title} hoverTitle={hoverTitle} link={link} error={(form?.success === false && form?.name === name) ? form.message ?? null : null}>
   <div class="-my-2 flex flex-col-reverse sm:flex-row sm:inline-flex sm:items-center">
     {#if leadingText !== null}
       <p class="mr-2 text-xxs font-mono select-none text-right {leadingText.error ? 'text-red-400' : 'text-gray-400'}">

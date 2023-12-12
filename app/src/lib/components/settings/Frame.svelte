@@ -1,5 +1,6 @@
 <script lang="ts">
   export let title: string;
+  export let hoverTitle: string
   export let error: string | null = null;
   export let success: string | null = null;
   export let link: {href: string, title: string, icon?: string} | null = null;
@@ -9,10 +10,10 @@
   export let indent = false;
 </script>
 
-<div class="sm:mr-3 mt-2 sm:mt-0" >
+<div class="sm:mr-3 mt-2 sm:mt-0">
   <div class="pt-6 flex items-center">
     <dt class="pr-6 font-medium text-gray-900 sm:w-64" id="timezone-option-label">
-      <div class="flex gap-x-2 relative items-center {indent ? 'ml-5 font-mono' : ''}">
+      <div class="flex gap-x-2 relative items-center {indent ? 'ml-5 font-mono' : ''}" title={hoverTitle}>
         {#if titleLink !== null}
           <a href={titleLink} class="flex gap-x-2 items-center">
             {#if titleImg !== null}

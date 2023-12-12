@@ -28,6 +28,8 @@ export const TypeNames = {
                    'plex.machineId': '',
           'plex.collections.enable': false,
               'plex.collections.by': types.CollectionBy.series,
+    'plex.collections.groupSingles': true,
+      'plex.collections.singlesKey': '',
                   'plex.library.id': '',
                  'plex.library.key': '',
                 'plex.library.name': '',
@@ -73,6 +75,8 @@ export type ObjectType<T extends TypeName> =
   T extends 'plex.machineId' ? string :                    // String
   T extends 'plex.collections.enable' ? boolean :          // Boolean
   T extends 'plex.collections.by' ? types.CollectionBy :   // Enum
+  T extends 'plex.collections.groupSingles' ? boolean :    // Boolean
+  T extends 'plex.collections.singlesKey' ? string :       // String
   T extends 'plex.library.autoScan.enable' ? boolean :     // Boolean
   T extends 'plex.library.autoScan.timeout' ? number :     // Integer
   T extends 'plex.library.autoScan.delay' ? number :       // Integer
@@ -125,6 +129,7 @@ export const get = async <T extends TypeName>(setting: T, settingVal?: SettingPa
       case 'system.cron.enable':
       case 'plex.enable':
       case 'plex.collections.enable':
+      case 'plex.collections.groupSingles':
       case 'plex.library.autoScan.enable':
       case 'plex.library.autoScan.scheduled':
       case 'plex.library.autoScan.inProgress':
@@ -157,6 +162,7 @@ export const get = async <T extends TypeName>(setting: T, settingVal?: SettingPa
       case 'plex.library.id':
       case 'plex.library.key':
       case 'plex.library.name':
+      case 'plex.collections.singlesKey':
       case 'library.location':
         return settingVal.value as ObjectType<T>;
       

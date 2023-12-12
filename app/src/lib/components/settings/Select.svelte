@@ -21,7 +21,7 @@
   }
 </style>
 
-<Frame title={title} badge={badge} error={(form?.success === false && form?.name === name) ? form.message ?? null : null}>
+<Frame title={title} hoverTitle={hoverTitle} badge={badge} error={(form?.success === false && form?.name === name) ? form.message ?? null : null}>
   <div class="-my-2">
     <select
       on:change={update}

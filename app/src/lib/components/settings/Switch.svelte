@@ -16,6 +16,6 @@
 
 </script>
 
-<Frame title={title} indent={indent} titleImg={titleImg} titleLink={titleLink} error={(form?.success === false && form?.name === name) ? form.message ?? null : null}>
+<Frame title={title} hoverTitle={hoverTitle} indent={indent} titleImg={titleImg} titleLink={titleLink} error={(form?.success === false && form?.name === name) ? form.message ?? null : null}>
   <Switch changed={(b) => { update() }} type="button" forceHiddenInput={true} disabled={disabled} hoverTitle={hoverTitle} valueName={name} bind:value={value} />
 </Frame>

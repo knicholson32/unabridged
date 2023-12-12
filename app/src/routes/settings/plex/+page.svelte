@@ -52,6 +52,7 @@
   let libraryIDSaved = data.settingValues['plex.library.id'];
   let collectionsEnable = data.settingValues['plex.collections.enable'];
   let collectBy = data.settingValues['plex.collections.by'];
+  let groupSingles = data.settingValues['plex.collections.groupSingles'];
 
   // Utilities
   beforeNavigate(({ cancel }) => {
@@ -161,7 +162,7 @@
     hoverTitle={data.plex.signedIn === false ? 'Disabled because Plex is not signed in.' : 'Select which library Unabridged is saving to.'}
     options={ data.plex.sections } />
 
-  <Settings.Frame title={'Clear Integration'}>
+  <Settings.Frame title={'Clear Integration'} hoverTitle={"Erase Plex integration settings"}>
     <form method="POST" action={'?/clearPlexIntegration'} use:enhance={({cancel, formData}) => {
       if (!confirm(`Are you sure?\n\nThis will disconnect Unabridged from your Plex server${(formData.get('plex.collections.delete') ?? 'false') === 'true' ? ' and delete managed collections.' : '.'}`)) return cancel();
       return async ({ update }) => {
@@ -208,8 +209,12 @@
   
   <Settings.Select form={form} name="plex.collections.by" title="Collect Books Via" update={plexCollectionsUpdate} bind:value={collectBy} 
     disabled={collectionsEnable === false || libraryIDSaved === ''}
-    options={[CollectionBy.series, CollectionBy.album]}
+    options={[CollectionBy.series]}
     hoverTitle={libraryIDSaved === '' ? 'Disabled because no Plex Library is selected. See \'Plex Integration\' settings above.' : collectionsEnable === false ? 'Disabled because Plex collection management is disabled' : 'Specify how audiobooks could be collected in Plex'} />
+
+  <Settings.Switch name="plex.collections.groupSingles" title="Collect single books" update={plexCollectionsUpdate} bind:value={groupSingles} 
+    disabled={libraryIDSaved === ''}
+    hoverTitle={libraryIDSaved === '' ? 'Disabled because no Plex Library is selected. See \'Plex Integration\' settings above.' : 'Whether or not to create and manage a collection for the books that would not otherwise have a Plex collection.'} />
   
   <div class="flex flex-col gap-3 pt-4">
   {#if data.plex.collections.length > 0}

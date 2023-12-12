@@ -83,8 +83,9 @@ export const load = async ({ params, url }) => {
           for (const b of collectionWithDetails.books) b.rating = b.rating.toNumber() as unknown as Decimal;
           collections.push(collectionWithDetails)
         }
-      } else if (collectBy === CollectionBy.album) {
+      } else {
         // TODO: Implement this
+        console.error('Unimplemented collection type', collectBy);
       }
     }
     else issueDetected = true;
@@ -219,7 +220,7 @@ export const actions = {
   clearPlexIntegration: async ({ request }) => {
     // Debug
     
-    const constSettings = await settings.getMany('system.debug', 'plex.collections.by', 'plex.address', 'plex.token');
+    const constSettings = await settings.getMany('system.debug', 'plex.collections.by', 'plex.address', 'plex.token', 'plex.collections.singlesKey');
     const debug = constSettings['system.debug'];
 
     // Get form data
@@ -244,8 +245,14 @@ export const actions = {
           const result = await Plex.deleteCollection(s.plexKey, plexURL, plexToken, debug);
           if (debug) console.log(`Collections: Removing '${s.title}' - ${s.plexKey} : ${result ? 'Successful' : 'Failed'}`);
         }
-      } else if (collectBy === CollectionBy.album) {
+        // Check the singles collection
+        if (constSettings['plex.collections.singlesKey'] !== '') {
+          const r = await Plex.deleteCollection(constSettings['plex.collections.singlesKey'], plexURL, plexToken, debug);
+          if (r) await settings.set('plex.collections.singlesKey', '');
+        }
+      } else {
         // TODO: Implement this
+        console.error('Unimplemented collection type', collectBy);
       }
     }
 
@@ -303,10 +310,13 @@ export const actions = {
 
     const collectBy = (data.get('plex.collections.by') ?? undefined) as undefined | string;
     if (collectBy !== undefined) {
-      if (collectBy !== CollectionBy.album && collectBy !== CollectionBy.series) {
+      if (collectBy !== CollectionBy.series) {
         return { action: '?/updatePlexCollections', name: 'plex.collections.by', success: false, message: 'Invalid collection type. Please choose a valid selection.' };
       } else await settings.set('plex.collections.by', collectBy);
     }
+
+    const groupSingles = (data.get('plex.collections.groupSingles') ?? undefined) as undefined | string;
+    if (groupSingles !== undefined) await settings.set('plex.collections.groupSingles', groupSingles === 'true');
   },
   generateCollections: async ({ request }) => {
 
