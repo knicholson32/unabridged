@@ -6,7 +6,7 @@ import * as helpers from '$lib/server/helpers';
 import Fuse from 'fuse.js';
 import fetch, { AbortError } from 'node-fetch';
 import type { Prisma } from '@prisma/client';
-import * as websocket from 'websocket';
+import WebSocket from 'ws';
 import { LibraryManager } from '../cmd';
 
 export * as types from './types';
@@ -88,25 +88,24 @@ export const testPlexConnection = async (address: string, token: string, saveDat
 
     // Test the websocket connection
     const connectTest = new Promise<void>((resolve, reject) => {
-      // Create a new websocket client
-      const client = new websocket.client();
-      // Set a timeout for the connect
-      const timeout = setTimeout(() => reject(), 3000);
+      if(debug) console.log(helpers.convertToWebsocketURL(plexURL) + '/:/websockets/notifications');
+      const ws = new WebSocket(helpers.convertToWebsocketURL(plexURL) + '/:/websockets/notifications', { headers: { 'X-Plex-Token': plexToken } });
+      const timeout = setTimeout(() => {
+        ws.terminate();
+        reject('timeout waiting for connection');
+      }, 3000);
       // Reject on failed connection
-      client.on('connectFailed', function (error) {
+      ws.on('error', (error) => {
         clearTimeout(timeout);
-        reject(error);
+        ws.terminate();
+        if(debug) console.log('websocket join error', error);
+        reject(error.message);
       });
       // Resolve on succeeded connections
-      client.on('connect', function (connection) {
+      ws.on('open', () => {
         clearTimeout(timeout);
-        connection.close();
+        ws.close();
         resolve();
-      });
-      console.log(helpers.convertToWebsocketURL(plexURL));
-      // Create the connection
-      client.connect(helpers.convertToWebsocketURL(plexURL) + '/:/websockets/notifications', undefined, undefined, {
-        'X-Plex-Token': plexToken
       });
     });
 
@@ -115,7 +114,7 @@ export const testPlexConnection = async (address: string, token: string, saveDat
       await connectTest;
     } catch (e) {
       console.log(e);
-      return { success: false, source: 'plex.address', message: 'Could not connect to Plex API Websocket' };
+      return { success: false, source: 'plex.address', message: 'Could not connect to Plex API Websocket: ' + e };
     }
 
     // Return success
@@ -158,6 +157,8 @@ const resource = async (resource: string, method: Method, params: { [key: string
   // Initialize a variable to hold the url
   let url;
 
+  console.log('resource with debug ' + debug);
+
   // const escapedParams: { [key: string]: string } = {};
   // // Make sure the param values are escaped
   // for (const key of Object.keys(params)) {
@@ -180,7 +181,7 @@ const resource = async (resource: string, method: Method, params: { [key: string
 
   // Get the data
   try {
-    // Make the fetch requiest
+    // Make the fetch request
     const response = await fetch(url, {
       method: method,
       headers: {
@@ -626,92 +627,6 @@ export const collectBySeries = async (series: SeriesType, plexURL?: string, plex
 
 }
 
-let registeredPlexCompleteFunction: (() => void) | null = null;
-const plexScanComplete = () => {
-  console.log('Plex scan complete!');
-  if (registeredPlexCompleteFunction !== null) registeredPlexCompleteFunction();
-}
-
-let plexNotificationConnection: websocket.connection | null = null;
-
-const activateWebsocketConnection = async (sectionId: string, plexURL: string, plexToken: string) => {
-  return new Promise<void>(async (resolve, reject) => {
-    if (plexNotificationConnection !== null) {
-      resolve();
-      return;
-    }
-
-    // Clear all in-progress items (as we might have missed things)
-    await prisma.progress.deleteMany({ where: { ref: 'plex' } });
-
-    // Create a new websocket client
-    const client = new websocket.client();
-
-    // Set a timeout for the connect
-    const timeout = setTimeout(() => {
-      client.abort();
-      plexNotificationConnection = null;
-      reject();
-    }, 3000);
-    // Reject on failed connection
-    client.on('connectFailed', function (error) {
-      clearTimeout(timeout);
-      plexNotificationConnection = null;
-      reject();
-    });
-    // Resolve on succeeded connections
-    client.on('connect', (connection) => {
-      // Clear the connection timeout restriction
-      clearTimeout(timeout);
-      // Assign the connection
-      plexNotificationConnection = connection;
-      // Create a function that will process each message
-      connection.on('message', async (d) => {
-        // Check that the message is string (not binary)
-        if (d.type === 'utf8') {
-          // Parse the message as a notification
-          const data = JSON.parse(d.utf8Data) as types.Notification;
-          // Nothing to do if there is no content
-          if (data.NotificationContainer.size === 0) return;
-          // Switch based on the type
-          if (data.NotificationContainer.type === 'activity') {
-            // Loop through each activity notification
-            for (const entry of data.NotificationContainer.ActivityNotification) {
-              // If there is no library context, the id doesn't match the library that Unabridged has access to, or it isn't for a library scan, nothing to do
-              if (entry.Activity.Context === undefined) continue;
-              if (entry.Activity.Context.librarySectionID !== sectionId) continue;
-              if (entry.Activity.type !== 'library.update.section') continue;
-              // Switch based on the type of activity
-              if (entry.event === 'updated') {
-                await settings.set('plex.library.autoScan.progress', entry.Activity.progress / 100);
-              } else if (entry.event === 'ended') {
-                console.log('Message: ended', entry.uuid);
-                await settings.set('plex.library.autoScan.progress', 1);
-                plexScanComplete();
-                connection.close();
-              }
-            }
-          }
-        }
-      });
-      // Clean up if disconnected
-      connection.on('close', () => {
-        console.log('websocket closed');
-        plexNotificationConnection = null;
-      });
-      connection.on('error', (err) => {
-        console.log('Websocker error', err);
-        plexNotificationConnection = null;
-      });
-      resolve();
-    });
-    // Create the connection
-    client.connect(helpers.convertToWebsocketURL(plexURL) + '/:/websockets/notifications', undefined, undefined, {
-      'X-Plex-Token': plexToken
-    });
-  });
-}
-
 /**
  * Start a library file scan with Plex
  * @returns whether or not the library scan was started
@@ -747,40 +662,96 @@ export const scanLibraryFiles = async (): Promise<void> => {
     if (sectionId === '') return reject('no section id');
 
     // Save a variable to hold the timeoout
-    let timeoutIndex: NodeJS.Timeout | undefined;
+    if (global.plex.generalTimeout !== undefined) clearInterval(global.plex.generalTimeout);
     try {
-      // Register an entry in the processFinish table
-      registeredPlexCompleteFunction = () => {
-        // If this function is fired, we are done and can resolve
-        registeredPlexCompleteFunction = null;
-        clearTimeout(timeoutIndex);
+      const scan = new Promise<void>((resolve, reject) => {
+        if (debug) console.log(helpers.convertToWebsocketURL(plexURL) + '/:/websockets/notifications');
+        const ws = new WebSocket(helpers.convertToWebsocketURL(plexURL) + '/:/websockets/notifications', { headers: { 'X-Plex-Token': plexToken } });
+        global.plex.generalTimeout = setTimeout(() => {
+          ws.terminate();
+          reject('timeout waiting for connection');
+        }, 3000);
+        // Reject on failed connection
+        ws.on('error', (error) => {
+          clearTimeout(global.plex.generalTimeout);
+          global.plex.generalTimeout = undefined;
+          ws.terminate();
+          reject(error);
+        });
+        // Resolve on succeeded connections
+        ws.on('open', async () => {
+          clearTimeout(global.plex.generalTimeout);
+          global.plex.generalTimeout = setTimeout(() => {
+            ws.terminate();
+            reject('timeout waiting for scan to finish');
+          }, plexSettings['plex.library.autoScan.timeout'] * 1000);
+          // Reset the progress
+          await settings.set('plex.library.autoScan.progress', 0);
+          // Issue the library refresh (in 200ms to let the websocket settle)
+          await helpers.delay(200);
+          // Get the result from the library refresh
+          if (debug) console.log(`/library/sections/${sectionId}/refresh`);
+          const result = await resource(`/library/sections/${sectionId}/refresh`, Method.GET, {}, plexURL, plexToken, debug, false);
+          // If it is a failure, reject
+          if (result === null || result.status !== 200) {
+            clearTimeout(global.plex.generalTimeout);
+            global.plex.generalTimeout = undefined;
+            ws.close();
+            reject(result)
+            return;
+          }
+        });
+        // On messages
+        ws.on('message', async (d) => {
+          // Parse the message as a notification
+          const data = JSON.parse(d.toString()) as types.Notification;
+          // Nothing to do if there is no content
+          if (data.NotificationContainer.size === 0) return;
+          // If it isn't an activity notification, we don't care about it
+          if (data.NotificationContainer.type !== 'activity') return;
+          // Loop through each activity notification in the message packet
+          for (const entry of data.NotificationContainer.ActivityNotification) {
+            // If there is no library context, the id doesn't match the library that Unabridged has access to, or it isn't for a library scan, nothing to do
+            if (entry.Activity.type !== 'library.update.section') continue;
+            if (entry.Activity.Context === undefined) continue;
+            if (entry.Activity.Context.librarySectionID !== sectionId) continue
+            // Switch based on the message type
+            if (entry.event === 'updated') {
+              // Set the new progress
+              await settings.set('plex.library.autoScan.progress', entry.Activity.progress / 100);
+            } else if (entry.event === 'ended') {
+              // Clear the timer
+              clearTimeout(global.plex.generalTimeout);
+              global.plex.generalTimeout = undefined;
+              console.log('Message: ended', entry.uuid);
+              // Set the progress as complete
+              await settings.set('plex.library.autoScan.progress', 1);
+              // Close the websocket and resolve
+              ws.close();
+              resolve();
+            }
+          }
+        });
+      });
+
+      try {
+        // Wait for the library scan process to finish
+        await scan;
+        // Done
         resolve();
-      };
-
-      // Make sure the websocket connection is active
-      await activateWebsocketConnection(sectionId, plexURL, plexToken);
-
-      // Start a timeout that will reject if this takes way too long
-      timeoutIndex = setTimeout(() => {
-        registeredPlexCompleteFunction = null;
-        reject('timeout');
-      }, plexSettings['plex.library.autoScan.timeout'] * 1000);
-
-      // Issue the library refresh
-      const result = await resource(`/library/sections/${sectionId}/refresh`, Method.GET, {}, plexURL, plexToken, debug, false);
-      // If it is a failure, reject
-      if (result === null || result.status !== 200) {
-        registeredPlexCompleteFunction = null;
-        clearTimeout(timeoutIndex);
-        reject(result)
-        return;
-      }
-      
+      } catch (e) {
+        console.log('ERROR: The scan could not be completed', e);
+        reject(e);
+      } 
     } catch (e) {
       console.log('ERROR: Could not establish a websocket connection');
-      registeredPlexCompleteFunction = null;
-      clearTimeout(timeoutIndex);
+      clearTimeout(global.plex.generalTimeout);
+      global.plex.generalTimeout = undefined;
+      reject(e);
     }
+    // Make sure the timeouts are clear, just in case
+    clearTimeout(global.plex.generalTimeout);
+    global.plex.generalTimeout = undefined;
   });
 }
 
@@ -790,8 +761,9 @@ export const scanLibraryFiles = async (): Promise<void> => {
 export const reset = async () => {
   await settings.set('plex.library.autoScan.inProgress', false);
   await settings.set('plex.library.autoScan.nextRun', -1);
-  if (global.plex === undefined) global.plex = { interval: undefined };
+  if (global.plex === undefined) global.plex = { interval: undefined, generalTimeout: undefined };
   if (global.plex.interval !== undefined) clearInterval(global.plex.interval);
+  if (global.plex.generalTimeout !== undefined) clearInterval(global.plex.generalTimeout);
 }
 
 const scheduler = async (overrideChecks=false) => {
@@ -803,8 +775,10 @@ const scheduler = async (overrideChecks=false) => {
     console.log('scheduler trigger')
     // Stop the scheduler
     await settings.set('plex.library.autoScan.nextRun', -1);
-    if (global.plex === undefined) global.plex = { interval: undefined };
+    if (global.plex === undefined) global.plex = { interval: undefined, generalTimeout: undefined };
     if (global.plex.interval !== undefined) clearInterval(global.plex.interval);
+    if (global.plex.generalTimeout !== undefined) clearInterval(global.plex.generalTimeout);
+
     // Get settings
     let plexSettings = await settings.getSet('plex');
 
@@ -812,6 +786,8 @@ const scheduler = async (overrideChecks=false) => {
     if (plexSettings['plex.enable'] === false || plexSettings['plex.library.autoScan.enable'] === false || LibraryManager.getNoneWorking() === false) return;
 
     // We are now in-progress
+    await settings.set('plex.library.autoScan.progress', 0);
+    await settings.set('plex.library.collection.progress', 0);
     await settings.set('plex.library.autoScan.inProgress', true);
     // Surround with a try-catch so we don't de-sync params
     try {
@@ -831,6 +807,8 @@ const scheduler = async (overrideChecks=false) => {
           let plexSettings = await settings.getSet('plex');
           // Check if we should do a collection update
           if (plexSettings['plex.collections.enable'] === true) {
+            console.log('start collecting');
+            await settings.set('plex.library.collection.progress', 0);
             try {
               if (plexSettings['plex.collections.by'] === publicTypes.CollectionBy.series) {
                 console.log('collection by series');
@@ -838,9 +816,11 @@ const scheduler = async (overrideChecks=false) => {
                   where: { books: { some: { processed: true } } },
                   include: { books: true }
                 });
-                console.log('start collecting');
-                for (const s of series) await collectBySeries(s);
-                console.log('done collecting');
+                for (let i = 0; i < series.length; i++) {
+                  const s = series[i];
+                  await collectBySeries(s);
+                  await settings.set('plex.library.collection.progress', i / series.length);
+                }
               } else if (plexSettings['plex.collections.by'] === publicTypes.CollectionBy.album) {
                 console.log(`ERROR: Unimplemented collection by: ${plexSettings['plex.collections.by']}`);
               } else {
@@ -850,6 +830,8 @@ const scheduler = async (overrideChecks=false) => {
               // There was an error adding the collections
               console.log(e);
             }
+            console.log('done collecting');
+            await settings.set('plex.library.collection.progress', 1);
           }
         } catch(e) {
           // The library scan failed
@@ -884,8 +866,9 @@ export const scanLibraryFilesAndCollect = async () => {
   if (result.success === false) return true;
 
   // Reset the scheduler
-  if (global.plex === undefined) global.plex = { interval: undefined };
+  if (global.plex === undefined) global.plex = { interval: undefined, generalTimeout: undefined };
   if (global.plex.interval !== undefined) clearInterval(global.plex.interval);
+  if (global.plex.generalTimeout !== undefined) clearInterval(global.plex.generalTimeout);
 
   // Trigger the scheduler
   await scheduler(true);
@@ -918,8 +901,10 @@ export const scheduleScanLibraryFilesAndCollect = async () => {
   await settings.set('plex.library.autoScan.nextRun', scheduleTime);
 
   // Set the scheduler
-  if (global.plex === undefined) global.plex = { interval: undefined };
+  if (global.plex === undefined) global.plex = { interval: undefined, generalTimeout: undefined };
   if (global.plex.interval !== undefined) clearInterval(global.plex.interval);
+  if (global.plex.generalTimeout !== undefined) clearInterval(global.plex.generalTimeout);
+
   global.plex.interval = setInterval(scheduler, 1000);
   global.plex.interval.unref();
 

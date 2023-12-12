@@ -12,6 +12,7 @@ declare global {
 	declare namespace globalThis {
 		declare namespace plex {
 			let interval: NodeJS.Interval | undefined;
+			let generalTimeout: NodeJS.Timeout | undefined;
 		}
 		declare namespace manager {
 			let interval: NodeJS.Interval | undefined;

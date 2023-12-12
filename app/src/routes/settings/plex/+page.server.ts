@@ -277,6 +277,9 @@ export const actions = {
 
     const apiTimeout = (data.get('plex.apiTimeout') ?? undefined) as undefined | string;
     if (apiTimeout !== undefined) await settings.set('plex.apiTimeout', parseInt(apiTimeout));
+
+    const plexScanTimeout = (data.get('plex.library.autoScan.timeout') ?? undefined) as undefined | string;
+    if (plexScanTimeout !== undefined) await settings.set('plex.library.autoScan.timeout', parseInt(plexScanTimeout));
   },
   updatePlexLibrary: async ({ request }) => {
 

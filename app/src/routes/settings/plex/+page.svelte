@@ -37,6 +37,7 @@
   let plexAPIUpdate: () => {};
   let plexAPIUnsavedChanges = false;
   let apiTimeout = data.settingValues['plex.apiTimeout'];
+  let libraryScanTimeout = data.settingValues['plex.library.autoScan.timeout'];
 
   // Plex Library
   let plexLibraryUpdate: () => {};
@@ -250,6 +251,12 @@
     max={10000}
     hoverTitle={'The number of milliseconds before an API request to the Plex server should abort.'}
     showWrapper={{end: 'milliseconds'}} />
+
+  <Settings.NumericalInput name="plex.library.autoScan.timeout" title="Plex Library Scan Timeout" update={plexAPIUpdate} bind:value={libraryScanTimeout}
+    min={10}
+    max={14400}
+    hoverTitle={'The number of seconds before Unabridged will give-up waiting for a Plex library scan to finish.'}
+    showWrapper={{end: 'seconds'}} />
 
 </Settings.List>
 

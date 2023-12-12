@@ -99,7 +99,7 @@ RUN echo "---- REMOVE BUILD DEPENDENCIES (to keep image small) ----" \
 
 
 ######### Development Stage ########################################################################
-FROM python:3.11.4-alpine3.18 as dev
+FROM python:3.12.1-alpine3.18 as dev
 
 # Renew args from above
 ARG NODE_VERSION
@@ -113,7 +113,7 @@ COPY --from=dependancies "${USR_LOCAL_EXPORT}/" "/usr/local/"
 # Install development dependancies
 RUN echo "---- INSTALL DEPENDENCIES ----" \
   # && echo http://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories \
-  && apk --no-cache add bash x264 x265 mediainfo grep findutils ffmpeg jq build-base
+  && apk --no-cache add bash x264 x265 mediainfo grep findutils ffmpeg jq
 
 # Copy NodeJS Install
 COPY --from=node_install /usr/lib /usr/lib
@@ -133,7 +133,7 @@ ENV GIT_COMMIT=$GIT_COMMIT
 ENV PROC_SHELL='/bin/sh'
 
 ######### Node Modules & Build #####################################################################
-FROM node:${NODE_VERSION}-alpine as build
+FROM node:${NODE_VERSION}-alpine3.18 as build
 
 # Copy the application and move to the copied folder
 COPY ./app/ /app/
@@ -148,7 +148,7 @@ RUN echo "---- BUILD SERVER ----" \
   && ORIGIN=${ORIGIN} PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host npm run build
 
 ######### Production Stage #########################################################################
-FROM python:3.11.4-alpine3.18 as prod
+FROM python:3.12.1-alpine3.18 as prod
 
 # Assign labels
 LABEL org.opencontainers.image.title unabridged

@@ -52,6 +52,7 @@ export const removeTrailingSlashes = (url: string) => {
  * @returns the websocket url
  */
 export const convertToWebsocketURL = (url: string) => {
+  if (url.endsWith('/')) url = url.substring(0, url.length - 1);
   if (url.startsWith('https')) return 'wss' + url.substring(5);
   else if (url.startsWith('http')) return 'ws' + url.substring(4);
   else return url

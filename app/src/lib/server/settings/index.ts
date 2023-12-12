@@ -33,12 +33,13 @@ export const TypeNames = {
                 'plex.library.name': '',
      // Plex.AutoScan -------------------------
      'plex.library.autoScan.enable': true,
-    'plex.library.autoScan.timeout': 3600,
+    'plex.library.autoScan.timeout': 1200,
       'plex.library.autoScan.delay': 60,
   'plex.library.autoScan.scheduled': false,
     'plex.library.autoScan.nextRun': -1, 
  'plex.library.autoScan.inProgress': false,
    'plex.library.autoScan.progress': 0,
+ 'plex.library.collection.progress': 0,
      // Library -------------------------------
                  'library.location': '/library',
      // General -------------------------------
@@ -78,7 +79,8 @@ export type ObjectType<T extends TypeName> =
   T extends 'plex.library.autoScan.scheduled' ? boolean :  // Boolean
   T extends 'plex.library.autoScan.nextRun' ? number :     // Integer
   T extends 'plex.library.autoScan.inProgress' ? boolean : // Boolean
-  T extends 'plex.library.autoScan.progress' ? number   :  // Float
+  T extends 'plex.library.autoScan.progress' ? number :    // Float
+  T extends 'plex.library.collection.progress' ? number :  // Float
   T extends 'library.location' ? string :                  // String
   T extends 'general.autoSync' ? boolean :                 // Boolean
   T extends 'general.encKey' ? string :                    // String
@@ -141,6 +143,7 @@ export const get = async <T extends TypeName>(setting: T, settingVal?: SettingPa
 
       // Float Conversion --------------------------------------------------------------------------
       case 'plex.library.autoScan.progress':
+      case 'plex.library.collection.progress':
         return parseFloat(settingVal.value) as ObjectType<T>;
 
       // String Conversion -------------------------------------------------------------------------

@@ -44,7 +44,7 @@
 		"typescript": "^5.0.0",
 		"uuid": "^9.0.1",
 		"vite": "^4.4.2",
-		"websocket": "^1.0.34"
+		"ws": "^8.15.0"
 	},
 	"type": "module",
 	"dependencies": {
