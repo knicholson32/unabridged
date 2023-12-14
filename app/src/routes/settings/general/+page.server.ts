@@ -6,7 +6,8 @@ export const load = async ({ params }) => {
     settingValues: {
       'search.autoSubmit': await settings.get('search.autoSubmit'),
       'general.timezone': await settings.get('general.timezone'),
-    }
+    },
+    version: process.env.GIT_COMMIT ?? 'Unknown'
   }
 }
 

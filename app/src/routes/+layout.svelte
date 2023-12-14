@@ -361,7 +361,7 @@
 </svelte:head>
 
 
-<div>
+<!-- <div> -->
   <!-- Off-canvas menu for mobile, show/hide based on off-canvas menu state. -->
   {#if mobileNavMenuVisible}
     <div class="relative z-20 lg:hidden" role="dialog" aria-modal="true">
@@ -566,7 +566,7 @@
     </div>
   </div>
 
-  <div class="lg:pl-48 xl:pl-72">
+  <div class="lg:pl-48 xl:pl-72 flex flex-col min-h-screen">
     <div class="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
       <button on:click={openMobileMenu} type="button" class="-m-2.5 p-2.5 text-gray-700 lg:hidden">
         <span class="sr-only">Open sidebar</span>
@@ -626,7 +626,7 @@
               -->
             {#if statusMenuVisible}
               <!-- <div class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1"> -->
-              <div class="fixed sm:absolute top-16 sm:top-auto bottom-12 overflow-hidden overflow-y-scroll sm:overflow-y-visible sm:bottom-auto right-2 left-2 sm:left-auto sm:right-0 z-10 mt-2.5 sm:w-[30rem] origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none " in:scale="{{duration: 100, opacity: 0.95, start: 0.95, easing: cubicOut}}" out:scale="{{duration: 75, opacity: 0.95, start: 0.95, easing: cubicOut}}" use:EscapeOrClickOutside={{except: showStatusButton, callback: closeStatusMenu}} role="menu" aria-orientation="vertical" aria-labelledby="options-menu-button" tabindex="-1">
+              <div class="fixed sm:absolute top-16 sm:top-auto overflow-hidden overflow-y-scroll sm:overflow-y-visible sm:bottom-auto right-2 left-2 sm:left-auto sm:right-0 z-10 mt-2.5 sm:w-[30rem] origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none " in:scale="{{duration: 100, opacity: 0.95, start: 0.95, easing: cubicOut}}" out:scale="{{duration: 75, opacity: 0.95, start: 0.95, easing: cubicOut}}" use:EscapeOrClickOutside={{except: showStatusButton, callback: closeStatusMenu}} role="menu" aria-orientation="vertical" aria-labelledby="options-menu-button" tabindex="-1">
                 <div in:fade="{{duration: 100, easing: cubicOut}}" out:fade="{{duration: 75, easing: cubicOut}}" class=" antialiase">
 
                   <div class="absolute right-2 top-2 flex gap-1">
@@ -771,12 +771,12 @@
       </div>
     </div>
 
-    <main class="">
-      <div class="">
+    <!-- <main class="grow"> -->
+      <!-- <div class=""> -->
         <slot />
-      </div>
-    </main>
+      <!-- </div> -->
+    <!-- </main> -->
   </div>
-</div>
+<!-- </div> -->
 
 
