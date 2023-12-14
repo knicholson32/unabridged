@@ -88,7 +88,6 @@ export namespace LibraryManager {
   // Processor
   // ---------------------------------------------------------------------------------------------
 
-
   /**
    * Set an entry to try again later
    * @param id the entry to adjust
@@ -465,8 +464,6 @@ export namespace LibraryManager {
       return;
     }
 
-    console.log('run process');
-
     for (let i = 0; i < processorPromises.length; i++) {
       if (processorPromises[i] === undefined) {
         const p = new Promise(processFunc).then(async () => {
@@ -478,12 +475,9 @@ export namespace LibraryManager {
             await settings.set('progress.running', false);
             await settings.set('progress.endTime', Math.floor(Date.now() / 1000));
 
-            // If a library scan should be issued, check back in the specified amount of time and issue it
-            if (libraryScanShouldBeIssued) {
-              console.log('scan issued');
-              // If we are able to schedule the scan, the scan is resolved.
-              libraryScanShouldBeIssued = await Plex.scheduleScanLibraryFilesAndCollect() ? false : true;
-            }
+            // Trigger a library scan if it should be issued (IE. we have added at least one book)
+            if (libraryScanShouldBeIssued) Plex.triggerAutoScan();
+            libraryScanShouldBeIssued = false;
           }
 
         });
@@ -719,6 +713,13 @@ export namespace Cron {
           message: '',
           source: ''
         },
+        scanLibrary: {
+          success: false,
+          result: types.ScanAndGenerate.UNKNOWN_ERROR,
+          collectionsGenerated: false,
+          message: '',
+          messageVerbose: '',
+        },
         startTime: lastCronStartTime,
         endTime: lastCronStartTime
       }
@@ -768,6 +769,28 @@ export namespace Cron {
 
         // Check to see if the cron should exit yet
         if (debug) console.log('Library Sync Complete');
+      }
+
+      // Check to see if the cron should exit yet
+      if (await checkCronTime(debug > 0)) throw Error('Cron time expired');
+
+
+      // Library Scan and Collection Generate
+      if (await settings.get('plex.library.autoScan.enable') === true && await settings.get('plex.enable') === true && await settings.get('plex.library.key') !== '') {
+        if (debug) console.log('Library Auto Scan');
+
+        // Start a library scan, then generate if possible
+        const results = await Plex.scanAndGenerate();
+
+        if (debug) console.log(results);
+
+        cronRecord.scanLibrary.success = results === types.ScanAndGenerate.NO_ERROR || results === types.ScanAndGenerate.NO_ERROR_COLLECTIONS_DISABLED;
+        cronRecord.scanLibrary.result = results;
+        cronRecord.scanLibrary.collectionsGenerated = results === types.ScanAndGenerate.NO_ERROR;
+        cronRecord.scanLibrary.message = types.scanAndGenerateToStringShort(results);
+        cronRecord.scanLibrary.messageVerbose = types.scanAndGenerateToStringLong(results);
+
+        if (debug) console.log('Library Auto Scan Complete');
       }
 
       // Check to see if the cron should exit yet

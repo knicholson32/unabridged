@@ -29,7 +29,7 @@
   let plexIntegrationUpdate: () => {};
   let plexIntegrationUnsavedChanges = false;
   let plexEnable = data.settingValues['plex.enable'];
-  let plexAddress = data.settingValues['plex.address'];
+  let plexAddress = data.settingValues['plex.address'] + '/';
   let token = data.settingValues['plex.token'];
   let library = data.settingValues['plex.library.id'];
 
@@ -53,6 +53,7 @@
   let collectionsEnable = data.settingValues['plex.collections.enable'];
   let collectBy = data.settingValues['plex.collections.by'];
   let groupSingles = data.settingValues['plex.collections.groupSingles'];
+  let generatingCollections = false;
 
   // Utilities
   beforeNavigate(({ cancel }) => {
@@ -170,10 +171,7 @@
         update({ reset: true });
       }
     }}>
-      <div class="inline-flex gap-3">
-        <Switch type="button" title="Delete Collections?" forceHiddenInput={true} valueName={'plex.collections.delete'} value={true}
-          disabled={data.settingValues['plex.address'] === '' && data.settingValues['plex.token'] === ''} 
-          hoverTitle="Should Unabridged delete collections it created from the linked Plex server? Why this matters: When Unabridged connects to a Plex library, it always creates it's own collections. If the collections aren't deleted now, duplicates will be created if Unabridged is re-connected." />
+      <div class="flex flex-col sm:inline-flex sm:flex-row-reverse gap-3">
         <button 
           title={(data.settingValues['plex.address'] === '' && data.settingValues['plex.token'] === '') ? 'No settings to erase' : 'Click to erase Plex integration settings'} 
           type="submit" 
@@ -184,6 +182,11 @@
             {@html icons.warning}
           </svg>
         </button>
+        <div class="inline-flex justify-end">
+          <Switch type="button" title="Delete Collections?" forceHiddenInput={true} valueName={'plex.collections.delete'} value={true}
+            disabled={data.settingValues['plex.address'] === '' && data.settingValues['plex.token'] === ''} 
+            hoverTitle="Should Unabridged delete collections it created from the linked Plex server? Why this matters: When Unabridged connects to a Plex library, it always creates it's own collections. If the collections aren't deleted now, duplicates will be created if Unabridged is re-connected." />
+        </div>
       </div>
     </form>
   </Settings.Frame>
@@ -204,18 +207,42 @@
   <span slot="description">Configure automatic Collections management in Plex.</span>
 
   <Settings.Switch name="plex.collections.enable" title="Enable Collections Management" update={plexCollectionsUpdate} bind:value={collectionsEnable} 
-    disabled={libraryIDSaved === ''}
+    disabled={libraryIDSaved === '' || data.plex.signedIn === false}
     hoverTitle={libraryIDSaved === '' ? 'Disabled because no Plex Library is selected. See \'Plex Integration\' settings above.' : 'Whether or not to enable have Unabridged manage Plex Collections automatically.'} />
   
   <Settings.Select form={form} name="plex.collections.by" title="Collect Books Via" update={plexCollectionsUpdate} bind:value={collectBy} 
-    disabled={collectionsEnable === false || libraryIDSaved === ''}
+    disabled={collectionsEnable === false || libraryIDSaved === '' || data.plex.signedIn === false}
     options={[CollectionBy.series]}
     hoverTitle={libraryIDSaved === '' ? 'Disabled because no Plex Library is selected. See \'Plex Integration\' settings above.' : collectionsEnable === false ? 'Disabled because Plex collection management is disabled' : 'Specify how audiobooks could be collected in Plex'} />
 
-  <Settings.Switch name="plex.collections.groupSingles" title="Collect single books" update={plexCollectionsUpdate} bind:value={groupSingles} 
-    disabled={libraryIDSaved === ''}
+  <Settings.Switch name="plex.collections.groupSingles" title="Collect Single Books" update={plexCollectionsUpdate} bind:value={groupSingles} 
+    disabled={collectionsEnable === false || libraryIDSaved === '' || data.plex.signedIn === false}
     hoverTitle={libraryIDSaved === '' ? 'Disabled because no Plex Library is selected. See \'Plex Integration\' settings above.' : 'Whether or not to create and manage a collection for the books that would not otherwise have a Plex collection.'} />
   
+  <Settings.Frame title={'Generate'} hoverTitle={"Generate collections once, right now"} error={(form?.success === false && form?.action === '?/generateCollections') ? form?.message : null}>
+    <form method="POST" action={'?/generateCollections'} use:enhance={() => {
+      generatingCollections = true;
+      return async ({ update }) => {
+        generatingCollections = false;
+        update({ reset: true });
+      }
+    }}>
+      <div class="inline-flex gap-3">
+        <Submit
+          class="w-full sm:w-auto" 
+          theme={{primary: 'white', done: 'white', fail: 'white'}} 
+          actionText={'Generate Plex Collections'}
+          doneText="Done"
+          disabled={collectionsEnable === false || libraryIDSaved === '' || data.plex.signedIn === false}
+          hoverTitle={libraryIDSaved === '' ? 'Disabled because no Plex Library is selected. See \'Plex Integration\' settings above.' : 'Click to generate Plex collections'}
+          actionTextInProgress="Generating" 
+          submitting={generatingCollections}
+          failed={form?.success === false && form?.action === '?/generateCollections'}
+        />
+      </div>
+    </form>
+  </Settings.Frame>
+
   <div class="flex flex-col gap-3 pt-4">
   {#if data.plex.collections.length > 0}
     <CollectionList collections={data.plex.collections} />
@@ -273,8 +300,3 @@
   <Settings.Input name="library.location" form={form} mono={true} title="Library Location" update={libraryLocationUpdate} bind:value={libraryLocation} 
     hoverTitle="Library location" />
 </Settings.List>
-
-<form method="POST" action={'?/generateCollections'} class="relative inline-flex items-center gap-2">
-  <input name="asin" value=""/>
-  <button type="submit">Submit</button>
-</form>

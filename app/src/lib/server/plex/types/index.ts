@@ -1,6 +1,9 @@
 import type { IPlexClientDetails } from "plex-oauth";
-import type * as settings from '$lib/server/settings';
+import type { Prisma } from "@prisma/client";
 
+// -------------------------------------------------------------------------------------------------
+// Plex Responses
+// -------------------------------------------------------------------------------------------------
 
 export type Base = {
   MediaContainer: {
@@ -60,37 +63,39 @@ export type Base = {
   }
 }
 
+export type Directory = {
+  allowSync: boolean,
+  art: string,
+  composite: string,
+  filters: boolean,
+  refreshing: boolean,
+  thumb: string,
+  key: string,
+  type: 'artist' | 'photo' | 'movie',
+  title: string,
+  agent: string,
+  scanner: string,
+  language: string,
+  uuid: string,
+  updatedAt: number,
+  createdAt: number,
+  scannedAt: number,
+  content: boolean,
+  directory: boolean,
+  contentChangedAt: number,
+  hidden: number,
+  Location: {
+    id: number,
+    path: string
+  }[]
+}
+
 export type Sections = {
   MediaContainer: {
     size: number,
     allowSync: boolean,
     title1: string,
-    Directory: {
-      allowSync: boolean,
-      art: string,
-      composite: string,
-      filters: boolean,
-      refreshing: boolean,
-      thumb: string,
-      key: string,
-      type: 'artist' | 'photo' | 'movie',
-      title: string,
-      agent: string,
-      scanner: string,
-      language: string,
-      uuid: string,
-      updatedAt: number,
-      createdAt: number,
-      scannedAt: number,
-      content: boolean,
-      directory: boolean,
-      contentChangedAt: number,
-      hidden: number,
-      Location: {
-        id: number,
-        path: string
-      }[]
-    }[]
+    Directory: Directory[]
   }
 }
 
@@ -142,7 +147,6 @@ export type SearchResult = {
 		Metadata: SearchMetadata[]
 	}
 }
-
 
 export type IdentityResult = {
   MediaContainer: {
@@ -221,6 +225,24 @@ export interface PlayingNotification {
 	}
 }
 
+// -------------------------------------------------------------------------------------------------
+// Plex Library Types
+// -------------------------------------------------------------------------------------------------
+
+export enum Method {
+  GET = 'get',
+  POST = 'post',
+  PUT = 'put',
+  DELETE = 'delete',
+}
+
+export type ResourceResult = {
+  status: number,
+  value: unknown
+} | null;
+
+export type SeriesType = Prisma.SeriesGetPayload<{ include: { books: true } }>;
+export type BookType = Prisma.BookGetPayload<{ include: { authors: true } }>;
 
 // -------------------------------------------------------------------------------------------------
 // Plex OAuth

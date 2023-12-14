@@ -36,7 +36,7 @@ export const TypeNames = {
      // Plex.AutoScan -------------------------
      'plex.library.autoScan.enable': true,
     'plex.library.autoScan.timeout': 1200,
-      'plex.library.autoScan.delay': 60,
+      'plex.library.autoScan.delay': 15,
   'plex.library.autoScan.scheduled': false,
     'plex.library.autoScan.nextRun': -1, 
  'plex.library.autoScan.inProgress': false,
