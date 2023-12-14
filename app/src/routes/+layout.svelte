@@ -579,7 +579,7 @@
       <div class="h-6 w-px bg-gray-900/10 lg:hidden" aria-hidden="true"></div>
 
       <div class="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-        <form class="relative flex flex-1" action="/library" method="GET">
+        <form class="relative flex flex-1" autocomplete="off" action="/library" method="GET">
           <label for="search-field" class="sr-only">Search</label>
           <svg class="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
@@ -626,7 +626,7 @@
               -->
             {#if statusMenuVisible}
               <!-- <div class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1"> -->
-              <div class="fixed sm:absolute top-16 sm:top-auto overflow-hidden overflow-y-scroll sm:overflow-y-visible sm:bottom-auto right-2 left-2 sm:left-auto sm:right-0 z-10 mt-2.5 sm:w-[30rem] origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none " in:scale="{{duration: 100, opacity: 0.95, start: 0.95, easing: cubicOut}}" out:scale="{{duration: 75, opacity: 0.95, start: 0.95, easing: cubicOut}}" use:EscapeOrClickOutside={{except: showStatusButton, callback: closeStatusMenu}} role="menu" aria-orientation="vertical" aria-labelledby="options-menu-button" tabindex="-1">
+              <div class="fixed origin-top-right top-16 right-2 left-2 overflow-hidden overflow-y-scroll max-h-[calc(100vh-5rem)] z-10 mt-2.5 sm:absolute sm:top-auto sm:overflow-y-visible sm:left-auto sm:right-0 sm:w-[30rem] rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none " in:scale="{{duration: 100, opacity: 0.95, start: 0.95, easing: cubicOut}}" out:scale="{{duration: 75, opacity: 0.95, start: 0.95, easing: cubicOut}}" use:EscapeOrClickOutside={{except: showStatusButton, callback: closeStatusMenu}} role="menu" aria-orientation="vertical" aria-labelledby="options-menu-button" tabindex="-1">
                 <div in:fade="{{duration: 100, easing: cubicOut}}" out:fade="{{duration: 75, easing: cubicOut}}" class=" antialiase">
 
                   <div class="absolute right-2 top-2 flex gap-1">

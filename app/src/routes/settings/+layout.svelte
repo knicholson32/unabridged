@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
 	import { icons } from '$lib/components';
+	import { White } from '$lib/components/frames';
 
   const subMenuActive = 'bg-gray-50 text-indigo-600'
   const subMenuDefault = 'text-gray-700 hover:text-indigo-600 hover:bg-gray-50';
@@ -10,7 +11,8 @@
 
 </script>
 
-  <div class="grow h-full w-full bg-white mx-auto max-w-7xl flex flex-col xl:gap-x-16 xl:px-8">
+<White>
+  <div class="mx-auto max-w-7xl flex flex-col xl:gap-x-16 xl:px-8">
     <aside class="flex lg:hidden sm:justify-center overflow-x-scroll border-b border-gray-900/5 py-4 ">
       <nav class="flex-none px-4 sm:px-6 xl:px-0">
         <ul role="list" class="flex gap-x-3 gap-y-1 whitespace-nowrap xl:flex-col">
@@ -56,4 +58,5 @@
         <slot/>
       </div>
     </main>
-</div>
+  </div>
+</White>

@@ -121,7 +121,7 @@
 
 </script>
 
-<div class="p-5">
+<div class="p-5 grow bg-gray-100 h-full w-full">
 
   <form method="POST" action="?/add" use:enhance={({ cancel }) => {
     cancelAdd = cancel;

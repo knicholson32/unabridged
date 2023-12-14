@@ -9,6 +9,7 @@
 	import Book from '$lib/components/routeSpecific/library/Book.svelte';
 	import SortBy from '$lib/components/routeSpecific/library/SortBy.svelte';
 	import icons from '$lib/components/icons';
+	import { Gray } from '$lib/components/frames';
 
 
 	let params: Table.Params;
@@ -95,174 +96,11 @@
 		goto(generateURL({page: 0}), { replaceState: true, keepFocus: true });
 	}
 
-
-  let truncateNum = 25;
-
-  // https://merakiui.com/components/tables
-
-	// type Sortable = 'title' | 'series' | 'author';
-
-	// let sortingBy: Sortable;
-
-	// let order: { [key: string]: boolean } = {
-	// 	title: true,
-	// 	series: true,
-	// 	author: true
-	// };
-
-	// const forwardOrder = (val: Sortable): boolean => {
-	// 	console.log('ret', order[val]);
-	// 	return order[val];
-	// };
-
-	// const sortBy = (val: Sortable) => {
-	// 	if (sortingBy === val) order[val] = !order[val];
-	// 	else order[val] = true;
-	// 	sortingBy = val;
-	// 	updateSorting();
-	// };
-
-	// let books = data.books;
-
-	// const updateSorting = () => {
-	// 	console.log('Sorting');
-	// 	const rev = order[sortingBy] ? 1 : -1;
-	// 	if (sortingBy === 'title') {
-	// 		books.sort((a, b) => {
-	// 			return a.title.localeCompare(b.title) * rev;
-	// 		});
-	// 	} else if (sortingBy === 'series') {
-	// 		books.sort((a, b) => {
-	// 			// If neither has a series, sort by title
-	// 			// If both have series that are different, sort by series
-	// 			// If both have the same series, sort by book number or title
-
-	// 			if (a.seriesTitle === null && b.seriesTitle === null) {
-	// 				// Both series are null
-	// 				return a.title.localeCompare(b.title) * rev;
-	// 			} else if (a.seriesTitle !== null && b.seriesTitle !== null) {
-	// 				// Neither series are null
-	// 				if (a.seriesTitle === b.seriesTitle) {
-	// 					// Both books are in the same series. Check for series order
-	// 					if (a.series_sequence !== null && b.series_sequence !== null) {
-	// 						// Sort by series sequence
-	// 						return (a.series_sequence < b.series_sequence ? -1 : 1) * rev;
-	// 					} else {
-	// 						// Sort by title
-	// 						return a.seriesTitle.localeCompare(b.seriesTitle) * rev;
-	// 					}
-	// 				} else {
-	// 					// The books are in different series
-	// 					return a.seriesTitle.localeCompare(b.seriesTitle) * rev;
-	// 				}
-	// 			} else {
-	// 				// Exactly one of the series is null. The one that is null should go later
-	// 				if (a.seriesTitle === null) return 1 * rev;
-	// 				else return -1 * rev;
-	// 			}
-	// 		});
-	// 	}
-
-	// 	books = books;
-	// };
-
-	// $: booksReduced = books.slice(0, 25);
-
-
 </script>
 
 <svelte:window bind:innerWidth />
 
-<!-- <div class="px-4 sm:px-6 lg:px-8 mt-7">
-  <div class="sm:flex sm:items-center">
-    <div class="sm:flex-auto">
-      <h1 class="text-base font-semibold leading-6 text-gray-900">Users</h1>
-      <p class="mt-2 text-sm text-gray-700">A list of all the users in your account including their name, title, email and role.</p>
-    </div>
-    <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-      <button type="button" class="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Add user</button>
-    </div>
-  </div>
-  <div class="mt-8 flow-root">
-    <div class="-mx-4 -my-2 sm:-mx-6 lg:-mx-8">
-      <div class="inline-block min-w-full py-2 align-middle">
-        <table class="min-w-full border-separate border-spacing-0">
-          <thead>
-            <tr>
-              <th scope="col" class="sticky top-16 z-10 border-b border-gray-300 bg-white bg-opacity-75 py-3.5 pl-2 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-4">
-                <button type="button" on:click={() => sortBy('title')} class="group inline-flex">
-                  Title
-                  <span class="{sortingBy === 'title' ? 'bg-gray-200 text-gray-900 group-hover:bg-gray-300' : 'invisible text-gray-400 group-hover:visible group-focus:visible'} rounded ml-2 flex-none">
-                    <svg class="h-5 w-5 {order['title'] ? '' : 'rotate-180'}" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-                    </svg>
-                  </span>
-                </button>
-              </th>
-              <th scope="col" class="sticky top-16 z-10 border-b border-gray-300 bg-white bg-opacity-75 px-3 py-3.5 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:table-cell">
-                <button type="button" on:click={() => sortBy('series')} class="group inline-flex">
-                  Series
-                  <span class="{sortingBy === 'series' ? 'bg-gray-200 text-gray-900 group-hover:bg-gray-300' : 'invisible text-gray-400 group-hover:visible group-focus:visible'} rounded ml-2 flex-none">
-                    <svg class="h-5 w-5 {order['series'] ? '' : 'rotate-180'}" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-                    </svg>
-                  </span>
-                </button>
-              </th>
-              <th scope="col" class="sticky top-16 z-10 border-b border-gray-300 bg-white bg-opacity-75 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:table-cell">
-                #
-              </th>
-              <th scope="col" class="sticky top-16 z-10 border-b border-gray-300 bg-white bg-opacity-75 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:table-cell">
-                Author
-              </th>
-              <th scope="col" class="sticky top-16 z-10 border-b border-gray-300 bg-white bg-opacity-75 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:table-cell">
-                Narrator
-              </th>
-              <th scope="col" class="sticky top-16 z-10 border-b border-gray-300 bg-white bg-opacity-75 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:table-cell">
-                Genres
-              </th>
-              <th scope="col" class="sticky top-16 z-10 border-b border-gray-300 bg-white bg-opacity-75 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter">
-                Role
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each booksReduced as book (book.asin)}
-              <tr class="overflow-hidden">
-                <td title="" class="whitespace-nowrap border-b border-gray-200 px-3 py-4 text-xs text-gray-500 sm:table-cell text-center truncate">
-                  <img class="h-12 w-12 rounded-lg" src="{book.cover_url_50}" alt="">
-                </td>
-                <td title="{book.title}" class="max-w-[75px] whitespace-nowrap border-b border-gray-200 px-3 py-4 text-xs text-gray-500 sm:table-cell text-center truncate">
-                  {book.title}
-                </td>
-                <td title="{book.seriesTitle === null ? '' : book.seriesTitle}" class="max-w-[75px] whitespace-nowrap border-b border-gray-200 px-3 py-4 text-xs text-gray-500 sm:table-cell text-center truncate">
-                  {book.seriesTitle === null ? '-' : book.seriesTitle}
-                </td>
-                <td title="Book {book.series_sequence === null ? '' : book.series_sequence}" class="max-w-[75px] whitespace-nowrap border-b border-gray-200 px-3 py-4 text-xs text-gray-500 sm:table-cell truncate">
-                  {book.series_sequence === null ? '-' : book.series_sequence}
-                </td>
-                <td title="{book.authors.map(a => a.name).join(', ')}" class="max-w-[75px] whitespace-nowrap border-b border-gray-200 px-3 py-4 text-xs text-gray-500 sm:table-cell truncate">
-                  {@html book.authors.map(a => `<a href="${a.name}">${a.name}</a>`).join(', ')}
-                </td>
-                <td title="{book.narrators.map(n => n.name).join(', ')}" class="max-w-[75px] whitespace-nowrap border-b border-gray-200 px-3 py-4 text-xs text-gray-500 sm:table-cell truncate">
-                  {@html book.narrators.map(n => n.name).join(', ')}
-                </td>
-                <td title="{book.genres.map(g => g.tag).join(', ')}" class="max-w-[150px] border-b border-gray-200 px-3 py-4 text-xs text-gray-500 sm:table-cell truncate flex space-x-1">
-                  {#each book.genres as genre}
-                      <span class="inline-flex items-center rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">{genre.tag}</span>
-                  {/each}
-                </td>
-                <td class="whitespace-nowrap border-b border-gray-200 px-3 py-4 text-xs text-gray-500 sm:table-cell">lindsay.walton@example.com</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div> -->
-
-<section class="px-4 mt-5 pb-5 mx-auto">
+<Gray class="px-4 pt-5 pb-5 mx-auto">
 	<!-- Top controls -->
 	<div class="sm:flex sm:items-center sm:justify-between">
 		<div>
@@ -632,4 +470,4 @@
 			</a>
 		</div>
 	</div>
-</section>
+</Gray>

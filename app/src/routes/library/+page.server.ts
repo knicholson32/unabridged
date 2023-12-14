@@ -218,6 +218,7 @@ export async function load({ url, depends }) {
       narrators: [],
       runTimeMinutes: 0,
       numBooks: singleBooks.length,
+      plexKey: null,
       books: [],
     };
 
