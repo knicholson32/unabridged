@@ -3,7 +3,7 @@
 	import type { AlertDefinition, GeneralDefinition, NotificationDefinition } from "./types";
   import { onDestroy, createEventDispatcher } from 'svelte';
   import CircularClose from "$lib/components/decorations/CircularClose.svelte";
-  import { updateNotifications } from './';
+  // import { updateNotifications } from './';
   import icons from '$lib/components/icons';
 
   export let transitionIn: (n: HTMLElement) => TransitionConfig;
@@ -117,7 +117,7 @@
         },
         body: JSON.stringify({ ids: [definition.id] })
       });
-      await updateNotifications(response);
+      // await updateNotifications(response);
     }
     dispatch('close');
   }

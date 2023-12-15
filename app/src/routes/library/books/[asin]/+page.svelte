@@ -412,7 +412,7 @@
       </div>
     </div>
   </div>
-
+sp
   {#if data.book.downloaded === true}
     <div class="bg-white flex flex-col gap-4 py-4">
       <div class="mx-6 text-xl font-medium">Files / Attachments</div>

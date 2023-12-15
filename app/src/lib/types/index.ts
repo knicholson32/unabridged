@@ -102,19 +102,10 @@ export type URLAlert = {
 }
 
 export type Issuer = 'general' | 'audible.download' | 'plex.scan' | 'account.sync';
-export type Notification = {
-  id:             string,
-  icon_path:      string | null,
-  icon_color:     string | null,
-  theme:          ModalTheme,
-  text:           string,
-  sub_text:       string | null,
-  linger_time:    number,
-  needs_clearing: boolean,
-  auto_open:      boolean,
-  issuer:         Issuer,
-  identifier:     string | null,
-}
+export type Notification = Prisma.NotificationGetPayload<{}> & {
+    theme: ModalTheme,
+    issuer: Issuer,
+};
 
 export type NotificationAPI = {
     ok: boolean,
@@ -453,3 +444,18 @@ export namespace Cron {
 export enum CollectionBy {
     series = 'series'
 }
+
+// -------------------------------------------------------------------------------------------------
+// Events
+// -------------------------------------------------------------------------------------------------
+
+export const EventNames = [
+    'notification.created',
+    'notification.deleted',
+] as const;
+export type EventName = typeof EventNames[number];
+
+export type EventType<T extends EventName> =
+    T extends 'notification.created' ? Notification[] :     // Notification[]
+    T extends 'notification.deleted' ? string[] :           // string[]
+    string;

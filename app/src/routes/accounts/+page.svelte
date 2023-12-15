@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { page } from '$app/stores'
-  import { EscapeOrClickOutside, KeyBind, UpDownEnter } from '$lib/events';
+  import { EscapeOrClickOutside, KeyBind, UpDownEnter } from '$lib/components/events/index.js';
   import { fade, scale } from 'svelte/transition';
   import { cubicOut, cubicInOut, linear } from 'svelte/easing';
   import { intlFormatDistance } from 'date-fns'
@@ -9,7 +9,6 @@
   import type { ActionData } from './$types.js';
 	import { Accordion, CircularProgress } from '$lib/components/decorations/index.js';
 	import type { GenerateAlert } from '$lib/types/index.js';
-	import { encodeURLAlert } from '$lib/components/alerts/index.js';
 	import { getContext } from 'svelte';
 	import { icons } from '$lib/components/index.js';
 	import { Submit } from '$lib/components/buttons';

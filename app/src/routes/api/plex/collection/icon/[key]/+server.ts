@@ -17,8 +17,7 @@ export const GET = async ({ setHeaders, params }) => {
   if (plexSettings['plex.enable'] === false) return json({ status: 400, ok: false, message: 'Plex is not enabled' } satisfies DownloadAPI)
 
   // Get the plex address
-  let plexAddress = plexSettings['plex.address'];
-  if (plexAddress.endsWith('/')) plexAddress = plexAddress.substring(0, plexAddress.length - 1);
+  const plexAddress = plexSettings['plex.address'];
 
   // Get the collection URL
   const urlObj = await Plex.collections.getCollectionThumbnailURLs([key], plexAddress, plexSettings['plex.token']);

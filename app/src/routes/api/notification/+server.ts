@@ -1,13 +1,15 @@
 import prisma from '$lib/server/prisma';
 import { json } from '@sveltejs/kit';
 import * as helpers from '$lib/helpers';
+import * as events from '$lib/server/events';
 import type { NotificationAPI, Notification, ModalTheme, Issuer } from '$lib/types';
 
-export const POST = async ({ request }) => {
-  const notification = await request.json() as Notification;
-  await prisma.notification.create({ data: notification });
-  return await GET();
-}
+// export const POST = async ({ request }) => {
+//   const notification = await request.json() as Notification;
+//   await prisma.notification.create({ data: notification });
+//   events.emit('notification.created', [notification]);
+//   return await GET();
+// }
 
 export const GET = async () => {
   const notificationsRaw = await prisma.notification.findMany();
@@ -45,6 +47,8 @@ export const DELETE = async ({ request }) => {
       }
     }
   });
+
+  events.emit('notification.deleted', ids);
 
   return await GET();
 }

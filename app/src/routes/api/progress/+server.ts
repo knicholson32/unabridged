@@ -37,11 +37,13 @@ export const GET = async ({ params }) => {
   // Return if the progress was not found
   if (progresses === null || progresses === undefined) return json({ ok: false, status: 404 } satisfies ProcessProgressesAPI)
 
-  // Get whether or not the processor is paused
-  const paused = await settings.get('progress.paused');
+  const progressSettings = await settings.getSet('progress');
 
-  const startTime = await settings.get('progress.startTime');
-  const endTime = await settings.get('progress.endTime');
+  // Get whether or not the processor is paused
+  const paused = progressSettings['progress.paused'];
+  const startTime = progressSettings['progress.startTime'];
+  const endTime = progressSettings['progress.endTime'];
+
 
   let elapsed_s: number = -1;
   if (startTime !== -1) {

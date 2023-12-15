@@ -1,4 +1,5 @@
 import type cron from 'node-cron';
+import EventEmitter from 'node:events';
 
 // See https://kit.svelte.dev/docs/types#app
 // for information about these interfaces
@@ -17,6 +18,9 @@ declare global {
 			let interval: NodeJS.Interval | undefined;
 			let cronTask: cron.ScheduledTask | undefined;
 			let runProcess: () => void;
+		}
+		declare namespace events {
+			let eventEmitter: EventEmitter | undefined;
 		}
 	}
 }

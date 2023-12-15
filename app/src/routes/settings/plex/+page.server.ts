@@ -6,10 +6,12 @@ import { CollectionBy, ScanAndGenerate, type GenerateAlert, type URLAlert, scanA
 import * as Plex from '$lib/server/plex';
 import { PlexOauth } from 'plex-oauth'
 import { redirect } from '@sveltejs/kit';
-import { getContext } from 'svelte';
+import type { Issuer, ModalTheme, Notification } from '$lib/types';
+import { v4 as uuidv4 } from 'uuid';
 import prisma from '$lib/server/prisma';
 import type { Prisma } from '@prisma/client';
 import type { Decimal } from '@prisma/client/runtime/library';
+import * as events from '$lib/server/events';
 
 
 type CollectionDetails = (Prisma.SeriesGetPayload<{ include: { books: true } }> & { icon: string, url: string });
@@ -44,88 +46,92 @@ export const load = async ({ params, url }) => {
     'library.location': extraSettings['library.location']
   }
 
-  // Declare some variables to hold whether the Plex integration is signed in and whether it might have issues
-  let signedIn = false;
-  let issueDetected = false;
+  const plexDetails = async () => {
+    // Declare some variables to hold whether the Plex integration is signed in and whether it might have issues
+    let signedIn = false;
+    let issueDetected = false;
 
-  // Declare a variable to hold the libraries in the Plex server
-  let sections: Plex.types.Sections['MediaContainer']['Directory'] = [];
-  const collections: CollectionDetails[] = [];
+    // Declare a variable to hold the libraries in the Plex server
+    let sections: Plex.types.Sections['MediaContainer']['Directory'] = [];
+    const collections: CollectionDetails[] = [];
 
-  // Only perform plex API requests if the Plex integration is enabled and certain required values exist (address and token)
-  if (settingValues['plex.enable'] === true && settingValues['plex.address']?.length > 0 && settingValues['plex.token']?.length > 0) {
-    // Test the Plex connection
-    const results = await Plex.testPlexConnection(settingValues['plex.address'], settingValues['plex.token']);
-    // check that Plex was communicated with successfully
-    if (results.success === true) {
-      // Set signedIn to true
-      signedIn = true;
-      // Get the libraries in the Plex Server
-      const results = await Plex.getLibraries(settingValues['plex.address'], settingValues['plex.token']);
-      console.log(results);
-      // Assign the libraries so we can process it later
-      sections = results ?? [];
-      // Get which collections Unabridged manages
-      const collectBy = settingValues['plex.collections.by'];
-      if (collectBy === CollectionBy.series) {
-        // Get all series that have a collection
-        const collectionsResult = await prisma.series.findMany({ where: { plexKey: { not: null } }, include: { books: true } });
-        const collectionKeys: string[] = [];
-        for (const c of collectionsResult) if (c.plexKey !== null) collectionKeys.push(c.plexKey);
-        const machineId = settingValues['plex.machineId'];
-        for (const collection of collectionsResult) {
-          if (collection.plexKey === null) continue;
-          const url = await Plex.collections.getCollectionWebURL(collection.plexKey, settingValues['plex.address'], machineId);
-          const icon = '/api/plex/collection/icon/' + collection.plexKey;
-          if (url === null || icon === undefined) continue;
-          const collectionWithDetails = { ...collection, ...{ icon, url } } satisfies CollectionDetails
-          for (const b of collectionWithDetails.books) b.rating = b.rating.toNumber() as unknown as Decimal;
-          collections.push(collectionWithDetails)
+    // Only perform plex API requests if the Plex integration is enabled and certain required values exist (address and token)
+    if (settingValues['plex.enable'] === true && settingValues['plex.address']?.length > 0 && settingValues['plex.token']?.length > 0) {
+      // Test the Plex connection
+      const results = await Plex.testPlexConnection(settingValues['plex.address'], settingValues['plex.token']);
+      // check that Plex was communicated with successfully
+      if (results.success === true) {
+        // Set signedIn to true
+        signedIn = true;
+        // Get the libraries in the Plex Server
+        const results = await Plex.getLibraries(settingValues['plex.address'], settingValues['plex.token']);
+        console.log(results);
+        // Assign the libraries so we can process it later
+        sections = results ?? [];
+        // Get which collections Unabridged manages
+        const collectBy = settingValues['plex.collections.by'];
+        if (collectBy === CollectionBy.series) {
+          // Get all series that have a collection
+          const collectionsResult = await prisma.series.findMany({ where: { plexKey: { not: null } }, include: { books: true } });
+          const collectionKeys: string[] = [];
+          for (const c of collectionsResult) if (c.plexKey !== null) collectionKeys.push(c.plexKey);
+          const machineId = settingValues['plex.machineId'];
+          for (const collection of collectionsResult) {
+            if (collection.plexKey === null) continue;
+            const url = await Plex.collections.getCollectionWebURL(collection.plexKey, settingValues['plex.address'], machineId);
+            const icon = '/api/plex/collection/icon/' + collection.plexKey;
+            if (url === null || icon === undefined) continue;
+            const collectionWithDetails = { ...collection, ...{ icon, url } } satisfies CollectionDetails
+            for (const b of collectionWithDetails.books) b.rating = b.rating.toNumber() as unknown as Decimal;
+            collections.push(collectionWithDetails)
+          }
+        } else {
+          // TODO: Implement this
+          console.error('Unimplemented collection type', collectBy);
         }
+      }
+      else issueDetected = true;
+    }
+
+    // Create an array that we will pass to the front-end that will hold the library options
+    const filteredSections: { value: string, title: string, unset?: boolean }[] = [];
+    // Check if we are signed in
+    if (signedIn) {
+      // We are, which means we most likely have libraries to parse. Loop through the libraries in the Plex server
+      for (const section of sections) {
+        // If the library type is correct, add it as a valid option
+        if (section.type === 'artist') filteredSections.push({ value: section.uuid, title: section.title });
+        // Otherwise add it as an un-selectable option
+        else filteredSections.push({ value: section.uuid, title: `${section.title} (${helpersPublic.capitalizeFirstLetter(section.type)} Library)`, unset: true });
+      }
+      // If the currently selection option isn't a current option, clear our selection and add an 'Unset' option to match
+      if (sections.findIndex((v) => v.uuid === settingValues['plex.library.id']) === -1) {
+        settingValues['plex.library.id'] = '';
+        filteredSections.push({ value: '', title: 'Unset', unset: true });
+      }
+    } else {
+      // We are not. The selection box will be disabled, fill the current value
+      // If the currently selection option isn't a current option, clear our selection and add an 'Unset' option to match
+      if (settingValues['plex.library.name'] === '' || settingValues['plex.library.id'] === '') {
+        filteredSections.push({ value: '', title: 'Unset', unset: true });
       } else {
-        // TODO: Implement this
-        console.error('Unimplemented collection type', collectBy);
+        filteredSections.push({ value: settingValues['plex.library.id'], title: settingValues['plex.library.name'], unset: true });
       }
     }
-    else issueDetected = true;
-  }
 
-  // Create an array that we will pass to the front-end that will hold the library options
-  const filteredSections: { value: string, title: string, unset?: boolean }[] = [];
-  // Check if we are signed in
-  if (signedIn) {
-    // We are, which means we most likely have libraries to parse. Loop through the libraries in the Plex server
-    for (const section of sections) {
-      // If the library type is correct, add it as a valid option
-      if (section.type === 'artist') filteredSections.push({ value: section.uuid, title: section.title });
-      // Otherwise add it as an un-selectable option
-      else filteredSections.push({ value: section.uuid, title: `${section.title} (${helpersPublic.capitalizeFirstLetter(section.type)} Library)`, unset: true });
-    }
-    // If the currently selection option isn't a current option, clear our selection and add an 'Unset' option to match
-    if (sections.findIndex((v) => v.uuid === settingValues['plex.library.id']) === -1) {
-      settingValues['plex.library.id'] = '';
-      filteredSections.push({ value: '', title: 'Unset', unset: true });
-    }
-  } else {
-    // We are not. The selection box will be disabled, fill the current value
-    // If the currently selection option isn't a current option, clear our selection and add an 'Unset' option to match
-    if (settingValues['plex.library.name'] === '' || settingValues['plex.library.id'] === '') {
-      filteredSections.push({ value: '', title: 'Unset', unset: true });
-    } else {
-      filteredSections.push({ value: settingValues['plex.library.id'], title: settingValues['plex.library.name'], unset: true });
+    return {
+      signedIn,
+      issueDetected,
+      name: extraSettings['plex.friendlyName'],
+      sections: filteredSections,
+      collections
     }
   }
 
   // Return the data to the front-end
   return {
     settingValues,
-    plex: {
-      signedIn,
-      issueDetected,
-      name: extraSettings['plex.friendlyName'],
-      sections: filteredSections,
-      collections
-    },
+    plex: await plexDetails(),
   }
 }
 
@@ -218,6 +224,23 @@ export const actions = {
     }
   },
   testPlexIntegration: async () => {
+    const notification: Notification = {
+      id: uuidv4(),
+      icon_color: null,
+      icon_path: null,
+      issuer: 'audible.download' satisfies Issuer,
+      identifier: 'test456',
+      theme: 'info' satisfies ModalTheme,
+      text: `<span class="text-gray-600">Downloaded</span>`,
+      sub_text: new Date().toISOString(),
+      linger_time: 10000,
+      needs_clearing: true,
+      auto_open: true
+    };
+    await prisma.notification.create({
+      data: notification
+    });
+    events.emit('notification.created', [notification]);
     const addressAndToken = await settings.getMany('plex.address', 'plex.token');
     const results = await Plex.testPlexConnection(addressAndToken['plex.address'], addressAndToken['plex.token']);
     return { action: '?/updatePlexIntegration', invalidatedParams: false, name: results.source, success: results.success, message: results.message };

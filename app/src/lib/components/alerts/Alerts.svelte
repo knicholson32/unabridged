@@ -1,11 +1,10 @@
 <script lang="ts">
-	import type { AlertSettings, GenerateAlert, NotificationAPI, NotificationSettings } from "$lib/types";
+	import type { GenerateAlert, NotificationSettings } from "$lib/types";
 	import type { TransitionConfig } from "svelte/transition";
 	import type { AlertDefinition, GeneralDefinition, NotificationDefinition } from "./types";
   import Alert from "./Alert.svelte";
   import { v4 as uuidv4 } from 'uuid';
 	import { flip } from "svelte/animate";
-	import type { Writable } from "svelte/store";
 
   export let transitionIn: (n: HTMLElement) => TransitionConfig;
 

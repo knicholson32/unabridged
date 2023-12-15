@@ -1,9 +1,8 @@
 <script lang="ts">
 	import Rating from '$lib/components/decorations/Rating.svelte';
-	import { White } from '$lib/components/frames';
-	import Gray from '$lib/components/frames/Gray.svelte';
+	import White from '$lib/components/frames/Gray.svelte';
 	import BookShowcase from '$lib/components/routeSpecific/series/BookShowcase.svelte';
-	import { EscapeOrClickOutside, UpDownEnter } from '$lib/events';
+	import { EscapeOrClickOutside, UpDownEnter } from '$lib/components/events';
   import * as helpers from '$lib/helpers';
 	import { cubicOut } from 'svelte/easing';
 	import { fade, scale } from 'svelte/transition';

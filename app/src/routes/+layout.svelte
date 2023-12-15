@@ -9,11 +9,10 @@
   import { setContext, } from 'svelte';
   import { type PrimaryMenu, type ProfileMenu, type ProfileMenuWithID, type GenerateAlert, type AlertSettings, type NotificationAPI, type Notification, type ProcessProgress, type ProcessBookProgress, type UpdateProgress, type ProcessProgressAPI, type ProcessProgressesAPI, type PageNeedsProgress, ProcessType } from '$lib/types';
   import CircularClose from '$lib/components/decorations/CircularClose.svelte';
-  import { EscapeOrClickOutside, KeyBind, UpDownEnter } from '$lib/events';
+  import { EscapeOrClickOutside, KeyBind, UpDownEnter } from '$lib/components/events';
   import { fade, scale } from 'svelte/transition';
   import { cubicOut, cubicInOut, linear, cubicIn } from 'svelte/easing';
 	import Alerts from '$lib/components/alerts/Alerts.svelte';
-	import { decodeURLAlert } from '$lib/components/alerts';
 	import * as helpers from '$lib/helpers';
 	import { afterNavigate, invalidate } from '$app/navigation';
   import * as alerts from '$lib/components/alerts';
@@ -22,9 +21,13 @@
 	import StatusBar from '$lib/components/routeSpecific/layout/StatusBar.svelte';
 	import QueuedBook from '$lib/components/routeSpecific/layout/QueuedBook.svelte';
 	import FinishedBook from '$lib/components/routeSpecific/layout/FinishedBook.svelte';
-	import { flip } from 'svelte/animate';
+  import * as events from '$lib/events';
 	import StatusBarEmpty from '$lib/components/routeSpecific/layout/StatusBarEmpty.svelte';
   export let data;
+
+  // -----------------------------------------------------------------------------------------------
+  // Reactive Components
+  // -----------------------------------------------------------------------------------------------
 
   
   $: {
@@ -272,15 +275,15 @@
   // need to alert the user using the alert system
   setContext('showAlert', showAlert);
 
-  // Check to see if there is an alert search param in the URL. If so, display that alert.
-  const checkForAlert = () => {
-    if ($page.url.searchParams.get('alert') !== null) {
-      const alert = decodeURLAlert($page.url.searchParams.get('alert'));
-      if (alert !== null) showAlert(alert.text, alert.settings);
-      helpers.deleteQueries(['alert']);
-    }
-  }
-  afterNavigate(async ({}) => checkForAlert());
+  // // Check to see if there is an alert search param in the URL. If so, display that alert.
+  // const checkForAlert = () => {
+  //   if ($page.url.searchParams.get('alert') !== null) {
+  //     const alert = decodeURLAlert($page.url.searchParams.get('alert'));
+  //     if (alert !== null) showAlert(alert.text, alert.settings);
+  //     helpers.deleteQueries(['alert']);
+  //   }
+  // }
+  // afterNavigate(async ({}) => checkForAlert());
 
   const alertIn = (node: HTMLElement) => { // eslint-disable-line @typescript-eslint/no-unused-vars
     // Entering: "transform ease-out duration-300 transition"
@@ -315,36 +318,58 @@
   
   let notifications: Notification[] = data.notifications ?? [];
   
-  alerts.notificationAPIStore.subscribe(async (nData: NotificationAPI | undefined) => {
-    // const nData = await (await fetch('/api/notification')).json() as NotificationAPI;
-    if (nData === undefined) return;
-    if (nData.ok && nData.notifications !== undefined) {
-      notifications = nData.notifications;
-    } else {
-      notifications = [];
-    }
-    await alerts.showNotifications(alertsComponent, notifications, true);
-  });
+  // alerts.notificationAPIStore.subscribe(async (nData: NotificationAPI | undefined) => {
+  //   // const nData = await (await fetch('/api/notification')).json() as NotificationAPI;
+  //   if (nData === undefined) return;
+  //   if (nData.ok && nData.notifications !== undefined) {
+  //     notifications = nData.notifications;
+  //   } else {
+  //     notifications = [];
+  //   }
+  //   await alerts.showNotifications(alertsComponent, notifications, true);
+  // });
 
   $: notificationsAvailable = notifications?.length ?? 0 > 0;
   $: responsiveSM = innerWidth < 640;
 
   const showNotifications = async () => {
-    await alerts.updateNotifications();
+    // await alerts.updateNotifications();
     await alerts.showNotifications(alertsComponent, notifications);
   }
 
   onMount(() => {
+    console.log('events mount');
+    events.onMount();
+    events.on('notification.created', async (nData) => {
+      notifications = notifications.concat(nData);
+      console.log('Received notification update', notifications);
+      await alerts.showNotifications(alertsComponent, notifications);
+    });
+    events.on('notification.deleted', async (ids) => {
+      console.log('received notifications deleted', ids);
+      const notificationsFiltered = [];
+      for (const n of notifications) {
+        let remove = false;
+        for (const id of ids) {
+          if (n.id === id) {
+            remove = true;
+            break;
+          }
+        }
+        if (!remove) notificationsFiltered.push(n);
+      }
+      notifications = notificationsFiltered;
+    });
+    console.log('show notifications');
     // Initially show the urgent notifications
     alerts.showNotifications(alertsComponent, notifications, true);
-    if (browser) {
-      setInterval(async () => {
-        console.log('Updating notifications!');
-        await alerts.updateNotifications();
-      }, 120000); // Update every 2 minutes
-    }
+    // if (browser) {
+    //   setInterval(async () => {
+    //     console.log('Updating notifications!');
+    //     await alerts.updateNotifications();
+    //   }, 120000); // Update every 2 minutes
+    // }
   });
-
 
 </script>
 

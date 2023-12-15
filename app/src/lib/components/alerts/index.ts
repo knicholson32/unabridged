@@ -9,24 +9,24 @@ export { default as Alerts } from './Alerts.svelte';
 
 
 
-export const notificationAPIStore = writable<NotificationAPI>();
+// export const notificationAPIStore = writable<NotificationAPI>();
 
 
-/**
- * Create a new notification
- * @param notification the notification to create
- */
-export const createNotification = async (notification: Notification) => {
-  const response = await fetch('/api/notification', {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(notification)
-  });
-  await updateNotifications(response);
-}
+// /**
+//  * Create a new notification
+//  * @param notification the notification to create
+//  */
+// export const createNotification = async (notification: Notification) => {
+//   const response = await fetch('/api/notification', {
+//     method: 'POST',
+//     headers: {
+//       'Accept': 'application/json',
+//       'Content-Type': 'application/json'
+//     },
+//     body: JSON.stringify(notification)
+//   });
+//   await updateNotifications(response);
+// }
 
 
 /**
@@ -36,6 +36,7 @@ export const createNotification = async (notification: Notification) => {
  * @param urgentOnly whether or not to only show the urgent notifications
  */
 export const showNotifications = async (alertsComponent: Alerts, notifications: Notification[], urgentOnly = false) => {
+  console.log('showNotifications', alertsComponent, notifications, urgentOnly);
   if (alertsComponent === undefined) return;
   const deleteList: string[] = [];
   for (const notification of notifications) {
@@ -86,53 +87,53 @@ export const deleteNotifications = async (deleteList: string[]) => {
       },
       body: JSON.stringify({ ids: deleteList })
     });
-    await updateNotifications(response);
+    // await updateNotifications(response);
   }
 }
 
-/**
- * Force a fetch and assignment of the notifications from the server
- */
-export const updateNotifications = async (response?: Response) => {
-  let nData: NotificationAPI;
-  if (response !== undefined)
-    nData = await response.json() as NotificationAPI;
-  else {
-    nData = await (await fetch('/api/notification')).json() as NotificationAPI;
-  }
-  notificationAPIStore.set(nData);
-}
+// /**
+//  * Force a fetch and assignment of the notifications from the server
+//  */
+// export const updateNotifications = async (response?: Response) => {
+//   let nData: NotificationAPI;
+//   if (response !== undefined)
+//     nData = await response.json() as NotificationAPI;
+//   else {
+//     nData = await (await fetch('/api/notification')).json() as NotificationAPI;
+//   }
+//   notificationAPIStore.set(nData);
+// }
 
-/**
- * Encode a URLAlert definition to a base64 string to be sent via the search params
- * @param alert the URLAlert to convert
- * @returns the encoded string
- */
-export const encodeURLAlert = (alert: URLAlert): string => {
-  const str = JSON.stringify(alert);
-  console.log('str', str);
-  const b64 = base64.encode(str);
-  console.log('b64, b64');
-  const enc = encodeURIComponent(b64);
-  console.log('enc', enc);
-  return enc;
-  // return encodeURIComponent(base64.encode(JSON.stringify(alert)));
-}
+// /**
+//  * Encode a URLAlert definition to a base64 string to be sent via the search params
+//  * @param alert the URLAlert to convert
+//  * @returns the encoded string
+//  */
+// export const encodeURLAlert = (alert: URLAlert): string => {
+//   const str = JSON.stringify(alert);
+//   console.log('str', str);
+//   const b64 = base64.encode(str);
+//   console.log('b64, b64');
+//   const enc = encodeURIComponent(b64);
+//   console.log('enc', enc);
+//   return enc;
+//   // return encodeURIComponent(base64.encode(JSON.stringify(alert)));
+// }
 
-/**
- * Decode a string into a URLAlert if possible
- * @param alert the string to decode
- * @returns a URLAlert or null
- */
-export const decodeURLAlert = (alert: string | null): URLAlert | null => {
-  if (alert === null) return null;
-  try {
-      const b64 = base64.decode(alert);
-      console.log('b64', b64);
-    return JSON.parse(b64) as URLAlert; 
-  } catch(e) {
-    console.log(e);
-    console.log(alert);
-    return null;
-  }
-}
+// /**
+//  * Decode a string into a URLAlert if possible
+//  * @param alert the string to decode
+//  * @returns a URLAlert or null
+//  */
+// export const decodeURLAlert = (alert: string | null): URLAlert | null => {
+//   if (alert === null) return null;
+//   try {
+//       const b64 = base64.decode(alert);
+//       console.log('b64', b64);
+//     return JSON.parse(b64) as URLAlert; 
+//   } catch(e) {
+//     console.log(e);
+//     console.log(alert);
+//     return null;
+//   }
+// }

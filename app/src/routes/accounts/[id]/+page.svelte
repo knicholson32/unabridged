@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
   import { enhance } from '$app/forms';
-  import { EscapeOrClickOutside } from '$lib/events';
+  import { EscapeOrClickOutside } from '$lib/components/events';
   import { fade } from 'svelte/transition';
   import { cubicInOut } from 'svelte/easing';
   import { countryCodes } from '$lib/types';
@@ -46,82 +46,82 @@
 
   
 
-  let counter = 0;
-  const makeAlert = async () => {
-    await alerts.createNotification({
-      id: uuidv4(),
-      icon_path: null,
-      icon_color: null,
-      theme: 'info' satisfies ModalTheme,
-      text: 'Info notification',
-      sub_text: 'With some subtext',
-      linger_time: 0,
-      needs_clearing: true,
-      auto_open: true,
-      issuer: 'general' satisfies Issuer,
-      identifier: null,
-    });
-    await alerts.createNotification({
-      id: uuidv4(),
-      icon_path: null,
-      icon_color: null,
-      theme: 'ok' satisfies ModalTheme,
-      text: 'OK notification',
-      sub_text: 'With some subtext',
-      linger_time: 0,
-      needs_clearing: true,
-      auto_open: true,
-      issuer: 'general' satisfies Issuer,
-      identifier: null,
-    });
-    await alerts.createNotification({
-      id: uuidv4(),
-      icon_path: null,
-      icon_color: null,
-      theme: 'warning' satisfies ModalTheme,
-      text: 'Warning notification',
-      sub_text: 'With some subtext',
-      linger_time: 0,
-      needs_clearing: true,
-      auto_open: true,
-      issuer: 'general' satisfies Issuer,
-      identifier: null,
-    });
-    await alerts.createNotification({
-      id: uuidv4(),
-      icon_path: null,
-      icon_color: null,
-      theme: 'error' satisfies ModalTheme,
-      text: 'Error notification',
-      sub_text: 'With some subtext',
-      linger_time: 0,
-      needs_clearing: true,
-      auto_open: true,
-      issuer: 'general' satisfies Issuer,
-      identifier: null,
-    });
-    showAlert('Info alert', {
-      subText: 'With some subtext',
-      theme: 'info'
-    })
-    showAlert('OK alert', {
-      subText: 'With some subtext',
-      theme: 'ok'
-    })
-    showAlert('Warning alert', {
-      subText: 'With some subtext',
-      theme: 'warning'
-    })
-    showAlert('Error alert', {
-      subText: 'With some subtext',
-      theme: 'error'
-    })
-    // if (counter % 2 === 0)
-    //   showAlert('My alert!', {subText: 'This is my subtext. Alert ' + counter, linger_ms: 0, iconPath: icons.warning, iconColor: 'text-red-400'});
-    // else
-    //   showAlert('My alert! ' + counter, {linger_ms: 0, iconPath: icons.info});
-    // counter ++;
-  }
+  // let counter = 0;
+  // const makeAlert = async () => {
+  //   await alerts.createNotification({
+  //     id: uuidv4(),
+  //     icon_path: null,
+  //     icon_color: null,
+  //     theme: 'info' satisfies ModalTheme,
+  //     text: 'Info notification',
+  //     sub_text: 'With some subtext',
+  //     linger_time: 0,
+  //     needs_clearing: true,
+  //     auto_open: true,
+  //     issuer: 'general' satisfies Issuer,
+  //     identifier: null,
+  //   });
+  //   await alerts.createNotification({
+  //     id: uuidv4(),
+  //     icon_path: null,
+  //     icon_color: null,
+  //     theme: 'ok' satisfies ModalTheme,
+  //     text: 'OK notification',
+  //     sub_text: 'With some subtext',
+  //     linger_time: 0,
+  //     needs_clearing: true,
+  //     auto_open: true,
+  //     issuer: 'general' satisfies Issuer,
+  //     identifier: null,
+  //   });
+  //   await alerts.createNotification({
+  //     id: uuidv4(),
+  //     icon_path: null,
+  //     icon_color: null,
+  //     theme: 'warning' satisfies ModalTheme,
+  //     text: 'Warning notification',
+  //     sub_text: 'With some subtext',
+  //     linger_time: 0,
+  //     needs_clearing: true,
+  //     auto_open: true,
+  //     issuer: 'general' satisfies Issuer,
+  //     identifier: null,
+  //   });
+  //   await alerts.createNotification({
+  //     id: uuidv4(),
+  //     icon_path: null,
+  //     icon_color: null,
+  //     theme: 'error' satisfies ModalTheme,
+  //     text: 'Error notification',
+  //     sub_text: 'With some subtext',
+  //     linger_time: 0,
+  //     needs_clearing: true,
+  //     auto_open: true,
+  //     issuer: 'general' satisfies Issuer,
+  //     identifier: null,
+  //   });
+  //   showAlert('Info alert', {
+  //     subText: 'With some subtext',
+  //     theme: 'info'
+  //   })
+  //   showAlert('OK alert', {
+  //     subText: 'With some subtext',
+  //     theme: 'ok'
+  //   })
+  //   showAlert('Warning alert', {
+  //     subText: 'With some subtext',
+  //     theme: 'warning'
+  //   })
+  //   showAlert('Error alert', {
+  //     subText: 'With some subtext',
+  //     theme: 'error'
+  //   })
+  //   // if (counter % 2 === 0)
+  //   //   showAlert('My alert!', {subText: 'This is my subtext. Alert ' + counter, linger_ms: 0, iconPath: icons.warning, iconColor: 'text-red-400'});
+  //   // else
+  //   //   showAlert('My alert! ' + counter, {linger_ms: 0, iconPath: icons.info});
+  //   // counter ++;
+  // }
 
   // -----------------------------------------------------------------------------------------------
   // Profile Sync

@@ -7,7 +7,6 @@
 	import { CollectionBy, type GenerateAlert, type URLAlert } from "$lib/types";
 	import { getContext, onMount } from "svelte";
   import { page } from '$app/stores';
-	import { decodeURLAlert } from "$lib/components/alerts";
 	import { enhance } from "$app/forms";
 	import CollectionList from "$lib/components/settings/CollectionList.svelte";
 	import Collection from "$lib/components/settings/Collection.svelte";
@@ -77,17 +76,7 @@
     libraryIDSaved = data.settingValues['plex.library.id'];
   }
 
-  // onMount(() => {
-  //   let alert = $page.url.searchParams.get('a');
-  //   if (alert !== null) {
-  //     const decodedAlert = decodeURLAlert(alert);
-  //     if (decodedAlert !== null) showAlert(decodedAlert.text, decodedAlert.settings);
-  //   }
-  //   // goto('/settings/plex');
-  // });
-
 </script>
-
 
 <!-- Plex Integration -->
 <Settings.List class="" form={form} action="?/updatePlexIntegration" bind:unsavedChanges={plexIntegrationUnsavedChanges} bind:update={plexIntegrationUpdate}>
