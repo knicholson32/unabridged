@@ -12,4 +12,3 @@ export async function load({ fetch }) {
     processSettings: processSettings.ok === true && processSettings.type === 'process.settings' ? processSettings.settings : null
   };
 }
-

@@ -627,7 +627,7 @@ export namespace LibraryManager {
             }
           }
         });
-        const queued = await prisma.processQueue.findUnique({ ...types.processQueueBOOKValidator, ...{where: { id: id} }});
+        const queued = await prisma.processQueue.findUnique({ include: types.processQueueBOOKInclude, where: { id: id, type: types.ProcessType.BOOK } });
         console.log('queued', queued);
         if (queued !== null) events.emit('process.book.queued', queued);
       }

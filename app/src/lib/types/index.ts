@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import type { ObjectType, SettingsSet, TypeName } from '$lib/server/settings';
 
 export type CountryCode = 'us' | 'ca' | 'uk' | 'au' | 'fr' | 'de' | 'jp' | 'it' | 'in';
@@ -117,20 +117,19 @@ export namespace API {
     }
 }
 
-export const fileValidator = Prisma.validator<Prisma.MediaFindManyArgs>()({
-    select: {
-        id: true,
-        content_type: true,
-        extension: true,
-        title: true,
-        bookAsin: true,
-        data: false,
-        path: false,
-        size_b: true,
-        description: true
-    }
-});
-export type File = Prisma.MediaGetPayload<typeof fileValidator>;
+export const fileSelect = {
+    id: true,
+    content_type: true,
+    extension: true,
+    title: true,
+    bookAsin: true,
+    data: false,
+    path: false,
+    size_b: true,
+    description: true
+} satisfies Prisma.MediaSelect
+
+export type File = Prisma.MediaGetPayload<{ select: typeof fileSelect }>;
 
 
 // -------------------------------------------------------------------------------------------------
@@ -189,31 +188,29 @@ export enum ProcessType {
     BOOK = 'BOOK'
 }
 
-export const processQueueBOOKValidator = Prisma.validator<Prisma.ProcessQueueFindManyArgs>()({
-    where: { type: ProcessType.BOOK },
-    include: { 
-        book: {
-            include: {
-                book: {
-                    select: {
-                        cover: {
-                            select: {
-                                url_100: true
-                            }
-                        },
-                        authors: {
-                            select: {
-                                name: true,
-                            }
-                        },
-                        title: true
-                    }
+export const processQueueBOOKInclude = {
+    book: {
+        include: {
+            book: {
+                select: {
+                    cover: {
+                        select: {
+                            url_100: true
+                        }
+                    },
+                    authors: {
+                        select: {
+                            name: true,
+                        }
+                    },
+                    title: true
                 }
             }
         }
     }
-});
-export type ProcessQueueBOOK = Prisma.ProcessQueueGetPayload<typeof processQueueBOOKValidator>;
+} satisfies Prisma.ProcessQueueSelect
+
+export type ProcessQueueBOOK = Prisma.ProcessQueueGetPayload<{ include: typeof processQueueBOOKInclude }>;
 
 export namespace API {
     export namespace Process {
@@ -310,41 +307,6 @@ export namespace Progress {
 // -------------------------------------------------------------------------------------------------
 // Progress
 // -------------------------------------------------------------------------------------------------
-
-// export type Progress = Prisma.ProgressGetPayload<{
-//     select: {
-//         id: false,
-//         type: true,
-//         progress: true,
-//         status: true,
-//         message: true,
-//         ref: true,
-//         speed_mb_s: true,
-//         total_mb: true,
-//         downloaded_mb: true
-//     }
-// }>;
-
-// export type ProcessBookProgress = Prisma.ProcessQueueGetPayload<{
-//     include: {
-//         book: {
-//             include: {
-//                 book: {
-//                     select: {
-//                         title: true,
-//                         authors: true,
-//                         genres: true,
-//                         cover: {
-//                             select: {
-//                                 url_100: true
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }>;
 
 export type UpdateProgress = () => void;
 export type PageNeedsProgress = () => void;

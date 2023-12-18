@@ -1,7 +1,5 @@
-import type * as Types from '@prisma/client';
 import prisma from '$lib/server/prisma';
 import type { SideMenu, LinkMenuItem } from '$lib/types/';
-import { icons } from '$lib/components';
 import { error } from '@sveltejs/kit';
 
 /** @type {import('./$types').PageServerLoad} */
