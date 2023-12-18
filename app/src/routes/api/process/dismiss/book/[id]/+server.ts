@@ -1,23 +1,16 @@
-// Delete the done ones now that we have them
-
 import prisma from '$lib/server/prisma';
-import { error, json } from '@sveltejs/kit';
 import * as settings from '$lib/server/settings';
-import { ProcessType, type ProcessProgressesAPI } from '$lib/types';
+import { API } from '$lib/types';
+import * as events from '$lib/server/events';
 
 export const GET = async ({ params }) => {
-
-  const asin = params.asin;
+  const id = params.id;
 
   // Check that the ID was actually submitted
-  if (asin === null || asin === undefined) throw error(404, 'Not found');
-
-  console.log('DISMISS', asin);
+  if (id === null || id === undefined) return API.response._400({ missingPaths: ['id'] });
 
   try {
-    await prisma.processQueue.deleteMany({
-      where: {type: ProcessType.BOOK, book: { bookAsin: asin } }
-    });
+    await prisma.processQueue.deleteMany({ where: { id: id } });
   } catch(e) {
     // Nothing to do if this fails
   }
@@ -29,8 +22,12 @@ export const GET = async ({ params }) => {
     await settings.set('progress.startTime', -1);
     await settings.set('progress.endTime', -1);
     await settings.set('progress.paused', await settings.get('progress.startPaused'));
+    events.emit('process.settings', await settings.getSet('progress'));
   }
 
+  // Emit the events
+  events.emit('process.dismissed', [id]);
+
   // Return
-  return json({ ok: true, status: 200 } satisfies ProcessProgressesAPI);
+  return API.response.success();
 }

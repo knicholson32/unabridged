@@ -4,19 +4,16 @@
 
 <script lang="ts">
   import '../app.css';
-  import { page, navigating } from '$app/stores';
+  import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { setContext, } from 'svelte';
-  import { type PrimaryMenu, type ProfileMenu, type ProfileMenuWithID, type GenerateAlert, type AlertSettings, type NotificationAPI, type Notification, type ProcessProgress, type ProcessBookProgress, type UpdateProgress, type ProcessProgressAPI, type ProcessProgressesAPI, type PageNeedsProgress, ProcessType } from '$lib/types';
-  import CircularClose from '$lib/components/decorations/CircularClose.svelte';
+  import { type PrimaryMenu, type ProfileMenu, type ProfileMenuWithID, type GenerateAlert, type Notification, type API, Process, type ProcessQueueBOOK } from '$lib/types';
   import { EscapeOrClickOutside, KeyBind, UpDownEnter } from '$lib/components/events';
   import { fade, scale } from 'svelte/transition';
   import { cubicOut, cubicInOut, linear, cubicIn } from 'svelte/easing';
 	import Alerts from '$lib/components/alerts/Alerts.svelte';
 	import * as helpers from '$lib/helpers';
-	import { afterNavigate, invalidate } from '$app/navigation';
   import * as alerts from '$lib/components/alerts';
-	import { browser } from '$app/environment';
 	import { writable } from 'svelte/store';
 	import StatusBar from '$lib/components/routeSpecific/layout/StatusBar.svelte';
 	import QueuedBook from '$lib/components/routeSpecific/layout/QueuedBook.svelte';
@@ -28,14 +25,6 @@
   // -----------------------------------------------------------------------------------------------
   // Reactive Components
   // -----------------------------------------------------------------------------------------------
-
-  
-  $: {
-    let update = $page.url.searchParams.get('update');
-    if (update !== null && browser) {
-      alerts.updateNotifications();
-    }
-  }
 
   let innerWidth: number;
 
@@ -82,95 +71,269 @@
 
 
   // -----------------------------------------------------------------------------------------------
-  // Status Menu
+  // Notifications
   // -----------------------------------------------------------------------------------------------
-
-  let statusMenuVisible = false;
-  let showStatusButton: HTMLButtonElement;
-
   
-  const progress = writable<ProcessBookProgress[]>();
-  const processPaused = writable<boolean>();
-  const elapsed_s = writable<number>();
-  
-  progress.set(data.progresses.filter(v => v.type === ProcessType.BOOK) as ProcessBookProgress[]);  
-  processPaused.set(data.processPaused);
-  elapsed_s.set(data.elapsed_s);
+  let notifications: Notification[] = data.notifications ?? [];
 
+  $: notificationsAvailable = notifications?.length ?? 0 > 0;
+  $: responsiveSM = innerWidth < 640;
 
-  const updateProgress: UpdateProgress = async () => {
-    console.log('Progress Update');
-    const p = await (await fetch('/api/progress')).json() as ProcessProgressesAPI;
-    if (p.progresses !== undefined) progress.set(p.progresses.filter(v => v.type === ProcessType.BOOK) as ProcessBookProgress[]);
-    if (p.paused !== undefined) processPaused.set(p.paused);
-    if (p.elapsed_s !== undefined) elapsed_s.set(p.elapsed_s);
-  }
-
-  const togglePause = async () => {
-    await fetch('/api/progress/toggle');
-    setTimeout(updateProgress, 1000);
-  }
-
-  let pageNeedsProgress = false;
-  const setPageNeedsProgressData: PageNeedsProgress = () => {
-    console.log('PAGE NEEDS PROGRESS');
-    pageNeedsProgress = true;
-  }
-  
-  const showStatusMenu = () => statusMenuVisible = true;
-  const closeStatusMenu = () => statusMenuVisible = false;
-  const toggleStatusMenu = () => {
-    statusMenuVisible = !statusMenuVisible;
-  }
-
-  setContext('progress', progress);
-  setContext('processPaused', processPaused);
-  setContext('elapsed_s', elapsed_s);
-  setContext('updateProgress', updateProgress);
-  setContext('openManager', showStatusMenu);
-  setContext('pageNeedsProgress', setPageNeedsProgressData);
-
-  const hoverStatusMenuButton = () => {
-     if (statusMenuVisible === false) updateProgress();
-  }
-
-  const dismissAll = async () => {
-    await fetch('/api/progress/dismiss');
-    updateProgress();
-  }
-
-  const FAST_RATE = 500;
-  const SLOW_RATE = 5000;
-
-  $: booksDone = $progress.filter((p) => p.is_done === true).length;
-  $: booksNotDone = $progress.filter((p) => p.is_done === false).length;
-  $: booksInProgress = $progress.filter((p) => p.in_progress === true).length;
-  $: booksWaiting = $progress.filter((p) => p.in_progress === false && p.is_done === false).length;
-  $: totalBooks = $progress.length;
-  $: rate = pageNeedsProgress ? (booksInProgress > 0 ? FAST_RATE : SLOW_RATE) : (booksInProgress > 0 && statusMenuVisible ? FAST_RATE : SLOW_RATE);
-
-  let interval: number;
-
-  $: {
-    if (browser && rate) {
-      console.log(rate, booksNotDone, pageNeedsProgress);
-      clearInterval(interval);
-      interval = setInterval(() => {
-        updateProgress();
-      }, rate);
-      alerts.showNotifications(alertsComponent, notifications, true);
-    }
+  const showNotifications = async () => {
+    // await alerts.updateNotifications();
+    await alerts.showNotifications(alertsComponent, notifications);
   }
 
   onMount(() => {
-    clearInterval(interval);
-    interval = setInterval(() => {
-			updateProgress();
-		}, SLOW_RATE);
-		return () => {
-			clearInterval(interval);
-		};
-	});
+    const notificationCreatedRemove = events.on('notification.created', async (nData) => {
+      notifications = notifications.concat(nData);
+      console.log('Received notification update', notifications);
+      await alerts.showNotifications(alertsComponent, notifications);
+    });
+    const notificationDeletedRemove = events.on('notification.deleted', async (ids) => {
+      console.log('received notifications deleted', ids);
+      const notificationsFiltered = [];
+      for (const n of notifications) {
+        let remove = false;
+        for (const id of ids) {
+          if (n.id === id) {
+            remove = true;
+            break;
+          }
+        }
+        if (!remove) notificationsFiltered.push(n);
+      }
+      notifications = notificationsFiltered;
+    });
+    console.log('show notifications');
+    // Initially show the urgent notifications
+    alerts.showNotifications(alertsComponent, notifications, true);
+    return () => {
+      notificationCreatedRemove();
+      notificationDeletedRemove();
+    }
+  });
+
+
+  // -----------------------------------------------------------------------------------------------
+  // Download Manager
+  // -----------------------------------------------------------------------------------------------
+
+  let downloadManagerVisible = false;
+  let showDownloadManagerButton: HTMLButtonElement;
+
+  let processPaused = data.processSettings?.['progress.paused'] ?? false;  
+
+  const togglePause = async () => {
+    const response = await (await fetch('/api/process/paused/toggle')).json() as API.Response;
+    if (response.ok == true && response.type === 'boolean') processPaused = response.value;
+  }
+
+  
+  const showDownloadManager = () => downloadManagerVisible = true;
+  const closeDownloadManager = () => downloadManagerVisible = false;
+  const toggleDownloadManager = () => downloadManagerVisible = !downloadManagerVisible;
+
+  setContext('openManager', showDownloadManager);
+
+  const dismissAll = async () => {
+    await fetch('/api/process/dismiss/book');
+  }
+
+  console.log('processData', data.booksInProcess);
+
+  let timeElapsing = false;
+  let startTime = -1;
+  let staticTime = 0;
+
+  let elapsedTime = '00:00:00';
+  const displayElapsedTime = () => {
+    if (timeElapsing === true) elapsedTime = new helpers.RunTime({s: Math.floor(Date.now() / 1000) - startTime}).toDirectFormatFull();
+    else elapsedTime = new helpers.RunTime({s: staticTime}).toDirectFormatFull();
+  }
+
+  const updateProcessSettings = (data: Process.Settings) => {
+    if (data['progress.endTime'] === -1) {
+      if (data['progress.startTime'] === -1) {
+        timeElapsing = false;
+        staticTime = 0;
+      } else {
+        timeElapsing = true;
+        staticTime = -1;
+        startTime = data['progress.startTime'];
+      }
+    } else {
+      timeElapsing = false;
+      staticTime = data['progress.endTime'] - data['progress.startTime']
+    }
+    displayElapsedTime();
+  }
+  if (data.processSettings !== null) updateProcessSettings(data.processSettings);
+
+  // Create an object that will hold the client copy of the process system
+  const processBookMap: {[key: string]: ProcessQueueBOOK} = {};
+  
+  // Populate the process book object with initial values from the API call
+  for (const book of data.booksInProcess) processBookMap[book.id] = book;
+  console.log(processBookMap);
+
+  const refreshProcessData = async () => {
+    const booksInProcess = await (await fetch('/api/process/get/book')).json() as API.Response;
+    if (booksInProcess.ok !== true || booksInProcess.type !== 'process.book') return;
+    for (const key of Object.keys(processBookMap)) delete processBookMap[key];
+    for (const book of booksInProcess.processes) processBookMap[book.id] = book;
+  }
+
+  // Create some variables to hold common statistics that the front-end will use
+  let booksAsArray: ProcessQueueBOOK[] = [];
+  let booksDone = 0;
+  let booksNotDone = 0;
+  let booksInProgress = 0;
+  let booksWaiting = 0;
+  let totalBooks = 0;
+
+  let totalPercentage = 0;
+
+  // When we get process updates this function can be ran to update the statistics
+  const updateBookStatistics = () => {
+    const booksInProgressArr = booksAsArray.filter((b) => b.in_progress === true);
+    booksAsArray = Object.keys(processBookMap).map((key) => processBookMap[key]);
+    booksDone = booksAsArray.filter((b) => b.is_done === true).length;
+    booksNotDone = booksAsArray.filter((b) => b.is_done === false).length;
+    booksInProgress = booksAsArray.filter((b) => b.in_progress === true).length;
+    booksWaiting = booksAsArray.filter((b) => b.in_progress === false && b.is_done === false).length;
+    totalBooks = booksAsArray.length;
+    
+    if (totalBooks > 0) {
+      let inProgressPercentages = 0;
+      for (const b of booksInProgressArr) {
+        if (b.book === null) continue;
+        // Calculate this book's percentage
+        const bP = ((b.book.download_progress + b.book.process_progress) / 2 * 100);
+        inProgressPercentages += bP / totalBooks;
+      }
+      totalPercentage = Math.floor(100 * (booksDone / totalBooks)) + inProgressPercentages;
+    } else {
+      totalPercentage = 0;
+    }
+
+  }
+
+  // Initialize the statistics based on the initial data from the API request
+  updateBookStatistics();
+
+  // On mount (initial load after DOM is available)
+  onMount(() => {
+    console.log('events mount');
+    events.onMount();
+
+    const removalFunctions: (() => void)[] = [];
+
+    // process.settings ---------------------------------------------------------------
+    removalFunctions.push(events.on('process.settings', updateProcessSettings));
+
+    // process.dismissed --------------------------------------------------------------
+    removalFunctions.push(events.on('process.dismissed', async (ids) => {
+      // for (const id of ids) delete processBookMap[id];
+      
+      await refreshProcessData();
+
+      // Update the book statistics after these changes
+      updateBookStatistics();
+    }));
+
+    // process.book -------------------------------------------------------------------
+    removalFunctions.push(events.on('process.book', async (data) => {
+      // Check if that book exists. If not, we don't have the data to do anything about it.
+      // The `process.book.queued` event must fire first.
+      if (!(data.id in processBookMap)) return;
+
+      // // Assign the running and done flags
+      // processBookMap[data.id].in_progress = data.r;
+      // processBookMap[data.id].is_done = data.d;
+
+      await refreshProcessData();
+
+      // Update the book statistics after these changes
+      updateBookStatistics();
+    }));
+
+    // process.book.queued ------------------------------------------------------------
+    removalFunctions.push(events.on('process.book.queued', async (data) => {
+      // processBookMap[data.id] = data
+
+      console.log('queued', data);
+
+      await refreshProcessData();
+      
+      // Update the book statistics after these changes
+      updateBookStatistics();
+    }));
+
+    // process.book.result ------------------------------------------------------------
+    removalFunctions.push(events.on('process.book.result', async (data) =>{
+      // Check if that book exists. If not, we don't have the data to do anything about it.
+      // The `process.book.queued` event must fire first.
+      if (!(data.id in processBookMap)) return;
+
+      // // Assign the running and done flags
+      // processBookMap[data.id].in_progress = data.r;
+      // processBookMap[data.id].is_done = data.d;
+      // processBookMap[data.id].result = data.result;
+
+
+      await refreshProcessData();
+
+      // Update the book statistics after these changes
+      updateBookStatistics();
+    }));
+    
+    // process.book.progress ----------------------------------------------------------
+    removalFunctions.push(events.on('process.book.progress', (data) =>{
+      // Check if that book exists. If not, we don't have the data to do anything about it.
+      // The `process.book.queued` event must fire first.
+      if (!(data.id in processBookMap)) return;
+      console.log('progress', data);
+
+      // Assign the running and done flags
+      processBookMap[data.id].in_progress = data.r;
+      processBookMap[data.id].is_done = data.d;
+
+      const book = processBookMap[data.id].book;
+
+      // Update the book statistics after these changes
+      updateBookStatistics();
+
+      // Only continue if the book exists
+      if (book === null) return;
+
+      // Assign properties based on the type of progress update message
+      if (data.t === Process.Book.Task.DOWNLOAD) {
+        book.download_progress = data.p;
+        book.process_progress = 0;
+        book.speed = data.s ?? null;
+        book.downloaded_mb = data.mb ?? null;
+        book.total_mb = data.tb ?? null;
+      } else if (data.t === Process.Book.Task.PROCESS) {
+        book.download_progress = 1;
+        book.process_progress = data.p;
+        book.speed = data.s ?? null;
+      }
+
+      // Update the book statistics after these changes
+      updateBookStatistics();
+
+      // // Re-assign the book back
+      // processBookMap[data.id].book = book;
+    }));
+
+    const calculateTimeInterval = setInterval(displayElapsedTime, 1000);
+
+    return () => {
+      for (const remove of removalFunctions) remove();
+      clearInterval(calculateTimeInterval);
+    }
+  });
 
 
   // -----------------------------------------------------------------------------------------------
@@ -275,16 +438,6 @@
   // need to alert the user using the alert system
   setContext('showAlert', showAlert);
 
-  // // Check to see if there is an alert search param in the URL. If so, display that alert.
-  // const checkForAlert = () => {
-  //   if ($page.url.searchParams.get('alert') !== null) {
-  //     const alert = decodeURLAlert($page.url.searchParams.get('alert'));
-  //     if (alert !== null) showAlert(alert.text, alert.settings);
-  //     helpers.deleteQueries(['alert']);
-  //   }
-  // }
-  // afterNavigate(async ({}) => checkForAlert());
-
   const alertIn = (node: HTMLElement) => { // eslint-disable-line @typescript-eslint/no-unused-vars
     // Entering: "transform ease-out duration-300 transition"
     //   From: "translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
@@ -311,65 +464,7 @@
     };
     }
   }
-  
-  // -----------------------------------------------------------------------------------------------
-  // Notifications
-  // -----------------------------------------------------------------------------------------------
-  
-  let notifications: Notification[] = data.notifications ?? [];
-  
-  // alerts.notificationAPIStore.subscribe(async (nData: NotificationAPI | undefined) => {
-  //   // const nData = await (await fetch('/api/notification')).json() as NotificationAPI;
-  //   if (nData === undefined) return;
-  //   if (nData.ok && nData.notifications !== undefined) {
-  //     notifications = nData.notifications;
-  //   } else {
-  //     notifications = [];
-  //   }
-  //   await alerts.showNotifications(alertsComponent, notifications, true);
-  // });
 
-  $: notificationsAvailable = notifications?.length ?? 0 > 0;
-  $: responsiveSM = innerWidth < 640;
-
-  const showNotifications = async () => {
-    // await alerts.updateNotifications();
-    await alerts.showNotifications(alertsComponent, notifications);
-  }
-
-  onMount(() => {
-    console.log('events mount');
-    events.onMount();
-    events.on('notification.created', async (nData) => {
-      notifications = notifications.concat(nData);
-      console.log('Received notification update', notifications);
-      await alerts.showNotifications(alertsComponent, notifications);
-    });
-    events.on('notification.deleted', async (ids) => {
-      console.log('received notifications deleted', ids);
-      const notificationsFiltered = [];
-      for (const n of notifications) {
-        let remove = false;
-        for (const id of ids) {
-          if (n.id === id) {
-            remove = true;
-            break;
-          }
-        }
-        if (!remove) notificationsFiltered.push(n);
-      }
-      notifications = notificationsFiltered;
-    });
-    console.log('show notifications');
-    // Initially show the urgent notifications
-    alerts.showNotifications(alertsComponent, notifications, true);
-    // if (browser) {
-    //   setInterval(async () => {
-    //     console.log('Updating notifications!');
-    //     await alerts.updateNotifications();
-    //   }, 120000); // Update every 2 minutes
-    // }
-  });
 
 </script>
 
@@ -626,7 +721,7 @@
           </button>
 
           <div class="relative">
-            <button on:click={toggleStatusMenu} on:mouseenter={hoverStatusMenuButton} bind:this={showStatusButton} type="button" class="relative -m-2.5 p-2.5 {booksNotDone ? 'text-sky-500' : 'text-gray-400'}  hover:text-gray-500">
+            <button on:click={toggleDownloadManager} on:mouseenter={refreshProcessData} bind:this={showDownloadManagerButton} type="button" class="relative -m-2.5 p-2.5 {booksNotDone ? 'text-sky-500' : 'text-gray-400'}  hover:text-gray-500">
               <span class="sr-only">View Status</span>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
@@ -649,22 +744,22 @@
                   From: "transform opacity-100 scale-100"
                   To: "transform opacity-0 scale-95"
               -->
-            {#if statusMenuVisible}
+            {#if downloadManagerVisible}
               <!-- <div class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1"> -->
-              <div class="fixed origin-top-right top-16 right-2 left-2 overflow-hidden overflow-y-scroll max-h-[calc(100vh-5rem)] z-10 mt-2.5 sm:absolute sm:top-auto sm:overflow-y-visible sm:left-auto sm:right-0 sm:w-[30rem] rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none " in:scale="{{duration: 100, opacity: 0.95, start: 0.95, easing: cubicOut}}" out:scale="{{duration: 75, opacity: 0.95, start: 0.95, easing: cubicOut}}" use:EscapeOrClickOutside={{except: showStatusButton, callback: closeStatusMenu}} role="menu" aria-orientation="vertical" aria-labelledby="options-menu-button" tabindex="-1">
+              <div class="fixed origin-top-right top-16 right-2 left-2 overflow-hidden overflow-y-scroll max-h-[calc(100vh-5rem)] z-10 mt-2.5 sm:absolute sm:top-auto sm:overflow-y-visible sm:left-auto sm:right-0 sm:w-[30rem] rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none " in:scale="{{duration: 100, opacity: 0.95, start: 0.95, easing: cubicOut}}" out:scale="{{duration: 75, opacity: 0.95, start: 0.95, easing: cubicOut}}" use:EscapeOrClickOutside={{except: showDownloadManagerButton, callback: closeDownloadManager}} role="menu" aria-orientation="vertical" aria-labelledby="options-menu-button" tabindex="-1">
                 <div in:fade="{{duration: 100, easing: cubicOut}}" out:fade="{{duration: 75, easing: cubicOut}}" class=" antialiase">
 
                   <div class="absolute right-2 top-2 flex gap-1">
                     <button on:click={togglePause} type="button" class="px-1 py-1 text-gray-500 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100" >
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
-                        {#if $processPaused}
+                        {#if processPaused}
                           <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                         {:else}
                           <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
                         {/if}
                       </svg>
                     </button>
-                    <button on:click={closeStatusMenu} type="button" class="px-1 py-1 text-gray-500 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100" >
+                    <button on:click={closeDownloadManager} type="button" class="px-1 py-1 text-gray-500 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100" >
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
                         <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
                       </svg>
@@ -682,25 +777,26 @@
                         <div class="border-l grow-0"/>
                         <div class="font-mono grow text-center sm:text-left sm:pl-2">{booksDone}<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans">Finished</span></div>
                         <div class="border-l grow-0"/>
-                        <div class="font-mono grow text-center sm:text-left sm:pl-2">{$elapsed_s === -1 ? '00:00:00' : new helpers.RunTime({s: $elapsed_s}).toDirectFormatFull()}<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans">Elapsed</span></div>
+                        <div class="font-mono grow text-center sm:text-left sm:pl-2">{elapsedTime}<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans">Elapsed</span></div>
                       </div>
                       <div class="mx-2 mt-1">
                         <div class="relative w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                          <div class="absolute bg-blue-600 h-2.5 rounded-full transition-width" style="width: {totalBooks > 0 ? Math.floor(100 * (booksDone / totalBooks)) : '0'}%"></div>
+                          <div class="absolute bg-blue-600 h-2.5 rounded-full transition-width duration-500" style="width: {totalPercentage}%"></div>
                         </div>
                         <div class="flex justify-between mb-1">
                           <span class="text-xs font-medium text-blue-700 dark:text-white truncate max-w-[7rem]">{booksDone} <span class="text-xxs">of</span> {totalBooks}</span>
-                          <span class="text-xs font-medium text-blue-700 dark:text-white">{totalBooks > 0 ? Math.floor(100 * (booksDone / totalBooks)) : '0'}%</span>
+                          <span class="text-xs font-medium text-blue-700 dark:text-white">{helpers.round(totalPercentage, 0)}%</span>
                         </div>
                       </div>
                     </div>
 
-                    {#if $progress.length > 0}
+                    <!-- TODO: Resolve this -->
+                    {#if booksAsArray.length > 0}
                       {#if booksInProgress > 0}
                         <div class="border-b my-1"></div>
                         <div class="flex flex-col" role="none">
-                          {#each $progress.filter((p) => p.in_progress === true) as p (p.id)}
-                            <StatusBar progress={p}/>
+                          {#each booksAsArray.filter((b) => b.in_progress === true) as p (p.id)}
+                            <StatusBar process={p}/>
                           {/each}
                         </div>
                       {:else}
@@ -713,11 +809,11 @@
                         <div class="border-b-4 border-double my-1"/>
                         <div class="mx-3 flex flex-row gap-1 items-center">
                           <div class="font-bold text-lg">Queue</div>
-                          <div class="font-mono grow pl-2 text-sm">{booksWaiting}<span class="ml-1 text-xs text-gray-600 font-sans">{helpers.basicPlural('Book', booksWaiting)} Waiting{$processPaused ? ' - Paused' : ''}</span></div>
+                          <div class="font-mono grow pl-2 text-sm">{booksWaiting}<span class="ml-1 text-xs text-gray-600 font-sans">{helpers.basicPlural('Book', booksWaiting)} Waiting{processPaused ? ' - Paused' : ''}</span></div>
                         </div>
                         <ul class="flex flex-col max-h-56 overflow-y-scroll overflow-hidden bg-white" role="none">
-                          {#each $progress.filter((p) => p.in_progress === false && p.is_done === false) as p (p.id)}
-                            <li class="odd:bg-gray-100"><QueuedBook progress={p}/></li>
+                          {#each booksAsArray.filter((p) => p.in_progress === false && p.is_done === false) as p (p.id)}
+                            <li class="odd:bg-gray-100"><QueuedBook process={p}/></li>
                           {/each}
                         </ul>
                       {/if}
@@ -732,8 +828,8 @@
                           </button>
                         </div>
                         <ul class="flex flex-col max-h-56 overflow-y-scroll overflow-hidden bg-white" role="none">
-                          {#each $progress.filter((p) => p.is_done === true) as p (p.id)}
-                            <li class="odd:bg-gray-100"><FinishedBook progress={p}/></li>
+                          {#each booksAsArray.filter((p) => p.is_done === true) as p (p.id)}
+                            <li class="odd:bg-gray-100"><FinishedBook process={p}/></li>
                           {/each}
                         </ul>
                       {/if}

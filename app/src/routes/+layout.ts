@@ -1,14 +1,15 @@
-import type { NotificationAPI, ProcessProgressesAPI } from "$lib/types";
+import type { API } from "$lib/types";
 
 /** @type {import('./$types').PageLoad} */
 export async function load({ fetch }) {
-  const progress = await (await fetch('/api/progress')).json() as ProcessProgressesAPI;
-  const nData = await (await fetch('/api/notification')).json() as NotificationAPI;
+  const booksInProcess = await (await fetch('/api/process/get/book')).json() as API.Response;
+  const processSettings = await (await fetch('/api/process')).json() as API.Response;
+  const nData = await (await fetch('/api/notification')).json() as API.Response;
 
   return {
-    progresses: progress.progresses ?? [],
-    notifications: nData.notifications ?? [],
-    processPaused: progress.paused ?? false,
-    elapsed_s: progress.elapsed_s ?? -1
+    booksInProcess: booksInProcess.ok === true && booksInProcess.type === 'process.book' ? booksInProcess.processes : [],
+    notifications: nData.ok === true && nData.type === 'notification' ? nData.notifications : [],
+    processSettings: processSettings.ok === true && processSettings.type === 'process.settings' ? processSettings.settings : null
   };
 }
+

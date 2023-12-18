@@ -1,13 +1,13 @@
 import prisma from '$lib/server/prisma';
 import { json } from '@sveltejs/kit';
-import type { DownloadAPI } from '$lib/types';
+import { API } from '$lib/types';
 import { LibraryManager } from '$lib/server/cmd/index.js';
 
 export const GET = async ({ params }) => {
   const id = params.id;
 
   // Check that the ID was actually submitted
-  if (id === null || id === undefined) return json({ status: 404, ok: false } satisfies DownloadAPI)
+  if (id === null || id === undefined) return API.response._400({ missingPaths: ['id'] });
 
   // // Clean the files that are hanging
   // await clean();
@@ -16,7 +16,7 @@ export const GET = async ({ params }) => {
   const series = await prisma.series.findUnique({ where: { id }, include: { books: true } });
 
   // Return if the profile was not found
-  if (series === null || series === undefined) return json({ status: 404, ok: false } satisfies DownloadAPI)
+  if (series === null || series === undefined) return API.response._404();
 
   const books: string[] = []
   // Add the books that aren't downloaded or aren't processed
@@ -26,5 +26,5 @@ export const GET = async ({ params }) => {
   await LibraryManager.queueBooks(books);
 
   // Return OK
-  return json({ status: 200, ok: true } satisfies DownloadAPI)
+  return API.response.success();
 }

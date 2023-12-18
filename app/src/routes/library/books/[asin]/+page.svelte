@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { icons } from '$lib/components';
 	import { Submit } from '$lib/components/buttons';
 	import Rating from '$lib/components/decorations/Rating.svelte';
   import * as helpers from '$lib/helpers';
@@ -8,17 +7,26 @@
 	import { getContext } from 'svelte';
   import * as dateFns from 'date-fns'
 	import TextArea from '$lib/components/input/selectable/TextArea.svelte';
-	import { invalidateAll } from '$app/navigation';
 	import TextInput from '$lib/components/input/selectable/TextInput.svelte';
-	import LoadingCircle from '$lib/components/decorations/LoadingCircle.svelte';
   import * as alerts from '$lib/components/alerts';
-	import LoadingCircleProgress from '$lib/components/decorations/LoadingCircleProgress.svelte';
 	import { White } from '$lib/components/frames';
+	import { invalidate } from '$app/navigation';
 
   export let data: import('./$types').PageData;
   export let form: import('./$types').ActionData;
 
-  let showAlert = getContext<GenerateAlert>('showAlert');
+  const showAlert = getContext<GenerateAlert>('showAlert');
+  const showDownloadManager: () => void = getContext('openManager');
+
+  const download = async () => {
+    const results = await fetch(`/api/library/download/book/${data.book.asin}`);
+    if (results.ok === true) showDownloadManager();
+  }
+
+  const remove = async () => {
+    await fetch(`/api/library/remove/book/${data.book.asin}`);
+    invalidate(`/library/books/${data.book.asin}`);
+  }
     
   let updatesSubmitting: boolean = false;
 
@@ -36,8 +44,6 @@
         console.log('Form failure!');
         if (form.response === 'update') {
           showAlert('Book could not be updated', { theme: 'error'});
-        } else if (form.response === 'download') {
-          showAlert('Book could not be downloaded', { theme: 'error', subText: form.message});
         }
       }
     }
@@ -201,13 +207,13 @@
       {/if}
       <div class="flex-grow hidden sm:block"></div>
       {#if data.book.downloaded}
-        <button on:click={() => {console.log(fetch(`/api/library/remove/book/${data.book.asin}`))}} type="button" class="px-1 py-1 transition-colors duration-100 rounded-lg {data.book.cover?.hex_dom_bright ? 'text-gray-800 hover:text-white hover:bg-gray-800': 'text-white hover:text-gray-800 hover:bg-white'}" >
+        <button on:click={remove} type="button" class="px-1 py-1 transition-colors duration-100 rounded-lg {data.book.cover?.hex_dom_bright ? 'text-gray-800 hover:text-white hover:bg-gray-800': 'text-white hover:text-gray-800 hover:bg-white'}" >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-7 h-7">
             <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
           </svg>
         </button>
       {:else}
-        <button on:click={() => {console.log(fetch(`/api/library/download/book/${data.book.asin}`))}} type="button" class="px-1 py-1 transition-colors duration-100 rounded-lg {data.book.cover?.hex_dom_bright ? 'text-gray-800 hover:text-white hover:bg-gray-800': 'text-white hover:text-gray-800 hover:bg-white'}" >
+        <button on:click={download} type="button" class="px-1 py-1 transition-colors duration-100 rounded-lg {data.book.cover?.hex_dom_bright ? 'text-gray-800 hover:text-white hover:bg-gray-800': 'text-white hover:text-gray-800 hover:bg-white'}" >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-7 h-7">
             <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
             <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
@@ -412,7 +418,7 @@
       </div>
     </div>
   </div>
-sp
+
   {#if data.book.downloaded === true}
     <div class="bg-white flex flex-col gap-4 py-4">
       <div class="mx-6 text-xl font-medium">Files / Attachments</div>
@@ -463,7 +469,6 @@ sp
       updatesSubmitting = true;
       return async ({ update }) => {
         updatesSubmitting = false;
-        await alerts.updateNotifications();
         update();
       };
     }}>

@@ -1,7 +1,6 @@
 import EventEmitter from 'node:events';
 import type { EventName, EventType, Notification } from '$lib/types';
 
-
 if (global.events === undefined) global.events = { eventEmitter: undefined };
 if (global.events.eventEmitter !== undefined) {
   global.events.eventEmitter.removeAllListeners();

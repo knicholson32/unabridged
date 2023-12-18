@@ -112,7 +112,7 @@
 					{#each data.profiles as profile}
 						<img
 							class="h-5 w-5 rounded-full inline-flex border-2 border-blue-100 -mr-1.5"
-							src="{profile.profile_image_url}/64"
+							src="{profile.profile_image_url}/56"
 							alt=""
 						/>
 					{/each}
@@ -235,7 +235,6 @@
 							</tr>
 						</thead>
 
-
 						{#if data.series !== undefined}
 							{#each data.series as series}
 								<thead class="bg-gray-50 dark:bg-gray-800 sticky top-[63px]">
@@ -276,7 +275,7 @@
 											<div class="flex items-center justify-center">
 												{#each series.books.flatMap((b) => b.profiles).filter((e, p, s) => s.findIndex((e2) => e.id === e2.id) === p) as profile}
 													<a href="/accounts/{profile.id}" class="object-cover w-6 h-6 -mx-1 border-2 border-white rounded-full overflow-hidden dark:border-gray-700 shrink-0">
-														<img src="{profile.profile_image_url}/128" alt="" />
+														<img src="{profile.profile_image_url}/56" alt="" />
 													</a>
 												{/each}
 											</div>

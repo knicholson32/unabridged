@@ -1,37 +1,28 @@
 import prisma from '$lib/server/prisma';
-import { error, json } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { clean } from '$lib/server/media';
+import { API, type File, fileValidator } from '$lib/types';
 
 
 export const GET = async ({ params }) => {
   const id = params.id;
 
   // Check that the ID was actually submitted
-  if (id === null || id === undefined) throw error(404, 'Not found');
+  if (id === null || id === undefined) return json({ status: 400, ok: false, message: 'No ID' } satisfies API.Error, { status: 400 });
 
   // Clean the files that are hanging
   await clean();
 
   // Get the profile from the database
-  const files = await prisma.media.findMany({ 
-    where: { bookAsin: id },
-    select: {
-      id: true,
-      content_type: true,
-      extension: true,
-      title: true,
-      bookAsin: true,
-      data: false,
-      path: false,
-      size_b: true,
-      description: true
-    }
+  const files: File[] = await prisma.media.findMany({
+    ...{ where: { bookAsin: id }},
+    ...fileValidator
   });
 
   // Return if the profile was not found
-  if (files === null || files === undefined) throw error(404, 'Not found');
+  if (files === null || files === undefined) return json({ status: 404, ok: false, message: 'Not Found'} satisfies API.Error, { status: 404 });
 
   // Done
-  return json({ status: 'ok', files });
+  return json({ status: 200, ok: true, files, type: 'manifest' } satisfies API.Manifest);
 }
 

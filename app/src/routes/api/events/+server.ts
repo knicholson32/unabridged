@@ -1,14 +1,40 @@
 import { eventEmitter } from '$lib/server/events';
-import { EventNames, type EventName, type EventType, type Notification } from '$lib/types';
+import { EventNames, type EventName } from '$lib/types';
+import zlib from 'node:zlib';
 
-// function delay(ms: number): Promise<void> {
-//   return new Promise((res) => setTimeout(res, ms));
-// }
 
-const encoder = new TextEncoder();
-const packageEvent = (event: EventName, data: any, id = 'event'): Uint8Array => encoder.encode(`id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+export function GET({ request }) {
+  // Get the types of encoding we can use
+  const encoding = 
+    // request.headers.get('accept-encoding')?.includes('br') ? 'br' :
+    // request.headers.get('accept-encoding')?.includes('gzip') ? 'gzip' : 
+    // request.headers.get('accept-encoding')?.includes('deflate') ? 'deflate' : 
+    'none';
+  const headers: {[key: string]: string} = {
+    'content-type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+  }
+  if (encoding !== 'none') headers['Content-Encoding'] = encoding;
 
-export function GET() {
+  let packageEvent: (event: EventName, data: any, id?: string) => Uint8Array;
+  
+
+  switch(encoding) {
+    // case 'br':
+    //   packageEvent = (event: EventName, data: any, id = 'event'): Uint8Array => zlib.brotliCompressSync(`id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    //   break;
+    // case 'gzip':
+    //   packageEvent = (event: EventName, data: any, id = 'event'): Uint8Array => zlib.gzipSync(`id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    //   break;
+    // case 'deflate':
+    //   packageEvent = (event: EventName, data: any, id = 'event'): Uint8Array => zlib.deflateSync(`id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    //   break;
+    default:
+      const encoder = new TextEncoder();
+      packageEvent = (event: EventName, data: any, id = 'event'): Uint8Array => encoder.encode(`id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      break;
+  }
 
   const callbackMap: { [key: string]: (data: any) => void } = {};
 
@@ -18,17 +44,18 @@ export function GET() {
   }
 
   let controller: ReadableStreamDefaultController<any> | null = null;
-  let timeout: NodeJS.Timeout | null = null;
 
   // export const on = <T extends EventName>(event: T, callback: (data: EventType<T>) => void) => {
   const emit = <T extends EventName>(event: T) => {
     const callback = (data: any) => {
-      console.log('emit', event, data);
       if (controller !== null) {
         try {
-          controller.enqueue(packageEvent(event, data));
+          const d = packageEvent(event, data);
+          controller.enqueue(d);
+          console.log('emitted', event, data, d.length);
         } catch (e) {
           controller = null;
+          cleanup();
         }
       }
     }
@@ -47,16 +74,7 @@ export function GET() {
     }
   });
 
-  const response = new Response(readable, {
-    headers: {
-      'content-type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
-    }
-  });
-
-  // Attach the abort controller's signal to the response
-  // (response as any).signal = ac.signal;
+  const response = new Response(readable, { headers });
 
   return response;
 }

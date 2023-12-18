@@ -5,7 +5,7 @@ import sanitize from 'sanitize-filename';
 import * as settings from '$lib/server/settings';
 import { ENC_SALT } from '$lib/server/env';
 import * as crypto from 'node:crypto';
-import * as path from 'node:path';
+import zlib from 'node:zlib';
 
 export const cropImages = async (image: ArrayBuffer): Promise<Images> => {
   const imageBuffer = helpers.toBuffer(image);
@@ -126,4 +126,65 @@ export const decrypt = async (input: string) => {
  */
 export const delay = (ms: number) => {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
+/**
+ * Compress a JSON response based on what compression options the client can accept
+ * @param request the client request
+ * @param data the data to turn into a JSON file
+ * @returns an object with the headers and response data buffer
+ */
+export const compressJSON = (request: Request, data: any): { headers: { [key: string]: string }, data: Buffer } => {
+  // See what encoding we can use
+  const encoding =
+    request.headers.get('accept-encoding')?.includes('br') ? 'br' :
+      request.headers.get('accept-encoding')?.includes('gzip') ? 'gzip' :
+        request.headers.get('accept-encoding')?.includes('deflate') ? 'deflate' :
+          'none';
+
+  // Assign the basic header
+  const headers: { [key: string]: string } = {
+    'content-type': 'application/json'
+  }
+
+  // Add encoding if we are using it
+  if (encoding !== 'none') headers['Content-Encoding'] = encoding;
+
+  // Initialize a buffer to hold the resulting data
+  let exp: Buffer;
+
+  // Make sure BigInt can be converted to JSON
+  BigInt.prototype.toJSON = function () {
+    const int = Number.parseInt(this.toString());
+    return int ?? this.toString();
+  };
+
+  // Convert the data to JSON
+  const dataStr = JSON.stringify(data);
+
+  // Encode the data based on what encoding algorithm we are using
+  switch (encoding) {
+    case 'br':
+      exp = zlib.brotliCompressSync(dataStr);
+      break;
+    case 'gzip':
+      exp = zlib.gzipSync(dataStr);
+      break;
+    case 'deflate':
+      exp = zlib.deflateSync(dataStr);
+      break;
+    default:
+      exp = Buffer.from(dataStr, 'utf8');
+      break;
+  }
+
+  // Assign the content length based on the data result
+  headers['Content-Length'] = exp.length.toString();
+
+  // Done!
+  return {
+    headers,
+    data: exp
+  }
 }

@@ -204,17 +204,17 @@ export const get = async <T extends TypeName>(setting: T, settingVal?: SettingPa
 }
 
 // Generate two helpers types that will allow us to select based on the settings
-type FilterSettings<T extends TypeName, Prefix extends string> = T extends `${Prefix}.${infer Rest}` ? T : never;
-type FilterSettingsSimplified<T extends TypeName, Prefix extends string> = T extends `${Prefix}.${infer Rest}` ? Prefix : never;
+export type SettingsSet<T extends TypeName, Prefix extends string> = T extends `${Prefix}.${infer Rest}` ? T : never;
+type SettingsPrefix<T extends TypeName, Prefix extends string> = T extends `${Prefix}.${infer Rest}` ? Prefix : never;
 
 /**
  * Get a set of settings, as long as they match a certain prefix
  * @param prefix the prefix to match
  * @returns an object with the settings
  */
-export const getSet = async <Prefix extends string>(prefix: FilterSettingsSimplified<TypeName, Prefix>): Promise<{ [K in FilterSettings<TypeName, Prefix>]: ObjectType<K> }> => {
+export const getSet = async <Prefix extends string>(prefix: SettingsPrefix<TypeName, Prefix>): Promise<{ [K in SettingsSet<TypeName, Prefix>]: ObjectType<K> }> => {
   // Get the possible settings keys based on the prefix
-  const keys = (Object.keys(TypeNames) as TypeName[]).filter(key => key.startsWith(prefix)) as FilterSettings<TypeName, Prefix>[];
+  const keys = (Object.keys(TypeNames) as TypeName[]).filter(key => key.startsWith(prefix)) as SettingsSet<TypeName, Prefix>[];
   // Initialize a resulting settings object, typed to only include the settings we will return
   const settings = {} as { [K in typeof keys[number]]: ObjectType<K> };
   

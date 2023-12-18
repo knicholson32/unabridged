@@ -5,17 +5,15 @@ import { isLocked } from '../../';
 import prisma from '$lib/server/prisma';
 import sharp from 'sharp';
 import * as helpers from '$lib/helpers';
-import * as tools from '$lib/server/cmd/tools';
-import * as aax from '$lib/server/cmd/AAXtoMP3';
+import * as events from '$lib/server/events';
 import * as settings from '$lib/server/settings';
 import * as media from '$lib/server/media';
 import * as path from 'node:path';
 import { BookDownloadError } from '../../types';
 import type { AmazonChapterData } from '../../types';
-import type { Issuer, ModalTheme, ProgressStatus } from '$lib/types';
-import { ConversionError } from '$lib/server/cmd/AAXtoMP3/types';
 import { writeConfigFile } from '../profile';
 import { AUDIBLE_FOLDER, AUDIBLE_CMD } from '$lib/server/env';
+import { Process, ProcessType } from '$lib/types';
 
 // --------------------------------------------------------------------------------------------
 // Download helpers
@@ -32,11 +30,13 @@ const cancelMap: { [key: string]: {
   error: BookDownloadError
 } } = {}
 
-export const cancel = async (asin: string) => {
+export const cancel = async (asin: string): Promise<boolean> => {
   if (asin in cancelMap) {
     cancelMap[asin].canceled = true;
     cancelMap[asin].proc.kill();
+    return true;
   }
+  return false;
 }
 
 export const download = async (asin: string, processID: string, tmpDir: string): Promise<BookDownloadError> => {
@@ -68,29 +68,27 @@ export const download = async (asin: string, processID: string, tmpDir: string):
 
   if (profileID === undefined) return BookDownloadError.NO_PROFILE_WITH_AUTHCODE;
 
-  // Make sure the config file is written
-  await writeConfigFile();
-
   // Update process progress for download to 0
-  await prisma.processQueue.update({ where: { id: processID }, data: { 
-    book: {
-      update: {
-        download_progress: 0
+  await prisma.processQueue.update({
+    where: { id: processID }, data: {
+      book: {
+        update: {
+          download_progress: 0,
+          process_progress: 0
+        }
       }
     }
-  }});
+  });
+  events.emit('process.book.progress', {
+    id: processID,
+    r: true,
+    d: false,
+    p: 0,
+    t: Process.Book.Task.DOWNLOAD
+  });
 
-  // // Create the progress entry
-  // await prisma.progress.create({
-  //   data: {
-  //     id: book.asin,
-  //     type: 'download',
-  //     progress: 0,
-  //     status: 'RUNNING' satisfies ProgressStatus,
-  //     ref: 'audible.cmd.download.download',
-  //     message: ''
-  //   }
-  // });
+  // Make sure the config file is written
+  await writeConfigFile();
 
   // Create the audible child_process
   // audible -P 175aaff6-4f92-4a2c-b592-6758e1b54e5f download -o /app/db/download/skunk -a B011LR4PW4 --aaxc --pdf --cover --cover-size 1215 --chapter --annotation
@@ -143,20 +141,6 @@ export const download = async (asin: string, processID: string, tmpDir: string):
         const speed = parseFloat(groups.speed);
 
         try{
-          // await prisma.progress.update({
-          //   where: {
-          //     id_type: {
-          //       id: book.asin,
-          //       type: 'download'
-          //     }
-          //   },
-          //   data: {
-          //     progress: isNaN(progress) ? undefined : progress,
-          //     downloaded_mb: isNaN(downloaded) ? undefined : downloaded,
-          //     total_mb: isNaN(total) ? undefined : total,
-          //     speed_mb_s: isNaN(speed) ? undefined : speed
-          //   }
-          // });
           await prisma.processQueue.update({ 
             where: { id: processID },
             data: {
@@ -169,6 +153,16 @@ export const download = async (asin: string, processID: string, tmpDir: string):
                 }
               }
             }
+          });
+          events.emit('process.book.progress', {
+            id: processID,
+            r: true,
+            d: false,
+            p: isNaN(progress) ? 0 : helpers.round(progress),
+            mb: isNaN(downloaded) ? undefined : downloaded,
+            tb: isNaN(total) ? undefined : total,
+            s: isNaN(speed) ? undefined : speed,
+            t: Process.Book.Task.DOWNLOAD
           });
         } catch(e) {
           console.log('ERR', e);
@@ -387,6 +381,13 @@ export const download = async (asin: string, processID: string, tmpDir: string):
         }
       }
     }
+  });
+  events.emit('process.book.progress', {
+    id: processID,
+    r: true,
+    d: false,
+    t: Process.Book.Task.DOWNLOAD,
+    p: 1
   });
 
   return results;

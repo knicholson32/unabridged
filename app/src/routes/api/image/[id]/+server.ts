@@ -1,20 +1,19 @@
 import prisma from '$lib/server/prisma';
-import { error, json } from '@sveltejs/kit';
-import * as helpers from '$lib/helpers';
-import type { NotificationAPI, Notification, ModalTheme, Issuer } from '$lib/types';
+import { API } from '$lib/types';
+import { json } from '@sveltejs/kit';
 
 
 export const GET = async ({ setHeaders, params }) => {
   const id = params.id;
 
   // Check that the ID was actually submitted
-  if (id === null || id === undefined) throw error(404, 'Not found');
+  if (id === null || id === undefined) return API.response._400({ missingPaths: ['id'] });
 
   // Get the profile from the database
   const image = await prisma.profileImage.findUnique({ where: { id } });
 
   // Return if the profile was not found
-  if (image === null || image === undefined) throw error(404, 'Not found');
+  if (image === null || image === undefined) return API.response._404();
 
   try {
     setHeaders({
@@ -23,6 +22,6 @@ export const GET = async ({ setHeaders, params }) => {
     });
     return new Response(image.full);
   } catch (e) {
-    throw error(500, "Internal server error")
+    return API.response.serverError(e);
   }
 }

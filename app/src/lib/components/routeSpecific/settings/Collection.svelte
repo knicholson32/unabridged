@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Prisma } from "@prisma/client";
-	import { VerifyButton } from "../buttons";
+	import { VerifyButton } from "../../buttons";
 	import icons from "$lib/components/icons";
 
   type CollectionDetails = (Prisma.SeriesGetPayload<{ include: { books: true } }> & { icon: string, url: string });

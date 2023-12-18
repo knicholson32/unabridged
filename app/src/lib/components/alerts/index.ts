@@ -1,4 +1,4 @@
-import type { NotificationAPI, Notification, URLAlert } from '$lib/types';
+import type { NotificationAPI, Notification } from '$lib/types';
 import * as base64  from 'base-64';
 import { writable } from 'svelte/store';
 import type { default as Alerts } from './Alerts.svelte';
@@ -79,7 +79,7 @@ export const showNotifications = async (alertsComponent: Alerts, notifications: 
  */
 export const deleteNotifications = async (deleteList: string[]) => {
   if (deleteList.length > 0) {
-    const response = await fetch('/api/notification', {
+    await fetch('/api/notification', {
       method: 'DELETE',
       headers: {
         'Accept': 'application/json',
@@ -87,7 +87,6 @@ export const deleteNotifications = async (deleteList: string[]) => {
       },
       body: JSON.stringify({ ids: deleteList })
     });
-    // await updateNotifications(response);
   }
 }
 
@@ -102,38 +101,4 @@ export const deleteNotifications = async (deleteList: string[]) => {
 //     nData = await (await fetch('/api/notification')).json() as NotificationAPI;
 //   }
 //   notificationAPIStore.set(nData);
-// }
-
-// /**
-//  * Encode a URLAlert definition to a base64 string to be sent via the search params
-//  * @param alert the URLAlert to convert
-//  * @returns the encoded string
-//  */
-// export const encodeURLAlert = (alert: URLAlert): string => {
-//   const str = JSON.stringify(alert);
-//   console.log('str', str);
-//   const b64 = base64.encode(str);
-//   console.log('b64, b64');
-//   const enc = encodeURIComponent(b64);
-//   console.log('enc', enc);
-//   return enc;
-//   // return encodeURIComponent(base64.encode(JSON.stringify(alert)));
-// }
-
-// /**
-//  * Decode a string into a URLAlert if possible
-//  * @param alert the string to decode
-//  * @returns a URLAlert or null
-//  */
-// export const decodeURLAlert = (alert: string | null): URLAlert | null => {
-//   if (alert === null) return null;
-//   try {
-//       const b64 = base64.decode(alert);
-//       console.log('b64', b64);
-//     return JSON.parse(b64) as URLAlert; 
-//   } catch(e) {
-//     console.log(e);
-//     console.log(alert);
-//     return null;
-//   }
-// }
+// 

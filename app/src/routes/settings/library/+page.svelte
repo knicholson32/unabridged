@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { beforeNavigate } from "$app/navigation";
 	import { Switch } from "$lib/components/buttons";
-  import * as Settings from "$lib/components/settings";
+  import * as Settings from "$lib/components/routeSpecific/settings";
 	import { CollectionBy } from "$lib/types";
 
   export let data: import('./$types').PageData;

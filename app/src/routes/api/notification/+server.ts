@@ -1,15 +1,8 @@
 import prisma from '$lib/server/prisma';
 import { json } from '@sveltejs/kit';
-import * as helpers from '$lib/helpers';
 import * as events from '$lib/server/events';
-import type { NotificationAPI, Notification, ModalTheme, Issuer } from '$lib/types';
+import { type Notification, type ModalTheme, type Issuer, API } from '$lib/types';
 
-// export const POST = async ({ request }) => {
-//   const notification = await request.json() as Notification;
-//   await prisma.notification.create({ data: notification });
-//   events.emit('notification.created', [notification]);
-//   return await GET();
-// }
 
 export const GET = async () => {
   const notificationsRaw = await prisma.notification.findMany();
@@ -29,26 +22,31 @@ export const GET = async () => {
       identifier: note.identifier
     });
   }
-  return json({ ok: true, notifications: notifications ?? undefined } satisfies NotificationAPI);
+
+  return json({ ok: true, status: 200, notifications: notifications, type: 'notification' } satisfies API.Notification, { status: 200 });
 }
 
 export const DELETE = async ({ request }) => {
-  const j = await request.json();
-  const ids: string[] = j.ids;
+  try {
+    const j = await request.json();
+    const ids: string[] = j.ids;
 
-  // Check that the ID was actually submitted
-  if (ids === null || ids === undefined) return helpers.jsonWithStatus({ ok: false }, 400)
+    // Check that the ID was actually submitted
+    if (ids === null || ids === undefined) API.response._400({missingBodyParams: ['ids']})
 
-  // Delete many notifications
-  await prisma.notification.deleteMany({ 
-    where: {
-      id: {
-        in: ids
+    // Delete many notifications
+    await prisma.notification.deleteMany({ 
+      where: {
+        id: {
+          in: ids
+        }
       }
-    }
-  });
+    });
 
-  events.emit('notification.deleted', ids);
+    events.emit('notification.deleted', ids);
 
-  return await GET();
+    return API.response.success();
+  } catch (e) {
+    return API.response._400({ message: 'Invalid body. Expecting JSON.'})
+  }
 }

@@ -48,21 +48,6 @@ export const deleteQueries = (params: string[]) => {
 };
 
 
-/**
- * Create a response of type application/json with a status code
- * @param data the data to stringify to JSON
- * @param status the status code
- * @returns the response object
- */
-export const jsonWithStatus = (data: object, status: number): Response => {
-    return new Response(JSON.stringify(data), {
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        status
-    });
-}
-
 // https://gist.github.com/jonleighton/958841
 export const base64ArrayBuffer = (arrayBuffer: ArrayBuffer): string => {
     var base64 = ''
@@ -205,6 +190,14 @@ export class RunTime {
     }
     
 }
+
+/**
+ * Round a number to a certain precision
+ * @param n the number
+ * @param p the precision. Defaults to 2.
+ * @returns the rounded number
+ */
+export const round = (n: number, p = 2) => (e => Math.round(n * e) / e)(Math.pow(10, p))
 
 /**
  * Get the ISO string for the local timezone

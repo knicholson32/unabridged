@@ -1,10 +1,8 @@
 import prisma from '$lib/server/prisma';
-import { error, json } from '@sveltejs/kit';
-import * as helpers from '$lib/helpers';
+import { error } from '@sveltejs/kit';
 import * as fs from 'node:fs';
 import * as media from '$lib/server/media';
 import { MEDIA_FOLDER } from '$lib/server/env';
-import type { NotificationAPI, Notification, ModalTheme, Issuer } from '$lib/types';
 
 
 export const GET = async ({ setHeaders, params, url }) => {

@@ -5,15 +5,14 @@
   import { fade, scale } from 'svelte/transition';
   import { cubicOut, cubicInOut, linear } from 'svelte/easing';
   import { intlFormatDistance } from 'date-fns'
-  import * as format from 'date-format';
+  import * as events from '$lib/events';
   import type { ActionData } from './$types.js';
 	import { Accordion, CircularProgress } from '$lib/components/decorations/index.js';
-	import type { GenerateAlert } from '$lib/types/index.js';
-	import { getContext } from 'svelte';
+	import type { GenerateAlert, Progress } from '$lib/types/index.js';
+	import { getContext, onMount } from 'svelte';
 	import { icons } from '$lib/components/index.js';
 	import { Submit } from '$lib/components/buttons';
-  import { Bullet } from '$lib/components/decorations';
-	import LoadingCircle from '$lib/components/decorations/LoadingCircle.svelte';
+  import { Bullet, LoadingCircle } from '$lib/components/decorations';
   export let data: import('./$types').PageData;
   export let form: ActionData;
 
@@ -117,6 +116,27 @@
     };
   };
 
+  let progresses: {[key: string]: { spin: boolean, value: number }} = {};
+  for (const p of data.profiles) progresses[p.id] = { spin: false, value: 0 };
+
+  onMount(() => {
+    return events.on('progress.account.sync', (data) => {
+      if (progresses[data.id] === undefined) progresses[data.id] = { spin: false, value: 0 };
+      console.log(data);
+      if (data.type === 'start') {
+        console.log('received start');
+        progresses[data.id] = { spin: true, value: 0 };
+      } 
+      else if (data.type === 'in_progress') {
+        console.log('received in_progress');
+        progresses[data.id] = { spin: false, value: data.progress };
+      }
+      else if (data.type === 'done') {
+        progresses[data.id] = { spin: false, value: 0 };
+      }
+    })
+  });
+
 
 </script>
 
@@ -198,7 +218,7 @@
           </svg>
         </div>
       </li>
-      <LoadingCircle id={data.profiles[i].id ?? ''} type={'sync'} />
+      <LoadingCircle progress={progresses[data.profiles[i].id].value} spin={progresses[data.profiles[i].id].spin} />
     {/each}
   </ul>
 

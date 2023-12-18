@@ -1,7 +1,7 @@
 <script lang="ts">
 
 	import { beforeNavigate } from "$app/navigation";
-	import * as Settings from "$lib/components/settings";
+	import * as Settings from "$lib/components/routeSpecific/settings";
   import { timeZonesNames } from "@vvo/tzdb";
 
   export let data: import('./$types').PageData;

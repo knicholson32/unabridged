@@ -1,10 +1,6 @@
 import prisma from '$lib/server/prisma';
-import { error, redirect } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { Decimal } from '@prisma/client/runtime/library.js';
-import * as audible from '$lib/server/cmd/audible';
-import { BookDownloadError, bookDownloadErrorToString } from '$lib/server/cmd/audible/types/index.js';
-import { LibraryManager } from '$lib/server/cmd/index.js';
-import type { DownloadAPI } from '$lib/types';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params }) => {
@@ -94,38 +90,5 @@ export const actions = {
     } catch (e) {
       return { success: false, response: 'update' };
     }
-  },
-//   download: async ({ request, params, fetch }) => {
-//     const asin = params.asin;
-
-//     // Check that the ID was actually submitted
-//     if (asin === null || asin === undefined) throw error(404, 'Not found');
-
-//     // // Get the profile from the database
-//     // const book = await prisma.book.findUnique({
-//     //   where: { asin }, include: {
-//     //     authors: true,
-//     //     narrators: true,
-//     //     genres: true,
-//     //     series: true,
-//     //     profiles: true,
-//     //     cover: true
-//     //   }
-//     // });
-
-//     // // Return if the profile was not found
-//     // if (book === null || book === undefined) throw error(404, 'Not found');
-
-//     // // const res = await audible.cmd.download.download(book.asin);
-//     // await LibraryManager.queueBook(book.asin);
-
-//     const result = await (await fetch(`/api/library/download/${asin}`)).json() as DownloadAPI;
-
-//     if (result.ok === true) {
-//       return { success: true, response: 'download' };
-//     } else {
-//       return { success: false, response: 'download', message: result.message };
-//     }
-
-//   }
+  }
 }

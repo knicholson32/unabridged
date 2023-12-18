@@ -1,6 +1,6 @@
-import * as helpers from '$lib/server/helpers';
+import * as events from '$lib/server/events';
 import * as settings from '$lib/server/settings';
-import type { Issuer, ModalTheme } from '$lib/types';
+import type { Issuer, ModalTheme, Notification } from '$lib/types';
 import { PlexOauth } from 'plex-oauth'
 import { v4 as uuidv4 } from 'uuid';
 import { redirect } from '@sveltejs/kit';
@@ -38,45 +38,54 @@ export const load = async ({ params }) => {
 
   if (success) {
     if (tested) {
-      await prisma.notification.create({
-        data: {
-          id: uuidv4(),
-          issuer: 'account.sync' satisfies Issuer,
-          theme: 'ok' satisfies ModalTheme,
-          text: 'Successfully added Plex Account',
-          sub_text: 'An auth token has been successfully generated and the Plex integration is enabled.',
-          linger_time: 6000,
-          needs_clearing: false,
-          auto_open: true
-        }
-      });
-    } else {
-      await prisma.notification.create({
-        data: {
-          id: uuidv4(),
-          issuer: 'general' satisfies Issuer,
-          theme: 'warning' satisfies ModalTheme,
-          text: 'Successfully added Plex Account',
-          sub_text: 'An auth token has been successfully generated but Plex is not fully enabled.',
-          linger_time: 6000,
-          needs_clearing: false,
-          auto_open: true
-        }
-      });
-    }
-  } else {
-    await prisma.notification.create({
-      data: {
+      const notification: Notification = {
         id: uuidv4(),
-        issuer: 'general' satisfies Issuer,
-        theme: 'error' satisfies ModalTheme,
+        icon_color: null,
+        icon_path: null,
+        identifier: null,
+        issuer: 'account.sync' satisfies Issuer,
+        theme: 'ok' satisfies ModalTheme,
         text: 'Successfully added Plex Account',
-        sub_text: 'An auth token was not generated.',
+        sub_text: 'An auth token has been successfully generated and the Plex integration is enabled.',
         linger_time: 6000,
         needs_clearing: false,
         auto_open: true
       }
-    });
+      await prisma.notification.create({ data: notification });
+      events.emit('notification.created', [notification]);
+    } else {
+      const notification: Notification = {
+        id: uuidv4(),
+        icon_color: null,
+        icon_path: null,
+        identifier: null,
+        issuer: 'general' satisfies Issuer,
+        theme: 'warning' satisfies ModalTheme,
+        text: 'Successfully added Plex Account',
+        sub_text: 'An auth token has been successfully generated but Plex is not fully enabled.',
+        linger_time: 6000,
+        needs_clearing: false,
+        auto_open: true
+      }
+      await prisma.notification.create({ data: notification });
+      events.emit('notification.created', [notification]);
+    }
+  } else {
+    const notification: Notification = {
+      id: uuidv4(),
+      icon_color: null,
+      icon_path: null,
+      identifier: null,
+      issuer: 'general' satisfies Issuer,
+      theme: 'error' satisfies ModalTheme,
+      text: 'Successfully added Plex Account',
+      sub_text: 'An auth token was not generated.',
+      linger_time: 6000,
+      needs_clearing: false,
+      auto_open: true
+    }
+    await prisma.notification.create({ data: notification });
+    events.emit('notification.created', [notification]);
   }
 
   throw redirect(303, '../');

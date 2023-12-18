@@ -2,6 +2,13 @@
 	import icons from '$lib/components/icons';
   import * as helpers from '$lib/helpers';
   import type { Prisma } from "@prisma/client";
+	import { getContext } from 'svelte';
+
+  const showDownloadManager: () => void = getContext('openManager');
+  const download = async () => {
+    const results = await fetch(`/api/library/download/book/${book.asin}`);
+    if (results.ok === true) showDownloadManager();
+  }
 
   type Book = Prisma.BookGetPayload<{
     include: {
@@ -107,7 +114,7 @@
         {@html icons.ok}
       </svg>
     {:else}
-      <button type="button" on:click={() => {console.log(fetch(`/api/library/download/book/${book.asin}`))}}>
+      <button type="button" on:click={download}>
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
           {@html icons.download}
         </svg>
@@ -117,7 +124,7 @@
   <td class="{tableXPadding} py-2 text-sm whitespace-nowrap text-center">
     <div class="flex items-center justify-center">
       {#each book.profiles as profile}
-        <a href="/accounts/{profile.id}" class="object-cover w-6 h-6 -mx-1 border-2 border-white rounded-full overflow-hidden dark:border-gray-700 shrink-0"><img src="{profile.profile_image_url}/128" alt="" /></a>
+        <a href="/accounts/{profile.id}" class="object-cover w-6 h-6 -mx-1 border-2 border-white rounded-full overflow-hidden dark:border-gray-700 shrink-0"><img src="{profile.profile_image_url}/56" alt="" /></a>
       {/each}
       <!-- <img class="object-cover w-6 h-6 -mx-1 border-2 border-white rounded-full dark:border-gray-700 shrink-0" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=256&q=80" alt="" />
       <img class="object-cover w-6 h-6 -mx-1 border-2 border-white rounded-full dark:border-gray-700 shrink-0" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=256&q=80" alt="" />

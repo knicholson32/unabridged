@@ -109,7 +109,7 @@
     console.log('close');
     clearInterval(interval);
     if (definition.type === 'notification' && defAsNotification.settings.deleteOnlyAfterClose === true) {
-      const response = await fetch('/api/notification', {
+      await fetch('/api/notification', {
         method: 'DELETE',
         headers: {
           'Accept': 'application/json',
@@ -117,7 +117,6 @@
         },
         body: JSON.stringify({ ids: [definition.id] })
       });
-      // await updateNotifications(response);
     }
     dispatch('close');
   }

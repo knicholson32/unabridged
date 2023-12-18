@@ -1,15 +1,14 @@
 import * as child_process from 'node:child_process';
 import * as fs from 'fs'
-import { v4 as uuidv4 } from 'uuid';
 import * as settings from '$lib/server/settings';
 import prisma from '$lib/server/prisma';
-import * as helpers from '$lib/helpers';
+import * as events from '$lib/server/events';
 import * as media from '$lib/server/media';
 import { AAXtoMP3_COMMAND } from '$lib/server/env';
-import * as path from 'node:path';
-import type { Issuer, ModalTheme, ProgressStatus } from '$lib/types';
 import { ConversionError } from '../../types';
 import { sanitizeFile } from '$lib/server/helpers';
+import { Process, ProcessType } from '$lib/types';
+import { round } from '$lib/helpers';
 
 // --------------------------------------------------------------------------------------------
 // Download helpers
@@ -22,11 +21,13 @@ const cancelMap: {
   }
 } = {}
 
-export const cancel = async (asin: string) => {
+export const cancel = async (asin: string): Promise<boolean> => {
   if (asin in cancelMap) {
     cancelMap[asin].canceled = true;
     cancelMap[asin].proc.kill();
+    return true;
   }
+  return false;
 }
 
 // --------------------------------------------------------------------------------------------
@@ -40,6 +41,7 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
     include: {
       profiles: true,
       authors: true,
+      cover: true
     }
   });
 
@@ -85,18 +87,13 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
 
   // Update process progress for process to 0
   await prisma.processQueue.update({ where: { id: processID }, data: { book: { update: { process_progress: 0 } } } });
-
-  // // Create the progress entry
-  // await prisma.progress.create({
-  //   data: {
-  //     id: book.asin,
-  //     type: 'process',
-  //     progress: 0,
-  //     status: 'RUNNING' satisfies ProgressStatus,
-  //     ref: 'AAXtoMP3.cmd.convert.exec',
-  //     message: ''
-  //   }
-  // });
+  events.emit('process.book.progress', {
+    id: processID,
+    r: true,
+    d: false,
+    p: round(0),
+    t: Process.Book.Task.PROCESS
+  });
 
   // AAXtoMP3 -e:m4b -s --author "Martha Wells" --authcode 4165af03 --dir-naming-scheme '$artist/$title' --file-naming-scheme '$title' --use-audible-cli-data -t /app/db/export ./*.aaxc
   // '--debug', `--audible-cli-library-file`, `"/db/audible/${profileID}.library.tsv"`
@@ -166,18 +163,6 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
         const speed = parseFloat(groups.speed);
         if (!isNaN(progress) && progress > 1) progress = 1;
         try {
-          // await prisma.progress.update({
-          //   where: {
-          //     id_type: {
-          //       id: book.asin,
-          //       type: 'process'
-          //     }
-          //   },
-          //   data: {
-          //     progress: isNaN(progress) ? undefined : progress
-          //   }
-          // });
-          // TODO: Add speed param to this update
           await prisma.processQueue.update({
             where: { id: processID },
             data: {
@@ -188,6 +173,14 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
                 }
               }
             }
+          });
+          events.emit('process.book.progress', {
+            id: processID,
+            r: true,
+            d: false,
+            p: isNaN(progress) ? 0 : round(progress),
+            s: isNaN(speed) ? undefined : speed,
+            t: Process.Book.Task.PROCESS
           });
         } catch (e) {
           console.log('ERR', e);
@@ -239,6 +232,13 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
           }
         }
       });
+      events.emit('process.book.progress', {
+        id: processID,
+        r: true,
+        d: false,
+        p: 1,
+        t: Process.Book.Task.PROCESS
+      });
 
       // Assign the book as processed
       await prisma.book.update({
@@ -252,7 +252,7 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
       return ConversionError.COULD_NOT_SAVE;
     }
   } else {
-    // Assign the book as downloaded
+    // Assign the book as not processed
     await prisma.book.update({
       where: { asin: book.asin },
       data: { processed: false }

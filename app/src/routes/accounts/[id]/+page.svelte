@@ -11,11 +11,11 @@
   import { toISOStringTZ } from '$lib/helpers';
 	import { intlFormatDistance } from 'date-fns';
 	import { invalidate } from '$app/navigation';
-  import { v4 as uuidv4 } from 'uuid';
   import icons from '$lib/components/icons';
-  import type { GenerateAlert, Issuer, ModalTheme, ProgressAPI } from '$lib/types';
+  import type { GenerateAlert } from '$lib/types';
   import * as alerts from '$lib/components/alerts';
   import * as helpers from '$lib/helpers';
+  import * as events from '$lib/events';
   import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 
@@ -127,40 +127,52 @@
   // Profile Sync
   // -----------------------------------------------------------------------------------------------
 
-  let syncingInterval: number;
-  let syncingProgress: number = data.syncing.progress;
-  let profileSyncing: boolean = data.syncing.val;
+  let syncingProgress = 0;
+  let profileSyncing = false;
 
-
-  const fetchSyncProgress = async () => {
-    let progressResp: ProgressAPI = await (await fetch(`/api/progress/specific/${data.profile.id}/sync`)).json() as ProgressAPI;
-    if (progressResp.ok === true && progressResp.progress !== undefined) {
-      console.log(Date.now(), progressResp.progress.progress, progressResp.progress.message);
-      syncingProgress = progressResp.progress.progress;
-    };
-    if (syncingProgress === 1) syncingDone(true);
-  }
-
-  const syncingDone = (skipUpdate = false) => {
-    if(!skipUpdate) fetchSyncProgress();
-    profileSyncing = false;
-    clearInterval(syncingInterval);
-  }
-
-  const startSyncing = () => {
-    syncingProgress = 0;
-    profileSyncing = true;
-    console.log(`/api/progress/specific/${data.profile.id}-sync`);
-    syncingInterval = setInterval(fetchSyncProgress, 250);
-    fetchSyncProgress();
-  }
-
-  onMount(() => {
-    if (data.syncing.val === true) {
-      startSyncing();
+  onMount(() => events.onProgress('progress.account.sync', data.profile.id, (data) => {
+    if (data.type === 'start') {
+      profileSyncing = true;
+      syncingProgress = 0;
+    } else if (data.type === 'in_progress') {
+      profileSyncing = true;
+      syncingProgress = data.progress;
+    } else if (data.type === 'done') {
+      profileSyncing = false;
+      syncingProgress = 1
     }
-    return () => syncingDone(true);
-  })
+  }));
+
+
+  // const fetchSyncProgress = async () => {
+  //   let progressResp: ProgressAPI = await (await fetch(`/api/progress/specific/${data.profile.id}/sync`)).json() as ProgressAPI;
+  //   if (progressResp.ok === true && progressResp.progress !== undefined) {
+  //     console.log(Date.now(), progressResp.progress.progress, progressResp.progress.message);
+  //     syncingProgress = progressResp.progress.progress;
+  //   };
+  //   if (syncingProgress === 1) syncingDone(true);
+  // }
+
+  // const syncingDone = (skipUpdate = false) => {
+  //   if(!skipUpdate) fetchSyncProgress();
+  //   profileSyncing = false;
+  //   clearInterval(syncingInterval);
+  // }
+
+  // const startSyncing = () => {
+  //   syncingProgress = 0;
+  //   profileSyncing = true;
+  //   console.log(`/api/progress/specific/${data.profile.id}-sync`);
+  //   syncingInterval = setInterval(fetchSyncProgress, 250);
+  //   fetchSyncProgress();
+  // }
+
+  // onMount(() => {
+  //   if (data.syncing.val === true) {
+  //     startSyncing();
+  //   }
+  //   return () => syncingDone(true);
+  // })
 
   // -----------------------------------------------------------------------------------------------
   // Profile Data
@@ -389,11 +401,8 @@
                   </form>
                   <form class="pl-3" method="POST" action="?/sync" use:enhance={() => {
                       profileSyncing = true;
-                      startSyncing();
                       return async ({ update }) => {
-                          syncingDone();
                           showAlert('Profile sync complete', {linger_ms: 4000, iconPath: icons.ok, iconColor: 'text-gray-400'});
-                          await alerts.updateNotifications();
                           update();
                       };
                   }}>

@@ -1,21 +1,18 @@
 import prisma from '$lib/server/prisma';
-import { error, json } from '@sveltejs/kit';
-import { ProcessType, type ProcessProgressesAPI } from '$lib/types';
+import { API, ProcessType } from '$lib/types';
 import { LibraryManager } from '$lib/server/cmd/index.js';
+import * as events from '$lib/server/events';
 
 export const GET = async ({ params }) => {
 
-  const asin = params.asin;
+  const id = params.id;
 
   // Check that the ID was actually submitted
-  if (asin === null || asin === undefined) throw error(404, 'Not found');
-
-  const id = await prisma.processQueue.findFirst({ where: { type: ProcessType.BOOK, book: { bookAsin: asin } } });
-  if (id === null) throw error(404, 'Not found');
+  if (id === null || id === undefined) return API.response._400({ missingPaths: ['id'] });
 
   try {
     await prisma.processQueue.update({
-      where: { id: id.id},
+      where: { id: id, type: ProcessType.BOOK },
       data: {
         in_progress: false,
         is_done: false,
@@ -32,12 +29,17 @@ export const GET = async ({ params }) => {
         }
       }
     });
+    events.emit('process.book', {
+      id: id,
+      d: false,
+      r: false,
+    })
     await LibraryManager.eventLoop();
   } catch (e) {
     console.log(e);
-    return json({ ok: true, status: 400 } satisfies ProcessProgressesAPI);
+    return API.response._404();
   }
 
   // Return
-  return json({ ok: true, status: 200 } satisfies ProcessProgressesAPI);
+  return API.response.success();
 }

@@ -1,38 +1,31 @@
 <script lang="ts">
-	import { invalidate } from '$app/navigation';
-	import icons from '$lib/components/icons';
-	import type { PageNeedsProgress, ProcessBookProgress, UpdateProgress } from '$lib/types';
-  import type { Prisma } from "@prisma/client";
-	import { getContext } from 'svelte';
+	import type { ProcessQueueBOOK } from '$lib/types';
 
-  export let progress: ProcessBookProgress;
+  export let process: ProcessQueueBOOK;
 
-  const updateProgress = getContext<UpdateProgress>('updateProgress');
+  $: downloaded = (process.book?.download_progress ?? 0) >= 1;
+  $: waitingForDownload = process.book?.download_progress === 0;
+  $: processed = (process.book?.process_progress ?? 0) >= 1;
+  $: waitingForProcess = downloaded && process.book?.process_progress === 0;
+
+  $: barProgress = (downloaded ? (process.book?.process_progress ?? 0) / 2 + 0.5 : (process.book?.download_progress ?? 0) / 2)
 
   $: {
-    console.log(progress);
+    console.log('download', process.book?.download_progress);
   }
 
-  $: downloaded = (progress.book?.download_progress ?? 0) >= 1;
-  $: waitingForDownload = progress.book?.download_progress === 0;
-  $: processed = (progress.book?.process_progress ?? 0) >= 1;
-  $: waitingForProcess = downloaded && progress.book?.process_progress === 0;
-
-  $: barProgress = (downloaded ? (progress.book?.process_progress ?? 0) / 2 + 0.5 : (progress.book?.download_progress ?? 0) / 2)
-
   const cancel = async () => {
-    await fetch(`/api/library/cancel/book/${progress.book?.bookAsin}`);
-    updateProgress();
+    await fetch(`/api/library/cancel/book/${process.book?.bookAsin}`);
   }
 
 </script>
 
 <div class="relative mx-2 my-2">
   <div class="mx-1 inline-flex overflow-hidden whitespace-nowrap gap-1">
-    <div class="w-10"><img src="{progress.book?.book.cover?.url_100}" class="rounded-md h-10 w-10" alt="{progress.book?.book.title} Cover Image" /></div>
+    <div class="w-10"><img src="{process.book?.book.cover?.url_100}" class="rounded-md h-10 w-10" alt="{process.book?.book.title} Cover Image" /></div>
     <div class="truncate max-w-[18rem]">
-      <span class="font-serif font-bold" title="{progress.book?.book.title}">{progress.book?.book.title}</span>
-      <span class="block text-xs text-gray-500">By {progress.book?.book.authors[0].name}</span>
+      <span class="font-serif font-bold" title="{process.book?.book.title}">{process.book?.book.title}</span>
+      <span class="block text-xs text-gray-500">By {process.book?.book.authors[0].name}</span>
     </div>
     <!-- <button on:click={cancel} type="button" title="Cancel" class="absolute right-0 top-0 px-1 py-1 transition-colors duration-100 rounded-lg text-black hover:text-white hover:bg-red-700" >
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
@@ -45,7 +38,7 @@
   </div>
   <div class="mx-1">
     <div class="flex justify-between mb-1">
-      <span class="text-xs font-medium text-blue-700 dark:text-white">{@html waitingForDownload ? 'Starting' : (!downloaded ? `Downloading <span class="text-gray-400 font-mono">${progress.book?.downloaded_mb?.toFixed(1)}/${progress.book?.total_mb?.toFixed(1)}MB @ ${progress.book?.speed?.toFixed(1)}Mb/s</span>` : (!processed ? `Processing <span class="text-gray-400 font-mono">${progress.book?.speed ?? '0'}x</span>` : 'Finishing'))}</span>
+      <span class="text-xs font-medium text-blue-700 dark:text-white">{@html waitingForDownload ? 'Starting' : (!downloaded ? `Downloading <span class="text-gray-400 font-mono">${process.book?.downloaded_mb?.toFixed(1)}/${process.book?.total_mb?.toFixed(1)}MB @ ${process.book?.speed?.toFixed(1)}Mb/s</span>` : (!processed ? `Processing <span class="text-gray-400 font-mono">${process.book?.speed ?? '0'}x</span>` : 'Finishing'))}</span>
       <span class="text-xs font-medium text-blue-700 dark:text-white">{Math.floor(barProgress*100)}%</span>
     </div>
     <div class="px-2">

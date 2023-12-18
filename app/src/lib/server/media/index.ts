@@ -39,7 +39,9 @@ export const saveFile = async (srcPath: string, asin: string, options?: { descri
     if (stat.size > 1000000) {
       // Copy the file using the system cp
       if (!fs.existsSync(MEDIA_FOLDER)) fs.mkdirSync(MEDIA_FOLDER, { recursive: true });
-      child_process.execSync(`/bin/cp -f "${srcPath}" "${MEDIA_FOLDER}/${id}"`);
+      await new Promise<void>((resolve) => {
+        child_process.exec(`/bin/cp -f "${srcPath}" "${MEDIA_FOLDER}/${id}"`, () => resolve());
+      });
       console.log('Added via file!');
     } else {
       data = fs.readFileSync(srcPath);

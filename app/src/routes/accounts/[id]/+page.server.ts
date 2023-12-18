@@ -6,7 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 import * as settings from '$lib/server/settings';
 import { icons } from '$lib/components';
 import * as serverHelpers from '$lib/server/helpers';
-import type { GenerateAlert, Issuer, ModalTheme, ProgressAPI, ProgressStatus } from '$lib/types';
+import * as events from '$lib/server/events';
+import type { Issuer, ModalTheme, Notification } from '$lib/types';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params, fetch }) => {
@@ -38,21 +39,18 @@ export const load = async ({ params, fetch }) => {
 
     for (const book of profile.books) book.rating = book.rating.toNumber() as unknown as Decimal;
 
-    const syncing = {
-        val: false,
-        progress: 0
-    }
+    // const syncing = {
+    //     val: false,
+    //     progress: 0
+    // }
 
-    const progressResp: ProgressAPI = await (await fetch(`/api/progress/specific/${id}/sync`)).json() as ProgressAPI;        
+    // const progressResp: ProgressAPI = await (await fetch(`/api/progress/specific/${id}/sync`)).json() as ProgressAPI;        
 
-    if (progressResp.ok === true && progressResp.progress !== undefined) {
-        syncing.val = progressResp.progress.status === 'RUNNING' satisfies ProgressStatus;
-        syncing.progress = progressResp.progress.progress;
-    }
+
 
     return {
         profile,
-        syncing,
+        // syncing,
         tz: await settings.get('general.timezone')
     };
 
@@ -83,7 +81,7 @@ export const actions = {
         // Remove the profile
         const success = await audible.cmd.profile.remove(id);
         if (success) {
-            await prisma.notification.create({ data: {
+            const notification: Notification = {
                 id: uuidv4(),
                 icon_path: icons.fingerPrint,
                 icon_color: 'text-red-400',
@@ -95,11 +93,27 @@ export const actions = {
                 auto_open: true,
                 issuer: 'general',
                 identifier: null
-            }});
-            throw redirect(307, `/accounts?update`);
+            }
+            await prisma.notification.create({ data: notification});
+            events.emit('notification.created', [notification]);
+            throw redirect(307, `/accounts`);
         }
         else
             return { response: 'deregister', success: false, message: 'Could not delete the account' };
+    },
+    test: async ({ request, params }) => {
+        console.log('start');
+        events.emit('progress.account.sync', {
+            id: 'abc123',
+            type: 'start'
+        });
+        await serverHelpers.delay(5000);
+        events.emit('progress.account.sync', {
+            id: 'abc123',
+            type: 'done',
+            success: true
+        });
+        console.log('end');
     },
     sync: async ({ request, params }) => {
         const id = params.id;
@@ -112,20 +126,26 @@ export const actions = {
         // Return if the profile was not found
         if (profile === null || profile === undefined) throw error(404, 'Not found');
 
+        console.log('get');
         const results = await audible.cmd.library.get(id);
+        console.log('get done');
 
         console.log('Create notification');
-        await prisma.notification.create({
-            data: {
-                id: uuidv4(),
-                issuer: 'account.sync' satisfies Issuer,
-                theme: 'info' satisfies ModalTheme,
-                text: 'Synced at ' + new Date().toISOString(),
-                linger_time: 10000,
-                needs_clearing: true,
-                auto_open: false
-            }
-        });
+        const notification: Notification = {
+            id: uuidv4(),
+            icon_color: null,
+            icon_path: null,
+            issuer: 'account.sync' satisfies Issuer,
+            theme: 'info' satisfies ModalTheme,
+            text: 'Synced at ' + new Date().toISOString(),
+            sub_text: null,
+            identifier: null,
+            linger_time: 10000,
+            needs_clearing: true,
+            auto_open: false
+        }
+        await prisma.notification.create({ data: notification });
+        events.emit('notification.created', [notification]);
 
         if (results !== null) {
             return { response: 'sync', success: true, results };

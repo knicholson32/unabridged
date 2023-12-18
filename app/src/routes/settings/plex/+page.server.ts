@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as helpers from '$lib/server/helpers';
 import * as helpersPublic from '$lib/helpers';
 import * as settings from '$lib/server/settings';
-import { CollectionBy, ScanAndGenerate, type GenerateAlert, type URLAlert, scanAndGenerateToStringLong } from '$lib/types';
+import { CollectionBy, ScanAndGenerate, type GenerateAlert, scanAndGenerateToStringLong } from '$lib/types';
 import * as Plex from '$lib/server/plex';
 import { PlexOauth } from 'plex-oauth'
 import { redirect } from '@sveltejs/kit';
@@ -237,9 +237,7 @@ export const actions = {
       needs_clearing: true,
       auto_open: true
     };
-    await prisma.notification.create({
-      data: notification
-    });
+    await prisma.notification.create({ data: notification });
     events.emit('notification.created', [notification]);
     const addressAndToken = await settings.getMany('plex.address', 'plex.token');
     const results = await Plex.testPlexConnection(addressAndToken['plex.address'], addressAndToken['plex.token']);

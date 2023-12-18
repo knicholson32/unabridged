@@ -3,13 +3,13 @@
 	import { icons } from "$lib/components";
 	import { Switch, VerifyButton } from "$lib/components/buttons";
 	import Submit from "$lib/components/buttons/Submit.svelte";
-  import * as Settings from "$lib/components/settings";
-	import { CollectionBy, type GenerateAlert, type URLAlert } from "$lib/types";
+  import * as Settings from "$lib/components/routeSpecific/settings";
+	import { CollectionBy, type GenerateAlert } from "$lib/types";
 	import { getContext, onMount } from "svelte";
   import { page } from '$app/stores';
 	import { enhance } from "$app/forms";
-	import CollectionList from "$lib/components/settings/CollectionList.svelte";
-	import Collection from "$lib/components/settings/Collection.svelte";
+	import CollectionList from "$lib/components/routeSpecific/settings/CollectionList.svelte";
+	import Collection from "$lib/components/routeSpecific/settings/Collection.svelte";
 
   export let data: import('./$types').PageData;
   export let form: import('./$types').ActionData;

@@ -12,6 +12,7 @@ import { ConversionError } from './AAXtoMP3/types';
 import { ProcessError } from '$lib/types';
 import * as Plex from '$lib/server/plex';
 import * as helpers from '$lib/server/helpers';
+import * as events from '$lib/server/events';
 import cron from 'node-cron';
 
 enum ProcessState {
@@ -114,6 +115,12 @@ export namespace LibraryManager {
           }
         }
       });
+      events.emit('process.book.result', {
+        id: id,
+        r: false,
+        d: false,
+        result: result
+      });
     } else {
       console.log(`ERROR: Unimplemented process type: ${type}`, id);
     }
@@ -140,6 +147,12 @@ export namespace LibraryManager {
             }
           }
         }
+      });
+      events.emit('process.book.result', {
+        id: id,
+        r: false,
+        d: true,
+        result: result
       });
     } else {
       console.log(`ERROR: Unimplemented process type: ${type}`, id);
@@ -206,6 +219,7 @@ export namespace LibraryManager {
         }
         await settings.set('progress.endTime', -1);
         await settings.set('progress.running', true);
+        events.emit('process.settings', await settings.getSet('progress'));
       }
       // Get the process type
       const type = queueEntry.type as types.ProcessType;
@@ -228,6 +242,11 @@ export namespace LibraryManager {
             }
           }
         }});
+        events.emit('process.book', {
+          id: queueEntry.id,
+          r: true,
+          d: false,
+        });
         unlockProcessQueue();
         // const queueEntrySpecific = await prisma.processQueue.findUnique({
         //   where: { id: queueEntry.id },
@@ -395,20 +414,28 @@ export namespace LibraryManager {
                   }
                 }
               });
-              // Send a notification
-              await prisma.notification.create({
-                data: {
-                  id: uuidv4(),
-                  issuer: 'audible.download' satisfies Issuer,
-                  identifier: queueEntry.book.book.cover?.url_100,
-                  theme: 'info' satisfies ModalTheme,
-                  text: `<a href="/library/books/${queueEntry.book.book.asin}">${queueEntry.book.book.title}</a> <span class="text-gray-600">Downloaded</span>`,
-                  sub_text: new Date().toISOString(),
-                  linger_time: 10000,
-                  needs_clearing: true,
-                  auto_open: true
-                }
+              events.emit('process.book.result', {
+                id: queueEntry.id,
+                r: false,
+                d: true,
+                result: ProcessError.NO_ERROR
               });
+              // Send a notification
+              const notification: types.Notification = {
+                id: uuidv4(),
+                issuer: 'audible.download' satisfies Issuer,
+                icon_path: null,
+                icon_color: null,
+                identifier: queueEntry.book.book.cover?.url_100 ?? null,
+                theme: 'info' satisfies ModalTheme,
+                text: `<a href="/library/books/${queueEntry.book.book.asin}">${queueEntry.book.book.title}</a> <span class="text-gray-600">Downloaded</span>`,
+                sub_text: new Date().toISOString(),
+                linger_time: 10000,
+                needs_clearing: true,
+                auto_open: true
+              }
+              await prisma.notification.create({ data: notification });
+              events.emit('notification.created', [notification]);
               // Note that books were added and a scan should be issued
               libraryScanShouldBeIssued = true;
             }
@@ -436,6 +463,12 @@ export namespace LibraryManager {
                     }
                   }
                 }
+              });
+              events.emit('process.book.result', {
+                id: queueEntry.id,
+                r: true,
+                d: false,
+                result: 'UNKNOWN' as ProcessError
               });
             }
           } catch(e) {
@@ -474,6 +507,7 @@ export namespace LibraryManager {
           if (noneWorking && await settings.get('progress.running') === true) {
             await settings.set('progress.running', false);
             await settings.set('progress.endTime', Math.floor(Date.now() / 1000));
+            events.emit('process.settings', await settings.getSet('progress'));
 
             // Trigger a library scan if it should be issued (IE. we have added at least one book)
             if (libraryScanShouldBeIssued) Plex.triggerAutoScan();
@@ -556,9 +590,9 @@ export namespace LibraryManager {
    * @param asin the book to cancel
    */
   export const cancelBook = async (asin: string) => {
-    audible.cmd.download.cancel(asin);
-    AAXtoMP3.cmd.convert.cancel(asin);
-    await removeBook(asin, ProcessError.CANCELED);
+    const canceledAudible = audible.cmd.download.cancel(asin);
+    const canceledConversion = AAXtoMP3.cmd.convert.cancel(asin);
+    await removeBook(asin, ProcessError.CANCELED, !canceledAudible && !canceledConversion);
   }
 
   /**
@@ -578,9 +612,13 @@ export namespace LibraryManager {
   export const queueBook = async (asin: string, run = true) => {
     try {
       if (!(await getIsQueued(asin))) {
+        // Generate a unique ID that is only a couple characters long. Verify by checking in the DB, but only try this a couple times. Increase the ID size each time to make it
+        // more likely that we get a unique ID
+        let id = uuidv4().substring(0, 1);
+        for (let i = 0; i < 15 && await prisma.processQueue.count({ where: { id } }) > 0; i++) id = uuidv4().substring(0, i + 1);
         await prisma.processQueue.create({
           data: {
-            id: uuidv4(),
+            id: id,
             type: types.ProcessType.BOOK,
             book: {
               create: {
@@ -589,6 +627,9 @@ export namespace LibraryManager {
             }
           }
         });
+        const queued = await prisma.processQueue.findUnique({ ...types.processQueueBOOKValidator, ...{where: { id: id} }});
+        console.log('queued', queued);
+        if (queued !== null) events.emit('process.book.queued', queued);
       }
       if (run) await global.manager.runProcess();
     } catch(e) {
@@ -610,13 +651,14 @@ export namespace LibraryManager {
    * @param asin the book to remove
    * @returns true if it was removed, false if it is already in progress
    */
-  export const removeBook = async (asin: string, result?: ProcessError): Promise<boolean> => {
+  export const removeBook = async (asin: string, result: ProcessError = ProcessError.CANCELED, shouldEmitEvent=false): Promise<boolean> => {
     // Find the book in the queue
     try {
       console.log('REMOVE QUEUE', asin);
-      // Find by the ASIN and the in_progress tag
-      await prisma.processQueue.updateMany({ 
-        where: { 
+      // Find by the ASIN and the in_progress tag. This will only capture books that are currently in process. Other
+      // books must 
+      await prisma.processQueue.updateMany({
+        where: {
           in_progress: false,
           is_done: false,
           book: { bookAsin: asin }
@@ -626,33 +668,14 @@ export namespace LibraryManager {
           result
         }
       });
+      const eventProcess = await prisma.processQueue.findFirst({ where: { book: { bookAsin: asin }}});
+      if (eventProcess !== null) events.emit('process.dismissed', [eventProcess?.id]);
       // The book was found and removed
       return true;
     } catch(e) {
       // The book was not found or could not be removed
       return false;
     }
-  }
-
-  /**
-   * Remove many books from the download and process queue
-   * @param asins the books to remove
-   * @returns a the number of books that were removed
-   */
-  export const removeBooks = async (asins: string[]): Promise<number> => {
-    // Remove all books that have the asin and are not in progress yet
-    console.log('REMOVE QUEUEs', asins);
-    const removals = await prisma.processQueue.updateMany({
-      where: {
-        book: { bookAsin: { in: asins } },
-        in_progress: false,
-        is_done: false
-      },
-      data: {
-        is_done: true
-      }
-    });
-    return removals.count;
   }
 
   /**
@@ -663,8 +686,8 @@ export namespace LibraryManager {
     return processorPromises.every((p) => p === undefined);
   }
 
-  export const getProgress = (asin: string) => prisma.progress.findUnique({ where: { id_type: { id: asin, type: PROGRESS_TYPE } } });
-  export const getAllProgress = async () => prisma.progress.findMany({ where: { type: PROGRESS_TYPE } });
+  // export const getProgress = (asin: string) => prisma.progress.findUnique({ where: { id_type: { id: asin, type: PROGRESS_TYPE } } });
+  // export const getAllProgress = async () => prisma.progress.findMany({ where: { type: PROGRESS_TYPE } });
 
 }
 

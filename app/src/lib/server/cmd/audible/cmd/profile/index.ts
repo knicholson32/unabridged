@@ -16,11 +16,6 @@ import { AUDIBLE_FOLDER, AUDIBLE_CMD } from '$lib/server/env';
 
 const ENTER = '\n';
 
-export const listProfiles = () => {
-    const profileResult = child_process.execSync(AUDIBLE_CMD + ' manage profile list', { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }).toString();
-    console.log(profileResult);
-}
-
 // --------------------------------------------------------------------------------------------
 // Profile helpers
 // --------------------------------------------------------------------------------------------
@@ -99,7 +94,9 @@ export const fetchMetadata = async (id: string, includeProfile = true): Promise<
 
     try {
         // Have the audible-cli get the activation bytes
-        child_process.execSync(`${AUDIBLE_CMD} -P ${profile.id} activation-bytes`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } });
+        await new Promise<void>((resolve) => {
+            child_process.exec(`${AUDIBLE_CMD} -P ${profile.id} activation-bytes`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }, () => resolve());
+        });
         // Get the auth file associated with this profile
         const authFile = await getAuthFile(id);
         // Make sure the file exists and the bytes are present
@@ -177,8 +174,9 @@ export const fetchMetadata = async (id: string, includeProfile = true): Promise<
     } catch (e) {
         // Something went wrong. No bytes.
         console.log('NO BYTES!', e);
-        console.log(e.stdout);
-        console.log(e.stderr);
+        const err = e as { stdout: Buffer, stderr: Buffer };
+        console.log(err.stdout);
+        console.log(err.stderr);
         return;
     }
 }

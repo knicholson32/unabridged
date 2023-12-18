@@ -153,7 +153,7 @@ export const generateCollections = async (): Promise<publicTypes.ScanAndGenerate
       // Loop through every series and collect it
       for (let i = 0; i < series.length; i++) {
         const s = series[i];
-        await collections.collectBySeries(s, plexSettings['plex.address'], plexSettings['plex.token']);
+        await collections.collectBySeries(s, plexSettings['plex.address'], plexSettings['plex.token'], debug);
         // Update the collection progress
         await settings.set('plex.library.collection.progress', i / series.length);
       }

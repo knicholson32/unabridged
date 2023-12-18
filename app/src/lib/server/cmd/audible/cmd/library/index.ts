@@ -6,6 +6,7 @@ import { isLocked } from '../../';
 import prisma from '$lib/server/prisma';
 import { writeConfigFile } from '$lib/server/cmd/audible/cmd/profile';
 import { saveGoogleAPIDetails } from '$lib/server/lookup';
+import * as events from '$lib/server/events';
 import * as helpers from '$lib/helpers';
 import { getAverageColor } from 'fast-average-color-node';
 import { AUDIBLE_CMD, AUDIBLE_FOLDER } from '$lib/server/env';
@@ -315,20 +316,30 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
     }
 
     // Generate the ID for progress
-    await prisma.progress.create({
-        data: {
-            id: `${id}`,
-            type: 'sync',
-            progress: 0,
-            ref: 'audible.cmd.library.get',
-            message: '',
-            status: 'RUNNING'
-        }
-    })
+    // await prisma.progress.create({
+    //     data: {
+    //         id: `${id}`,
+    //         type: 'sync',
+    //         progress: 0,
+    //         ref: 'audible.cmd.library.get',
+    //         message: '',
+    //         status: 'RUNNING'
+    //     }
+    // })
+    events.emit('progress.account.sync', {
+        id: id,
+        type: 'start'
+    });
 
     try {
-        child_process.execSync(`${AUDIBLE_CMD} -P ${id} library export --format json -o /tmp/${id}.library.json`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } });
-        child_process.execSync(`${AUDIBLE_CMD} -P ${id} library export --format tsv -o /db/audible/${id}.library.tsv`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } });
+
+        await new Promise<void>((resolve) => {
+            child_process.exec(`${AUDIBLE_CMD} -P ${id} library export --format json -o /tmp/${id}.library.json`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }, () => resolve());
+        });
+        await new Promise<void>((resolve) => {
+            child_process.exec(`${AUDIBLE_CMD} -P ${id} library export --format tsv -o /db/audible/${id}.library.tsv`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }, () => resolve());
+        });
+
         const library = JSON.parse(fs.readFileSync(`/tmp/${id}.library.json`).toString()) as Library;
         let numCreated = 0;
         let numUpdated = 0;
@@ -339,11 +350,17 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
             if (res) numCreated++;
             else numUpdated++;
             numProcessed++;
-            await prisma.progress.update({ where: { id_type: { id, type: 'sync' } },
-                data: {
-                    progress: numProcessed / totalNumBooks,
-                    message: book.title
-                }
+            // await prisma.progress.update({ where: { id_type: { id, type: 'sync' } },
+            //     data: {
+            //         progress: numProcessed / totalNumBooks,
+            //         message: book.title
+            //     }
+            // });
+            events.emit('progress.account.sync', {
+                id: id,
+                type: 'in_progress',
+                progress: helpers.round(numProcessed / totalNumBooks),
+                message: book.title
             });
 
         }
@@ -359,7 +376,12 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
             }
         });
 
-        await prisma.progress.update({ where: { id_type: { id, type: 'sync'} }, data: { progress: 1, status: 'DONE' } });
+        // await prisma.progress.update({ where: { id_type: { id, type: 'sync'} }, data: { progress: 1, status: 'DONE' } });
+        events.emit('progress.account.sync', {
+            id: id,
+            type: 'done',
+            success: true
+        });
 
         return { numCreated, numUpdated };
     } catch(e) {
@@ -368,12 +390,19 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
         const err = e as { stdout: Buffer };
         console.log(err);
         console.log(err.stdout.toString())
-        await prisma.progress.update({
-            where: { id_type: { id, type: 'sync' } },
-            data: {
-                status: 'ERROR',
-                message: 'Error during sync'
-            }
+        // await prisma.progress.update({
+        //     where: { id_type: { id, type: 'sync' } },
+        //     data: {
+        //         status: 'ERROR',
+        //         message: 'Error during sync'
+        //     }
+        // });
+        events.emit('progress.account.sync', {
+            id: id,
+            type: 'done',
+            success: false,
+            message: `Error during sync`,
+            data: err.stdout.toString()
         });
         try {
             fs.rmSync(`/tmp/${id}.library.json`, { recursive: true, force: true });

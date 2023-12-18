@@ -1,5 +1,5 @@
-import type { Prisma } from "@prisma/client";
-
+import { Prisma } from "@prisma/client";
+import type { ObjectType, SettingsSet, TypeName } from '$lib/server/settings';
 
 export type CountryCode = 'us' | 'ca' | 'uk' | 'au' | 'fr' | 'de' | 'jp' | 'it' | 'in';
 export const countryCodes = [
@@ -68,6 +68,72 @@ export type ProfileMenu = (ProfileMenuEntry[])[];
 export type ProfileMenuWithID = (ProfileMenuEntryWithID[])[];
 
 // -------------------------------------------------------------------------------------------------
+// API
+// -------------------------------------------------------------------------------------------------
+
+import * as _responses from './responses';
+export namespace API {
+
+    export type Response = Error | General | Boolean | Notification | Manifest | API.Process.Book | API.Process.Settings;
+    export interface API {
+        status: number
+        ok: boolean
+    }
+
+    // Export basic responses
+    export const response = _responses;
+
+    export interface Error extends API {
+        ok: false
+        message: string,
+        code?: number
+    }
+
+    export interface Success extends API {
+        ok: true
+        type: string
+    }
+
+    export interface General extends Success {
+        type: 'general'
+    }
+
+    export interface Boolean extends Success {
+        type: 'boolean',
+        value: boolean
+    }
+
+    // Notifications -----------------------------------------------------------------------------------
+
+    export interface Notification extends Success {
+        type: 'notification'
+        notifications: _NotificationInternal[]
+    }
+
+    // Manifest ----------------------------------------------------------------------------------------
+    export interface Manifest extends Success {
+        type: 'manifest'
+        files: File[]
+    }
+}
+
+export const fileValidator = Prisma.validator<Prisma.MediaFindManyArgs>()({
+    select: {
+        id: true,
+        content_type: true,
+        extension: true,
+        title: true,
+        bookAsin: true,
+        data: false,
+        path: false,
+        size_b: true,
+        description: true
+    }
+});
+export type File = Prisma.MediaGetPayload<typeof fileValidator>;
+
+
+// -------------------------------------------------------------------------------------------------
 // Notifications / Alerts
 // -------------------------------------------------------------------------------------------------
 
@@ -96,22 +162,14 @@ export type NotificationSettings = {
 
 export type GenerateAlert = (text: string, settings?: AlertSettings) => void;
 
-export type URLAlert = {
-    text: string,
-    settings?: AlertSettings
-}
-
 export type Issuer = 'general' | 'audible.download' | 'plex.scan' | 'account.sync';
+
 export type Notification = Prisma.NotificationGetPayload<{}> & {
     theme: ModalTheme,
     issuer: Issuer,
 };
 
-export type NotificationAPI = {
-    ok: boolean,
-    notifications?: Notification[]
-}
-
+type _NotificationInternal = Notification;
 
 export type Images = {
     full: Buffer
@@ -121,82 +179,172 @@ export type Images = {
     img56: Buffer,
 };
 
-
 // -------------------------------------------------------------------------------------------------
-// Progress
+// Process Queue
 // -------------------------------------------------------------------------------------------------
 
-export type Progress = Prisma.ProgressGetPayload<{
-    select: {
-        id: false,
-        type: true,
-        progress: true,
-        status: true,
-        message: true,
-        ref: true,
-        speed_mb_s: true,
-        total_mb: true,
-        downloaded_mb: true
-    }
-}>;
-
-export type ProcessBookProgress = Prisma.ProcessQueueGetPayload<{
-    include: {
-        book: {
-            include: {
-                book: {
-                    select: {
-                        title: true,
-                        authors: true,
-                        genres: true,
-                        cover: {
-                            select: {
-                                url_100: true
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}>;
-
-export type ProcessProgress = ProcessBookProgress;
-
-
-export type ProgressAPI = {
-    ok: boolean,
-    progress?: Progress,
-    status: number
-}
-
-export type ProcessProgressesAPI = {
-    ok: boolean,
-    progresses?: ProcessProgress[],
-    status: number,
-    paused?: boolean,
-    elapsed_s?: number
-}
-
-export type ProcessProgressAPI = {
-    ok: boolean,
-    progress?: ProcessProgress,
-    status: number,
-    paused?: boolean,
-    elapsed_s?: number
-}
-
-export type ProgressStatus = 'RUNNING' | 'DONE' | 'ERROR'
+export type ProcessQueue = Prisma.ProcessQueueGetPayload<{}>;
 
 export enum ProcessType {
     BOOK = 'BOOK'
 }
 
-export type ProgressManyAPI = {
-    ok: boolean,
-    progress?: Progress[],
-    status: number
+export const processQueueBOOKValidator = Prisma.validator<Prisma.ProcessQueueFindManyArgs>()({
+    where: { type: ProcessType.BOOK },
+    include: { 
+        book: {
+            include: {
+                book: {
+                    select: {
+                        cover: {
+                            select: {
+                                url_100: true
+                            }
+                        },
+                        authors: {
+                            select: {
+                                name: true,
+                            }
+                        },
+                        title: true
+                    }
+                }
+            }
+        }
+    }
+});
+export type ProcessQueueBOOK = Prisma.ProcessQueueGetPayload<typeof processQueueBOOKValidator>;
+
+export namespace API {
+    export namespace Process {
+        export interface Settings extends API.Success {
+            type: 'process.settings'
+            settings: { [K in SettingsSet<TypeName, 'progress'>]: ObjectType<K> }
+        }
+
+        export interface Book extends API.Success {
+            type: 'process.book'
+            processes: ProcessQueueBOOK[]
+        }
+    }
 }
+
+export namespace Process {
+
+
+    export interface Header {
+        id: string,
+        r: boolean,
+        d: boolean
+    };
+
+    export type Settings = { [K in SettingsSet<TypeName, 'progress'>]: ObjectType<K> };
+
+    export namespace Book {
+
+        // Process Result -------------------------------------------
+        export interface Result extends Header {
+            result: ProcessError
+        }
+        
+        // Progress Incremental Data --------------------------------
+        export enum Task {
+            DOWNLOAD = 'd',
+            PROCESS = 'p'
+        }
+        interface _progress_base extends Header {
+            t: Task // Task
+        }
+
+        
+        export type Progress = Download | Process;
+
+        export interface Download extends _progress_base {
+            p: number,          // Progress
+            mb?: number,        // MB Downloaded
+            tb?: number,        // Total MB
+            s?: number,         // Speed
+            t: Task.DOWNLOAD    // Task of Download
+        }
+
+        export interface Process extends _progress_base {
+            p: number,          // Progress
+            s?: number,         // Speed
+            t: Task.PROCESS     // Task of Progress
+        }
+    }
+}
+
+// -------------------------------------------------------------------------------------------------
+// Progress
+// -------------------------------------------------------------------------------------------------
+
+export namespace Progress {
+
+    export type Packet = Start | InProgress | Done;
+
+    interface Header {
+        id: string,
+        type: 'start' | 'in_progress' | 'done'
+    }
+
+    export interface Start extends Header {
+        type: 'start'
+    }
+
+    export interface InProgress extends Header {
+        type: 'in_progress',
+        message?: string
+        progress: number,
+    }
+
+    export interface Done extends Header {
+        type: 'done',
+        message?: string,
+        success: boolean,
+        data?: any
+    }
+}
+
+
+// -------------------------------------------------------------------------------------------------
+// Progress
+// -------------------------------------------------------------------------------------------------
+
+// export type Progress = Prisma.ProgressGetPayload<{
+//     select: {
+//         id: false,
+//         type: true,
+//         progress: true,
+//         status: true,
+//         message: true,
+//         ref: true,
+//         speed_mb_s: true,
+//         total_mb: true,
+//         downloaded_mb: true
+//     }
+// }>;
+
+// export type ProcessBookProgress = Prisma.ProcessQueueGetPayload<{
+//     include: {
+//         book: {
+//             include: {
+//                 book: {
+//                     select: {
+//                         title: true,
+//                         authors: true,
+//                         genres: true,
+//                         cover: {
+//                             select: {
+//                                 url_100: true
+//                             }
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }>;
 
 export type UpdateProgress = () => void;
 export type PageNeedsProgress = () => void;
@@ -276,24 +424,6 @@ export const processErrorToStringLong = (p: ProcessError) => {
         default:
             return 'An unknown and unexpected error has occurred.';
     }
-}
-
-
-// -------------------------------------------------------------------------------------------------
-// Library
-// -------------------------------------------------------------------------------------------------
-
-export type DownloadAPI = {
-    ok: boolean,
-    message?: string,
-    status: number
-}
-
-export type DownloadStatusAPI = {
-    ok: boolean,
-    status: number
-    inProgress: boolean,
-    progress?: Progress
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -423,7 +553,6 @@ export type ScanAndGenerateResult = {
 // Library
 // -------------------------------------------------------------------------------------------------
 
-
 export namespace Cron {
     export type Record = {
         version: 'v1' | 'v2',               // The version of this record data (for future use)
@@ -452,10 +581,27 @@ export enum CollectionBy {
 export const EventNames = [
     'notification.created',
     'notification.deleted',
+    'process.settings',
+    'process.dismissed',
+    'process.book',
+    'process.book.queued',
+    'process.book.progress',
+    'process.book.result',
+    'progress.account.sync'
 ] as const;
 export type EventName = typeof EventNames[number];
 
+export type ProgressEvents = Extract<EventName, 'progress.account.sync'>;
+
 export type EventType<T extends EventName> =
-    T extends 'notification.created' ? Notification[] :     // Notification[]
-    T extends 'notification.deleted' ? string[] :           // string[]
+    T extends 'notification.created' ? Notification[] :
+    T extends 'notification.deleted' ? string[] :
+    T extends 'notification.deleted' ? string[] :
+    T extends 'process.settings' ? Process.Settings :
+    T extends 'process.dismissed' ? string[] :
+    T extends 'process.book' ? Process.Header :
+    T extends 'process.book.queued' ? ProcessQueueBOOK :
+    T extends 'process.book.result' ? Process.Book.Result :
+    T extends 'process.book.progress' ? Process.Book.Progress :
+    T extends 'progress.account.sync' ? Progress.Packet :
     string;

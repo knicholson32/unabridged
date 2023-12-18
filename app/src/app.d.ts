@@ -11,6 +11,9 @@ declare global {
 		// interface Platform {}
 	}
 	declare namespace globalThis {
+		interface BigInt {
+			toJSON(): string | number
+		}
 		declare namespace plex {
 			let generalTimeout: NodeJS.Timeout | undefined;
 		}

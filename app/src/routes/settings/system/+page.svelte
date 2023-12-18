@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { beforeNavigate } from "$app/navigation";
-	import * as Settings from "$lib/components/settings";
+	import * as Settings from "$lib/components/routeSpecific/settings";
   import { DataContainer, DataEntry } from "$lib/components/decorations/data";
   import { toISOStringTZ } from '$lib/helpers';
   import cronstrue from 'cronstrue';

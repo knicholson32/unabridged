@@ -1,32 +1,28 @@
 <script lang="ts">
-	import { invalidate } from '$app/navigation';
-	import { ProcessError, type PageNeedsProgress, type ProcessBookProgress, type UpdateProgress } from '$lib/types';
+	import { ProcessError, type ProcessQueueBOOK } from '$lib/types';
   import { processErrorToStringShort, processErrorToStringLong } from '$lib/types';
 	import { getContext } from 'svelte';
-  export let progress: ProcessBookProgress;
-  const updateProgress = getContext<UpdateProgress>('updateProgress');
+  export let process: ProcessQueueBOOK;
     
   const dismiss = async () => {
-    await fetch(`/api/progress/dismiss/${progress.book?.bookAsin}`);
-    updateProgress();
+    await fetch(`/api/process/dismiss/book/${process.id}`);
   }
 
   const retry = async () => {
-    await fetch(`/api/progress/retry/${progress.book?.bookAsin}`);
-    updateProgress();
+    await fetch(`/api/process/retry/${process.id}`);
   }
 
-  const result = progress.result as ProcessError;
+  const result = process.result as ProcessError;
   const resultShort = processErrorToStringShort(result);
   const resultLong = processErrorToStringLong(result);
 
 </script>
 
 <div class="relative mx-2 my-1 flex gap-1 items-center">
-  <a href="/library/books/{progress.book?.bookAsin}" class="overflow-hidden whitespace-nowrap shrink inline-flex items-center gap-2">
-    <div class="w-5 inline-flex"><img src="{progress.book?.book.cover?.url_100}" class="rounded-md h-5 w-5" alt="{progress.book?.book.title} Cover Image" /></div>
+  <a href="/library/books/{process.book?.bookAsin}" class="overflow-hidden whitespace-nowrap shrink inline-flex items-center gap-2">
+    <div class="w-5 inline-flex"><img src="{process.book?.book.cover?.url_100}" class="rounded-md h-5 w-5" alt="{process.book?.book.title} Cover Image" /></div>
     <div class="truncate overflow-hidden max-w-[25rem] inline-flex items-baseline text-sm gap-1">
-      <span class="font-serif font-bold truncate overflow-hidden  {result !== ProcessError.NO_ERROR ? 'line-through' : ''}" title="{progress.book?.book.title}">{progress.book?.book.title}</span>
+      <span class="font-serif font-bold truncate overflow-hidden  {result !== ProcessError.NO_ERROR ? 'line-through' : ''}" title="{process.book?.book.title}">{process.book?.book.title}</span>
     </div>
   </a>
   <div class="grow"></div>

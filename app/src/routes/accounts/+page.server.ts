@@ -16,7 +16,7 @@ export async function load({ }) {
         }
     });
     
-    const profiles = await prisma.profile.findMany() as (Types.Prisma.ProfileMinAggregateOutputType & { num_books: number, num_downloaded: number })[];
+    const profiles = await prisma.profile.findMany() as (Types.Prisma.ProfileGetPayload<{}> & { num_books: number, num_downloaded: number })[];
 
     for (let i = 0; i < profiles.length; i++) {
         profiles[i].num_books = profilesAndBooks[i].books.length;
