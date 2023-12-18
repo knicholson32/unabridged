@@ -1,16 +1,41 @@
 import EventEmitter from 'node:events';
-import type { EventName, EventType, Notification } from '$lib/types';
+import type { Event } from '$lib/types';
 
-if (global.events === undefined) global.events = { eventEmitter: undefined };
-if (global.events.eventEmitter !== undefined) {
-  global.events.eventEmitter.removeAllListeners();
-  global.events.eventEmitter = undefined;
+// Assign globals so duplicate emitters don't get created during development (vite dev)
+if (global.events === undefined) global.events = { base: undefined, progress: undefined };
+if (global.events.base !== undefined) {
+  global.events.base.removeAllListeners();
+  global.events.base = undefined;
+}
+if (global.events.progress !== undefined) {
+  global.events.progress.removeAllListeners();
+  global.events.progress = undefined;
 }
 
-export const eventEmitter = new EventEmitter();
-global.events.eventEmitter = eventEmitter;
+// Export the event emitters so the API endpoints can attach to them
+export const base = new EventEmitter();
+export const progress = new EventEmitter();
 
-export const emit = <T extends EventName>(event: T, data: EventType<T>) => {
-  console.log('Event emitted', event);
-  eventEmitter.emit(event, data);
+// Assign globals
+global.events.base = base;
+global.events.progress = progress;
+
+/**
+ * Emit a base event
+ * @param event the event type
+ * @param data the data
+ */
+export const emit = <T extends Event.Base.Name>(event: T, data: Event.Base.Type<T>) => {
+  console.log('Base event emitted', event);
+  base.emit(event, data);
+}
+
+/**
+ * Emit a progress event
+ * @param event the event type
+ * @param data the data
+ */
+export const emitProgress = <T extends Event.Progress.Name>(event: T, data: Event.Progress.Type<T>) => {
+  console.log('Base event emitted', event);
+  progress.emit(event, data);
 }

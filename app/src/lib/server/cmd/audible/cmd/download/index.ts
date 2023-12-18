@@ -13,7 +13,7 @@ import { BookDownloadError } from '../../types';
 import type { AmazonChapterData } from '../../types';
 import { writeConfigFile } from '../profile';
 import { AUDIBLE_FOLDER, AUDIBLE_CMD } from '$lib/server/env';
-import { Process, ProcessType } from '$lib/types';
+import { Event } from '$lib/types';
 
 // --------------------------------------------------------------------------------------------
 // Download helpers
@@ -79,12 +79,12 @@ export const download = async (asin: string, processID: string, tmpDir: string):
       }
     }
   });
-  events.emit('process.book.progress', {
+  events.emitProgress('processor.book', {
     id: processID,
     r: true,
     d: false,
     p: 0,
-    t: Process.Book.Task.DOWNLOAD
+    t: Event.Progress.Processor.BOOK.Task.DOWNLOAD
   });
 
   // Make sure the config file is written
@@ -154,7 +154,7 @@ export const download = async (asin: string, processID: string, tmpDir: string):
               }
             }
           });
-          events.emit('process.book.progress', {
+          events.emitProgress('processor.book', {
             id: processID,
             r: true,
             d: false,
@@ -162,7 +162,7 @@ export const download = async (asin: string, processID: string, tmpDir: string):
             mb: isNaN(downloaded) ? undefined : downloaded,
             tb: isNaN(total) ? undefined : total,
             s: isNaN(speed) ? undefined : speed,
-            t: Process.Book.Task.DOWNLOAD
+            t: Event.Progress.Processor.BOOK.Task.DOWNLOAD
           });
         } catch(e) {
           console.log('ERR', e);
@@ -382,12 +382,12 @@ export const download = async (asin: string, processID: string, tmpDir: string):
       }
     }
   });
-  events.emit('process.book.progress', {
+  events.emitProgress('processor.book', {
     id: processID,
     r: true,
     d: false,
-    t: Process.Book.Task.DOWNLOAD,
-    p: 1
+    p: 1,
+    t: Event.Progress.Processor.BOOK.Task.DOWNLOAD
   });
 
   return results;

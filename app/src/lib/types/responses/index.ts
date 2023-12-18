@@ -16,10 +16,11 @@ export const _404 = () => {
  * @param missingBodyParams body params that are missing from the JSON body
  * @returns the 400 response
  */
-export const _400 = (config: { message?: string, missingPaths?: string[], missingBodyParams?: string[]}) => {
+export const _400 = (config: { message?: string, missingPaths?: string[], missingBodyParams?: string[], missingURLParams?: string[]}) => {
   if (config.message !== undefined) return json({ status: 400, ok: false, message: config.message } satisfies API.Error, { status: 400 });
-  if (config.missingPaths !== undefined) return json({ status: 400, ok: false, message: 'Missing inputs: ' + config.missingPaths.join(',') } satisfies API.Error, { status: 400 });
-  if (config.missingBodyParams !== undefined) return json({ status: 400, ok: false, message: 'Missing JSON body params: ' + config.missingBodyParams.join(',') } satisfies API.Error, { status: 400 });
+  if (config.missingPaths !== undefined) return json({ status: 400, ok: false, message: 'Missing inputs: ' + config.missingPaths.join(', ') } satisfies API.Error, { status: 400 });
+  if (config.missingBodyParams !== undefined) return json({ status: 400, ok: false, message: 'Missing JSON body params: ' + config.missingBodyParams.join(', ') } satisfies API.Error, { status: 400 });
+  if (config.missingURLParams !== undefined) return json({ status: 400, ok: false, message: 'Missing URL search params: ' + config.missingURLParams.join(', ') } satisfies API.Error, { status: 400 });
   else return json({ status: 400, ok: false, message: 'Missing inputs'} satisfies API.Error, { status: 400 });
 }
 

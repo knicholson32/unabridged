@@ -23,7 +23,8 @@ declare global {
 			let runProcess: () => void;
 		}
 		declare namespace events {
-			let eventEmitter: EventEmitter | undefined;
+			let base: EventEmitter | undefined;
+			let progress: EventEmitter | undefined;
 		}
 	}
 }

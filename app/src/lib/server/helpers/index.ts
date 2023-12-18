@@ -1,4 +1,3 @@
-import type { Images } from '$lib/types';
 import sharp from 'sharp';
 import * as helpers from '$lib/helpers';
 import sanitize from 'sanitize-filename';
@@ -6,6 +5,14 @@ import * as settings from '$lib/server/settings';
 import { ENC_SALT } from '$lib/server/env';
 import * as crypto from 'node:crypto';
 import zlib from 'node:zlib';
+
+export type Images = {
+  full: Buffer
+  img512: Buffer,
+  img256: Buffer,
+  img128: Buffer,
+  img56: Buffer,
+};
 
 export const cropImages = async (image: ArrayBuffer): Promise<Images> => {
   const imageBuffer = helpers.toBuffer(image);
@@ -135,7 +142,7 @@ export const delay = (ms: number) => {
  * @param data the data to turn into a JSON file
  * @returns an object with the headers and response data buffer
  */
-export const compressJSON = (request: Request, data: any): { headers: { [key: string]: string }, data: Buffer } => {
+export const compressJSON = (request: Request, data: any, inputHeaders: {[key: string]: string} = {}): { headers: { [key: string]: string }, data: Buffer } => {
   // See what encoding we can use
   const encoding =
     request.headers.get('accept-encoding')?.includes('br') ? 'br' :
@@ -145,8 +152,12 @@ export const compressJSON = (request: Request, data: any): { headers: { [key: st
 
   // Assign the basic header
   const headers: { [key: string]: string } = {
-    'content-type': 'application/json'
+    'Content-Type': 'application/json'
   }
+
+  // Assign input headers. Content-Type can be overwritten, but length and encoding can't.
+  for (const key of Object.keys(inputHeaders)) headers[key] = inputHeaders[key];
+
 
   // Add encoding if we are using it
   if (encoding !== 'none') headers['Content-Encoding'] = encoding;
@@ -187,4 +198,17 @@ export const compressJSON = (request: Request, data: any): { headers: { [key: st
     headers,
     data: exp
   }
+}
+
+/**
+ * Compress a JSON and return a response object
+ * @param request the request so we can see what compression to use
+ * @param data the data to stringify
+ * @returns the response
+ */
+export const compressJSONResponse = (request: Request, data: any): Response => {
+  const d = compressJSON(request, data);
+  return new Response(d.data, {
+    headers: d.headers
+  });
 }

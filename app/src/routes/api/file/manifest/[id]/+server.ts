@@ -1,7 +1,7 @@
 import prisma from '$lib/server/prisma';
 import { json } from '@sveltejs/kit';
 import { clean } from '$lib/server/media';
-import { API, type File, fileSelect } from '$lib/types';
+import { API } from '$lib/types';
 
 
 export const GET = async ({ params }) => {
@@ -14,9 +14,9 @@ export const GET = async ({ params }) => {
   await clean();
 
   // Get the profile from the database
-  const files: File[] = await prisma.media.findMany({
+  const files: API.Types.File[] = await prisma.media.findMany({
     ...{ where: { bookAsin: id }},
-    ...{ select: fileSelect }
+    ...{ select: API.Tools.fileSelect }
   });
 
   // Return if the profile was not found

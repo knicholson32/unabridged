@@ -7,14 +7,14 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { setContext, } from 'svelte';
-  import { type PrimaryMenu, type ProfileMenu, type ProfileMenuWithID, type GenerateAlert, type Notification, type API, Process, type ProcessQueueBOOK } from '$lib/types';
+  import type { PrimaryMenu, ProfileMenu, ProfileMenuWithID, GenerateAlert, Notification, API, ProcessQueueBOOK } from '$lib/types';
+  import { Event } from '$lib/types';
   import { EscapeOrClickOutside, KeyBind, UpDownEnter } from '$lib/components/events';
   import { fade, scale } from 'svelte/transition';
   import { cubicOut, cubicInOut, linear, cubicIn } from 'svelte/easing';
 	import Alerts from '$lib/components/alerts/Alerts.svelte';
 	import * as helpers from '$lib/helpers';
   import * as alerts from '$lib/components/alerts';
-	import { writable } from 'svelte/store';
 	import StatusBar from '$lib/components/routeSpecific/layout/StatusBar.svelte';
 	import QueuedBook from '$lib/components/routeSpecific/layout/QueuedBook.svelte';
 	import FinishedBook from '$lib/components/routeSpecific/layout/FinishedBook.svelte';
@@ -152,23 +152,23 @@
     else elapsedTime = new helpers.RunTime({s: staticTime}).toDirectFormatFull();
   }
 
-  const updateProcessSettings = (data: Process.Settings) => {
-    if (data['progress.endTime'] === -1) {
-      if (data['progress.startTime'] === -1) {
-        timeElapsing = false;
-        staticTime = 0;
-      } else {
-        timeElapsing = true;
-        staticTime = -1;
-        startTime = data['progress.startTime'];
-      }
-    } else {
-      timeElapsing = false;
-      staticTime = data['progress.endTime'] - data['progress.startTime']
-    }
-    displayElapsedTime();
-  }
-  if (data.processSettings !== null) updateProcessSettings(data.processSettings);
+  // const updateProcessSettings = (data: Process.Settings) => {
+  //   if (data['progress.endTime'] === -1) {
+  //     if (data['progress.startTime'] === -1) {
+  //       timeElapsing = false;
+  //       staticTime = 0;
+  //     } else {
+  //       timeElapsing = true;
+  //       staticTime = -1;
+  //       startTime = data['progress.startTime'];
+  //     }
+  //   } else {
+  //     timeElapsing = false;
+  //     staticTime = data['progress.endTime'] - data['progress.startTime']
+  //   }
+  //   displayElapsedTime();
+  // }
+  // if (data.processSettings !== null) updateProcessSettings(data.processSettings);
 
   // Create an object that will hold the client copy of the process system
   const processBookMap: {[key: string]: ProcessQueueBOOK} = {};
@@ -229,103 +229,103 @@
 
     const removalFunctions: (() => void)[] = [];
 
-    // process.settings ---------------------------------------------------------------
-    removalFunctions.push(events.on('process.settings', updateProcessSettings));
+    // // process.settings ---------------------------------------------------------------
+    // removalFunctions.push(events.on('process.settings', updateProcessSettings));
 
-    // process.dismissed --------------------------------------------------------------
-    removalFunctions.push(events.on('process.dismissed', async (ids) => {
-      // for (const id of ids) delete processBookMap[id];
+    // // process.dismissed --------------------------------------------------------------
+    // removalFunctions.push(events.on('process.dismissed', async (ids) => {
+    //   // for (const id of ids) delete processBookMap[id];
       
-      await refreshProcessData();
+    //   await refreshProcessData();
 
-      // Update the book statistics after these changes
-      updateBookStatistics();
-    }));
+    //   // Update the book statistics after these changes
+    //   updateBookStatistics();
+    // }));
 
-    // process.book -------------------------------------------------------------------
-    removalFunctions.push(events.on('process.book', async (data) => {
-      // Check if that book exists. If not, we don't have the data to do anything about it.
-      // The `process.book.queued` event must fire first.
-      if (!(data.id in processBookMap)) return;
+    // // process.book -------------------------------------------------------------------
+    // removalFunctions.push(events.on('process.book', async (data) => {
+    //   // Check if that book exists. If not, we don't have the data to do anything about it.
+    //   // The `process.book.queued` event must fire first.
+    //   if (!(data.id in processBookMap)) return;
 
-      // // Assign the running and done flags
-      // processBookMap[data.id].in_progress = data.r;
-      // processBookMap[data.id].is_done = data.d;
+    //   // // Assign the running and done flags
+    //   // processBookMap[data.id].in_progress = data.r;
+    //   // processBookMap[data.id].is_done = data.d;
 
-      await refreshProcessData();
+    //   await refreshProcessData();
 
-      // Update the book statistics after these changes
-      updateBookStatistics();
-    }));
+    //   // Update the book statistics after these changes
+    //   updateBookStatistics();
+    // }));
 
-    // process.book.queued ------------------------------------------------------------
-    removalFunctions.push(events.on('process.book.queued', async (data) => {
-      // processBookMap[data.id] = data
+    // // process.book.queued ------------------------------------------------------------
+    // removalFunctions.push(events.on('process.book.queued', async (data) => {
+    //   // processBookMap[data.id] = data
 
-      console.log('queued', data);
+    //   console.log('queued', data);
 
-      await refreshProcessData();
+    //   await refreshProcessData();
       
-      // Update the book statistics after these changes
-      updateBookStatistics();
-    }));
+    //   // Update the book statistics after these changes
+    //   updateBookStatistics();
+    // }));
 
-    // process.book.result ------------------------------------------------------------
-    removalFunctions.push(events.on('process.book.result', async (data) =>{
-      // Check if that book exists. If not, we don't have the data to do anything about it.
-      // The `process.book.queued` event must fire first.
-      if (!(data.id in processBookMap)) return;
+    // // process.book.result ------------------------------------------------------------
+    // removalFunctions.push(events.on('process.book.result', async (data) =>{
+    //   // Check if that book exists. If not, we don't have the data to do anything about it.
+    //   // The `process.book.queued` event must fire first.
+    //   if (!(data.id in processBookMap)) return;
 
-      // // Assign the running and done flags
-      // processBookMap[data.id].in_progress = data.r;
-      // processBookMap[data.id].is_done = data.d;
-      // processBookMap[data.id].result = data.result;
+    //   // // Assign the running and done flags
+    //   // processBookMap[data.id].in_progress = data.r;
+    //   // processBookMap[data.id].is_done = data.d;
+    //   // processBookMap[data.id].result = data.result;
 
 
-      await refreshProcessData();
+    //   await refreshProcessData();
 
-      // Update the book statistics after these changes
-      updateBookStatistics();
-    }));
+    //   // Update the book statistics after these changes
+    //   updateBookStatistics();
+    // }));
     
-    // process.book.progress ----------------------------------------------------------
-    removalFunctions.push(events.on('process.book.progress', (data) =>{
-      // Check if that book exists. If not, we don't have the data to do anything about it.
-      // The `process.book.queued` event must fire first.
-      if (!(data.id in processBookMap)) return;
-      console.log('progress', data);
+    // // process.book.progress ----------------------------------------------------------
+    // removalFunctions.push(events.on('process.book.progress', (data) =>{
+    //   // Check if that book exists. If not, we don't have the data to do anything about it.
+    //   // The `process.book.queued` event must fire first.
+    //   if (!(data.id in processBookMap)) return;
+    //   console.log('progress', data);
 
-      // Assign the running and done flags
-      processBookMap[data.id].in_progress = data.r;
-      processBookMap[data.id].is_done = data.d;
+    //   // Assign the running and done flags
+    //   processBookMap[data.id].in_progress = data.r;
+    //   processBookMap[data.id].is_done = data.d;
 
-      const book = processBookMap[data.id].book;
+    //   const book = processBookMap[data.id].book;
 
-      // Update the book statistics after these changes
-      updateBookStatistics();
+    //   // Update the book statistics after these changes
+    //   updateBookStatistics();
 
-      // Only continue if the book exists
-      if (book === null) return;
+    //   // Only continue if the book exists
+    //   if (book === null) return;
 
-      // Assign properties based on the type of progress update message
-      if (data.t === Process.Book.Task.DOWNLOAD) {
-        book.download_progress = data.p;
-        book.process_progress = 0;
-        book.speed = data.s ?? null;
-        book.downloaded_mb = data.mb ?? null;
-        book.total_mb = data.tb ?? null;
-      } else if (data.t === Process.Book.Task.PROCESS) {
-        book.download_progress = 1;
-        book.process_progress = data.p;
-        book.speed = data.s ?? null;
-      }
+    //   // Assign properties based on the type of progress update message
+    //   if (data.t === Process.Book.Task.DOWNLOAD) {
+    //     book.download_progress = data.p;
+    //     book.process_progress = 0;
+    //     book.speed = data.s ?? null;
+    //     book.downloaded_mb = data.mb ?? null;
+    //     book.total_mb = data.tb ?? null;
+    //   } else if (data.t === Process.Book.Task.PROCESS) {
+    //     book.download_progress = 1;
+    //     book.process_progress = data.p;
+    //     book.speed = data.s ?? null;
+    //   }
 
-      // Update the book statistics after these changes
-      updateBookStatistics();
+    //   // Update the book statistics after these changes
+    //   updateBookStatistics();
 
-      // // Re-assign the book back
-      // processBookMap[data.id].book = book;
-    }));
+    //   // // Re-assign the book back
+    //   // processBookMap[data.id].book = book;
+    // }));
 
     const calculateTimeInterval = setInterval(displayElapsedTime, 1000);
 

@@ -326,7 +326,7 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
     //         status: 'RUNNING'
     //     }
     // })
-    events.emit('progress.account.sync', {
+    events.emitProgress('basic.account.sync', {
         id: id,
         type: 'start'
     });
@@ -356,7 +356,7 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
             //         message: book.title
             //     }
             // });
-            events.emit('progress.account.sync', {
+            events.emitProgress('basic.account.sync', {
                 id: id,
                 type: 'in_progress',
                 progress: helpers.round(numProcessed / totalNumBooks),
@@ -377,7 +377,7 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
         });
 
         // await prisma.progress.update({ where: { id_type: { id, type: 'sync'} }, data: { progress: 1, status: 'DONE' } });
-        events.emit('progress.account.sync', {
+        events.emitProgress('basic.account.sync', {
             id: id,
             type: 'done',
             success: true
@@ -397,7 +397,7 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
         //         message: 'Error during sync'
         //     }
         // });
-        events.emit('progress.account.sync', {
+        events.emitProgress('basic.account.sync', {
             id: id,
             type: 'done',
             success: false,

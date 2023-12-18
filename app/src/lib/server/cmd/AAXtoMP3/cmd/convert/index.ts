@@ -7,7 +7,7 @@ import * as media from '$lib/server/media';
 import { AAXtoMP3_COMMAND } from '$lib/server/env';
 import { ConversionError } from '../../types';
 import { sanitizeFile } from '$lib/server/helpers';
-import { Process, ProcessType } from '$lib/types';
+import { Event } from '$lib/types';
 import { round } from '$lib/helpers';
 
 // --------------------------------------------------------------------------------------------
@@ -87,12 +87,12 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
 
   // Update process progress for process to 0
   await prisma.processQueue.update({ where: { id: processID }, data: { book: { update: { process_progress: 0 } } } });
-  events.emit('process.book.progress', {
+  events.emitProgress('processor.book', {
     id: processID,
     r: true,
     d: false,
     p: round(0),
-    t: Process.Book.Task.PROCESS
+    t: Event.Progress.Processor.BOOK.Task.PROCESS
   });
 
   // AAXtoMP3 -e:m4b -s --author "Martha Wells" --authcode 4165af03 --dir-naming-scheme '$artist/$title' --file-naming-scheme '$title' --use-audible-cli-data -t /app/db/export ./*.aaxc
@@ -174,13 +174,13 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
               }
             }
           });
-          events.emit('process.book.progress', {
+          events.emitProgress('processor.book', {
             id: processID,
             r: true,
             d: false,
             p: isNaN(progress) ? 0 : round(progress),
             s: isNaN(speed) ? undefined : speed,
-            t: Process.Book.Task.PROCESS
+            t: Event.Progress.Processor.BOOK.Task.PROCESS
           });
         } catch (e) {
           console.log('ERR', e);
@@ -232,12 +232,12 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
           }
         }
       });
-      events.emit('process.book.progress', {
+      events.emitProgress('processor.book', {
         id: processID,
         r: true,
         d: false,
         p: 1,
-        t: Process.Book.Task.PROCESS
+        t: Event.Progress.Processor.BOOK.Task.PROCESS
       });
 
       // Assign the book as processed

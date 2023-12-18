@@ -101,20 +101,6 @@ export const actions = {
         else
             return { response: 'deregister', success: false, message: 'Could not delete the account' };
     },
-    test: async ({ request, params }) => {
-        console.log('start');
-        events.emit('progress.account.sync', {
-            id: 'abc123',
-            type: 'start'
-        });
-        await serverHelpers.delay(5000);
-        events.emit('progress.account.sync', {
-            id: 'abc123',
-            type: 'done',
-            success: true
-        });
-        console.log('end');
-    },
     sync: async ({ request, params }) => {
         const id = params.id;
         // Check that the ID was actually submitted

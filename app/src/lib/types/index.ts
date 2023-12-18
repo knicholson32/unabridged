@@ -1,5 +1,9 @@
 import type { Prisma } from "@prisma/client";
-import type { ObjectType, SettingsSet, TypeName } from '$lib/server/settings';
+import type * as validators from './prisma';
+
+// -------------------------------------------------------------------------------------------------
+// Country Codes
+// -------------------------------------------------------------------------------------------------
 
 export type CountryCode = 'us' | 'ca' | 'uk' | 'au' | 'fr' | 'de' | 'jp' | 'it' | 'in';
 export const countryCodes = [
@@ -68,76 +72,12 @@ export type ProfileMenu = (ProfileMenuEntry[])[];
 export type ProfileMenuWithID = (ProfileMenuEntryWithID[])[];
 
 // -------------------------------------------------------------------------------------------------
-// API
-// -------------------------------------------------------------------------------------------------
-
-import * as _responses from './responses';
-export namespace API {
-
-    export type Response = Error | General | Boolean | Notification | Manifest | API.Process.Book | API.Process.Settings;
-    export interface API {
-        status: number
-        ok: boolean
-    }
-
-    // Export basic responses
-    export const response = _responses;
-
-    export interface Error extends API {
-        ok: false
-        message: string,
-        code?: number
-    }
-
-    export interface Success extends API {
-        ok: true
-        type: string
-    }
-
-    export interface General extends Success {
-        type: 'general'
-    }
-
-    export interface Boolean extends Success {
-        type: 'boolean',
-        value: boolean
-    }
-
-    // Notifications -----------------------------------------------------------------------------------
-
-    export interface Notification extends Success {
-        type: 'notification'
-        notifications: _NotificationInternal[]
-    }
-
-    // Manifest ----------------------------------------------------------------------------------------
-    export interface Manifest extends Success {
-        type: 'manifest'
-        files: File[]
-    }
-}
-
-export const fileSelect = {
-    id: true,
-    content_type: true,
-    extension: true,
-    title: true,
-    bookAsin: true,
-    data: false,
-    path: false,
-    size_b: true,
-    description: true
-} satisfies Prisma.MediaSelect
-
-export type File = Prisma.MediaGetPayload<{ select: typeof fileSelect }>;
-
-
-// -------------------------------------------------------------------------------------------------
 // Notifications / Alerts
 // -------------------------------------------------------------------------------------------------
 
 export type ModalTheme = 'info' | 'ok' | 'warning' | 'error';
 
+// TODO: Maybe alerts should be consolidated into notifications?
 export type AlertSettings = {
     subText?: string,
     linger_ms?: number,
@@ -164,18 +104,8 @@ export type GenerateAlert = (text: string, settings?: AlertSettings) => void;
 export type Issuer = 'general' | 'audible.download' | 'plex.scan' | 'account.sync';
 
 export type Notification = Prisma.NotificationGetPayload<{}> & {
-    theme: ModalTheme,
-    issuer: Issuer,
-};
-
-type _NotificationInternal = Notification;
-
-export type Images = {
-    full: Buffer
-    img512: Buffer,
-    img256: Buffer,
-    img128: Buffer,
-    img56: Buffer,
+    theme: ModalTheme,  // This is a string in the DB, so we overwrite it here so it is strongly typed
+    issuer: Issuer,     // This is a string in the DB, so we overwrite it here so it is strongly typed
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -188,120 +118,85 @@ export enum ProcessType {
     BOOK = 'BOOK'
 }
 
-export const processQueueBOOKInclude = {
-    book: {
-        include: {
-            book: {
-                select: {
-                    cover: {
-                        select: {
-                            url_100: true
-                        }
-                    },
-                    authors: {
-                        select: {
-                            name: true,
-                        }
-                    },
-                    title: true
-                }
-            }
-        }
-    }
-} satisfies Prisma.ProcessQueueSelect
 
-export type ProcessQueueBOOK = Prisma.ProcessQueueGetPayload<{ include: typeof processQueueBOOKInclude }>;
+export type ProcessQueueBOOK = Prisma.ProcessQueueGetPayload<{ include: typeof validators.processQueueBOOKInclude }>;
 
-export namespace API {
-    export namespace Process {
-        export interface Settings extends API.Success {
-            type: 'process.settings'
-            settings: { [K in SettingsSet<TypeName, 'progress'>]: ObjectType<K> }
-        }
-
-        export interface Book extends API.Success {
-            type: 'process.book'
-            processes: ProcessQueueBOOK[]
-        }
-    }
-}
-
-export namespace Process {
+// export namespace Process {
 
 
-    export interface Header {
-        id: string,
-        r: boolean,
-        d: boolean
-    };
+//     export interface Header {
+//         id: string,
+//         r: boolean,
+//         d: boolean
+//     };
 
-    export type Settings = { [K in SettingsSet<TypeName, 'progress'>]: ObjectType<K> };
+//     export type Settings = { [K in SettingsSet<TypeName, 'progress'>]: ObjectType<K> };
 
-    export namespace Book {
+//     export namespace Book {
 
-        // Process Result -------------------------------------------
-        export interface Result extends Header {
-            result: ProcessError
-        }
+//         // Process Result -------------------------------------------
+//         export interface Result extends Header {
+//             result: ProcessError
+//         }
         
-        // Progress Incremental Data --------------------------------
-        export enum Task {
-            DOWNLOAD = 'd',
-            PROCESS = 'p'
-        }
-        interface _progress_base extends Header {
-            t: Task // Task
-        }
+//         // Progress Incremental Data --------------------------------
+//         export enum Task {
+//             DOWNLOAD = 'd',
+//             PROCESS = 'p'
+//         }
+//         interface _progress_base extends Header {
+//             t: Task // Task
+//         }
 
         
-        export type Progress = Download | Process;
+//         export type Progress = Download | Process;
 
-        export interface Download extends _progress_base {
-            p: number,          // Progress
-            mb?: number,        // MB Downloaded
-            tb?: number,        // Total MB
-            s?: number,         // Speed
-            t: Task.DOWNLOAD    // Task of Download
-        }
+//         export interface Download extends _progress_base {
+//             p: number,          // Progress
+//             mb?: number,        // MB Downloaded
+//             tb?: number,        // Total MB
+//             s?: number,         // Speed
+//             t: Task.DOWNLOAD    // Task of Download
+//         }
 
-        export interface Process extends _progress_base {
-            p: number,          // Progress
-            s?: number,         // Speed
-            t: Task.PROCESS     // Task of Progress
-        }
-    }
-}
+//         export interface Process extends _progress_base {
+//             p: number,          // Progress
+//             s?: number,         // Speed
+//             t: Task.PROCESS     // Task of Progress
+//         }
+//     }
+// }
 
-// -------------------------------------------------------------------------------------------------
-// Progress
-// -------------------------------------------------------------------------------------------------
+// // -------------------------------------------------------------------------------------------------
+// // Progress
+// // -------------------------------------------------------------------------------------------------
 
-export namespace Progress {
+// export namespace Progress {
 
-    export type Packet = Start | InProgress | Done;
+//     export type Packet = Start | InProgress | Done;
 
-    interface Header {
-        id: string,
-        type: 'start' | 'in_progress' | 'done'
-    }
+//     interface Header {
+//         id: string,
+//         type: 'start' | 'in_progress' | 'done'
+//     }
 
-    export interface Start extends Header {
-        type: 'start'
-    }
+//     export interface Start extends Header {
+//         type: 'start'
+//     }
 
-    export interface InProgress extends Header {
-        type: 'in_progress',
-        message?: string
-        progress: number,
-    }
+//     export interface InProgress extends Header {
+//         type: 'in_progress',
+//         message?: string
+//         progress: number,
+//     }
 
-    export interface Done extends Header {
-        type: 'done',
-        message?: string,
-        success: boolean,
-        data?: any
-    }
-}
+//     export interface Done extends Header {
+//         type: 'done',
+//         message?: string,
+//         success: boolean,
+//         data?: any
+//     }
+// }
 
 
 // -------------------------------------------------------------------------------------------------
@@ -536,34 +431,6 @@ export enum CollectionBy {
     series = 'series'
 }
 
-// -------------------------------------------------------------------------------------------------
-// Events
-// -------------------------------------------------------------------------------------------------
 
-export const EventNames = [
-    'notification.created',
-    'notification.deleted',
-    'process.settings',
-    'process.dismissed',
-    'process.book',
-    'process.book.queued',
-    'process.book.progress',
-    'process.book.result',
-    'progress.account.sync'
-] as const;
-export type EventName = typeof EventNames[number];
-
-export type ProgressEvents = Extract<EventName, 'progress.account.sync'>;
-
-export type EventType<T extends EventName> =
-    T extends 'notification.created' ? Notification[] :
-    T extends 'notification.deleted' ? string[] :
-    T extends 'notification.deleted' ? string[] :
-    T extends 'process.settings' ? Process.Settings :
-    T extends 'process.dismissed' ? string[] :
-    T extends 'process.book' ? Process.Header :
-    T extends 'process.book.queued' ? ProcessQueueBOOK :
-    T extends 'process.book.result' ? Process.Book.Result :
-    T extends 'process.book.progress' ? Process.Book.Progress :
-    T extends 'progress.account.sync' ? Progress.Packet :
-    string;
+export { default as API } from './api'
+export { default as Event } from './event'
