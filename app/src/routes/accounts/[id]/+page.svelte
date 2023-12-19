@@ -12,8 +12,7 @@
 	import { intlFormatDistance } from 'date-fns';
 	import { invalidate } from '$app/navigation';
   import icons from '$lib/components/icons';
-  import type { GenerateAlert } from '$lib/types';
-  import * as alerts from '$lib/components/alerts';
+  import { type GenerateAlert, Event } from '$lib/types';
   import * as helpers from '$lib/helpers';
   import * as events from '$lib/events';
   import { page } from '$app/stores';
@@ -130,14 +129,14 @@
   let syncingProgress = 0;
   let profileSyncing = false;
 
-  onMount(() => events.onProgress('progress.account.sync', data.profile.id, (data) => {
-    if (data.type === 'start') {
+  onMount(() => events.onProgress('basic.account.sync', data.profile.id, (data) => {
+    if (data.t === Event.Progress.Basic.Stage.START) {
       profileSyncing = true;
       syncingProgress = 0;
-    } else if (data.type === 'in_progress') {
+    } else if (data.t === Event.Progress.Basic.Stage.IN_PROGRESS) {
       profileSyncing = true;
-      syncingProgress = data.progress;
-    } else if (data.type === 'done') {
+      syncingProgress = data.p;
+    } else if (data.t === Event.Progress.Basic.Stage.DONE) {
       profileSyncing = false;
       syncingProgress = 1
     }

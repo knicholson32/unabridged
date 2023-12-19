@@ -28,6 +28,7 @@ namespace Event {
       'notification.created',
       'notification.deleted',
       'processor.invalidate',
+      'processor.settings',
       'processor.book.inProgress'
     ] as const;
     export type Name = typeof Names[number];
@@ -35,7 +36,8 @@ namespace Event {
     export type Type<T extends Name> =
       T extends 'notification.created' ? Notifications :
       T extends 'notification.deleted' ? string[] :
-      T extends 'processor.invalidate' ? undefined :
+      T extends 'processor.invalidate' ? {} :
+      T extends 'processor.settings' ? types.API.Types.ProcessSettings :
       T extends 'processor.book.inProgress' ? boolean :
       never;
 
@@ -76,33 +78,42 @@ namespace Event {
     export type Basic = Basic.Start | Basic.InProgress | Basic.Done;
     export namespace Basic {
       interface Header {
-        id: string
+        
+      }
+
+      // Create an enum that will hold what stage this packet is in
+      // We use single letters so the packet takes less data, and use
+      // this enum for better code readability
+      export enum Stage {
+        START = 's',
+        IN_PROGRESS = 'p',
+        DONE = 'd'
       }
 
       /**
        * To be emitted upon starting the basic task
        */
       export interface Start extends Header {
-        type: 'start'
+        t: Stage.START            // Type
       }
 
       /**
        * To be emitted as the basic task progresses
        */
       export interface InProgress extends Header {
-        type: 'in_progress',
-        message?: string
-        progress: number,
+        t: Stage.IN_PROGRESS,     // Type
+        m?: string                // Message
+        p: number,                // Progress
       }
 
       /**
        * To be emitted when the basic task finishes
        */
       export interface Done extends Header {
-        type: 'done',
-        message?: string,
-        success: boolean,
-        data?: any
+        t: Stage.DONE,            // Type
+        m?: string,               // Message
+        success: boolean,         // Success
+        data?: any                // Data
       }
     }
 
@@ -115,7 +126,6 @@ namespace Event {
        * The basic Processor Progress packet has the following params
        */
       export interface Header {
-        id: string,   // ID of the Process in the ProcessQueue
         r: boolean,   // Whether the process is running
         d: boolean    // Whether the process is done
       };
@@ -156,38 +166,5 @@ namespace Event {
     }
   }
 }
-
-
-
-
-
-//   export const EventNames = [
-//     'notification.created',
-//     'notification.deleted',
-//     // 'process.settings',
-//     'process.dismissed',
-//     'process.book',
-//     'process.book.queued',
-//     'process.book.progress',
-//     'process.book.result',
-//     'progress.account.sync'
-//   ] as const;
-//   export type EventName = typeof EventNames[number];
-
-//   export type ProgressEvents = Extract<EventName, 'progress.account.sync'>;
-
-//   export type EventType<T extends EventName> =
-//     T extends 'notification.created' ? Base.Notifications[] :
-//     T extends 'notification.deleted' ? string[] :
-//     // T extends 'process.settings' ? Process.Settings :
-//     T extends 'process.dismissed' ? string[] :
-//     T extends 'process.book' ? Process.Header :
-//     T extends 'process.book.queued' ? ProcessQueueBOOK :
-//     T extends 'process.book.result' ? Process.Book.Result :
-//     T extends 'process.book.progress' ? Process.Book.Progress :
-//     T extends 'progress.account.sync' ? Progress.Packet :
-//     string;
-// }
-
 
 export default Event;

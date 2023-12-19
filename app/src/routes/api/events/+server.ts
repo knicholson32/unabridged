@@ -70,6 +70,7 @@ export function GET({ request }) {
       if (controller !== null) {
         try {
           // Package and send the data
+          if (data === undefined) data = {};
           controller.enqueue(packageEvent(event, data));
           console.log('/api/events/ -> emitted', event, data);
         } catch (e) {
@@ -94,9 +95,10 @@ export function GET({ request }) {
       // In this case, it is every possible event because base events are not that frequent.
       for (const e of Event.Base.Names) base.on(e, emit(e));
       controller.enqueue(packageEvent('initialize' as Event.Base.Name, undefined));
+      console.log('base event stream opened');
     },
     async cancel(reason) {
-      console.log('cancel', reason);
+      console.log('base event stream closed', reason);
       // Upon disconnect, clean up all callback handlers
       cleanup();
     }

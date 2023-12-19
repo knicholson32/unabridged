@@ -35,7 +35,7 @@ export const emit = <T extends Event.Base.Name>(event: T, data: Event.Base.Type<
  * @param event the event type
  * @param data the data
  */
-export const emitProgress = <T extends Event.Progress.Name>(event: T, data: Event.Progress.Type<T>) => {
-  console.log('Base event emitted', event);
-  progress.emit(event, data);
+export const emitProgress = <T extends Event.Progress.Name>(event: T, id: string, data: Event.Progress.Type<T>) => {
+  console.log('Progress event emitted', event, id);
+  progress.emit(event, id, data);
 }

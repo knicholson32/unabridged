@@ -91,7 +91,8 @@ namespace API {
     // ProcessQueue of type BOOK ------------------------------------------------------------------
     export interface Book extends Success {
       type: 'process.book'
-      processes: Types.ProcessQueueBOOK[]
+      processes: Types.ProcessQueueBOOK[],
+      settings: Types.ProcessSettings
     }
   }
 }

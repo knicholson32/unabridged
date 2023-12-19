@@ -115,7 +115,7 @@ export namespace LibraryManager {
           }
         }
       });
-      events.emit('processor.invalidate', undefined);
+      events.emit('processor.invalidate', {v: '1'});
     } else {
       console.log(`ERROR: Unimplemented process type: ${type}`, id);
     }
@@ -143,7 +143,7 @@ export namespace LibraryManager {
           }
         }
       });
-      events.emit('processor.invalidate', undefined);
+      events.emit('processor.invalidate', {v: '2'});
     } else {
       console.log(`ERROR: Unimplemented process type: ${type}`, id);
     }
@@ -210,7 +210,7 @@ export namespace LibraryManager {
         await settings.set('progress.endTime', -1);
         await settings.set('progress.running', true);
         // events.emit('process.settings', await settings.getSet('progress'));
-        events.emit('processor.invalidate', undefined);
+        events.emit('processor.invalidate', { v: '3' });
       }
       // Get the process type
       const type = queueEntry.type as types.ProcessType;
@@ -233,7 +233,7 @@ export namespace LibraryManager {
             }
           }
         }});
-        events.emit('processor.invalidate', undefined);
+        events.emit('processor.invalidate', { v: '4' });
         unlockProcessQueue();
         // const queueEntrySpecific = await prisma.processQueue.findUnique({
         //   where: { id: queueEntry.id },
@@ -401,7 +401,7 @@ export namespace LibraryManager {
                   }
                 }
               });
-              events.emit('processor.invalidate', undefined);
+              events.emit('processor.invalidate', { v: '5' });
               // Send a notification
               const notification: types.Notification = {
                 id: uuidv4(),
@@ -446,7 +446,7 @@ export namespace LibraryManager {
                   }
                 }
               });
-              events.emit('processor.invalidate', undefined);
+              events.emit('processor.invalidate', { v: '6' });
             }
           } catch(e) {
             // Nothing to do if this fails
@@ -485,7 +485,7 @@ export namespace LibraryManager {
             await settings.set('progress.running', false);
             await settings.set('progress.endTime', Math.floor(Date.now() / 1000));
             // events.emit('process.settings', await settings.getSet('progress'));
-            events.emit('processor.invalidate', undefined);
+            events.emit('processor.invalidate', { v: '7' });
 
             // Trigger a library scan if it should be issued (IE. we have added at least one book)
             if (libraryScanShouldBeIssued) Plex.triggerAutoScan();
@@ -607,7 +607,7 @@ export namespace LibraryManager {
         });
         const queued = await prisma.processQueue.findUnique({ include: validators.processQueueBOOKInclude, where: { id: id, type: types.ProcessType.BOOK } });
         console.log('queued', queued);
-        if (queued !== null) events.emit('processor.invalidate', undefined);
+        if (queued !== null) events.emit('processor.invalidate', { v: '8' });
       }
       if (run) await global.manager.runProcess();
     } catch(e) {
@@ -647,7 +647,7 @@ export namespace LibraryManager {
         }
       });
       const eventProcess = await prisma.processQueue.findFirst({ where: { book: { bookAsin: asin }}});
-      if (eventProcess !== null) events.emit('processor.invalidate', undefined);
+      if (eventProcess !== null) events.emit('processor.invalidate', { v: '9' });
       // The book was found and removed
       return true;
     } catch(e) {

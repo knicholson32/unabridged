@@ -119,69 +119,139 @@
   // Download Manager
   // -----------------------------------------------------------------------------------------------
 
+  // Opening & Closing -----------------------------------------------------------------------------
   let downloadManagerVisible = false;
   let showDownloadManagerButton: HTMLButtonElement;
+  let downloadManagerRemovalFunctions: (() => void)[] = [];
+  const showDownloadManager = async () => {
+    // Only open the manager if it is closed currently
+    if (downloadManagerVisible === true) return;
 
-  let processPaused = data.processSettings?.['progress.paused'] ?? false;  
+    // Check if we need to refresh data
+    if (Date.now() - lastRefresh > 500) await refreshProcessData();
 
+    // Clear any lingering functions from the last open
+    for (const func of downloadManagerRemovalFunctions) func();
+    downloadManagerRemovalFunctions = [];
+
+    // processor.invalidate -----------------------------------------------------------
+    downloadManagerRemovalFunctions.push(events.on('processor.invalidate', refreshProcessData));
+
+    // processor.book -----------------------------------------------------------------
+    downloadManagerRemovalFunctions.push(events.onProgress('processor.book', null, (id, data) =>{
+      // Check if that book exists. If not, we don't have the data to do anything about it.
+      // The `process.book.queued` event must fire first.
+      if (!(id in processBookMap)) return;
+      console.log('progress', data);
+
+      // Assign the running and done flags
+      processBookMap[id].in_progress = data.r;
+      processBookMap[id].is_done = data.d;
+
+      const book = processBookMap[id].book;
+
+      // Update the book statistics after these changes
+      updateBookStatistics();
+
+      // Only continue if the book exists
+      if (book === null) return;
+
+      // Assign properties based on the type of progress update message
+      if (data.t === Event.Progress.Processor.BOOK.Task.DOWNLOAD) {
+        book.download_progress = data.p;
+        book.process_progress = 0;
+        book.speed = data.s ?? null;
+        book.downloaded_mb = data.mb ?? null;
+        book.total_mb = data.tb ?? null;
+      } else if (data.t === Event.Progress.Processor.BOOK.Task.PROCESS) {
+        book.download_progress = 1;
+        book.process_progress = data.p;
+        book.speed = data.s ?? null;
+      }
+
+      // Update the book statistics after these changes
+      updateBookStatistics();
+    }));
+
+    // Interval -----------------------------------------------------------------------
+    calculateTimeInterval = setInterval(displayElapsedTime, 1000);
+    downloadManagerRemovalFunctions.push(() => clearInterval(calculateTimeInterval));
+
+    // Open the manager
+    downloadManagerVisible = true;
+  }
+  const closeDownloadManager = () => {
+    // Close the manager
+    downloadManagerVisible = false;
+    // Clear any callbacks or interval functions
+    for (const func of downloadManagerRemovalFunctions) func();
+    downloadManagerRemovalFunctions = [];
+  }
+  const toggleDownloadManager = () => {
+    if (downloadManagerVisible) closeDownloadManager();
+    else showDownloadManager(); 
+  }
+
+  setContext('openManager', showDownloadManager);
+
+  // Buttons ---------------------------------------------------------------------------------------
+  let processPaused = false;
   const togglePause = async () => {
     const response = await (await fetch('/api/process/paused/toggle')).json() as API.Response;
     if (response.ok == true && response.type === 'boolean') processPaused = response.value;
   }
 
-  
-  const showDownloadManager = () => downloadManagerVisible = true;
-  const closeDownloadManager = () => downloadManagerVisible = false;
-  const toggleDownloadManager = () => downloadManagerVisible = !downloadManagerVisible;
+  const dismissAll = async () => await fetch('/api/process/dismiss/book');
 
-  setContext('openManager', showDownloadManager);
 
-  const dismissAll = async () => {
-    await fetch('/api/process/dismiss/book');
-  }
-
-  console.log('processData', data.booksInProcess);
-
+  // Timing ----------------------------------------------------------------------------------------
   let timeElapsing = false;
   let startTime = -1;
   let staticTime = 0;
-
   let elapsedTime = '00:00:00';
+  let calculateTimeInterval: number;
   const displayElapsedTime = () => {
     if (timeElapsing === true) elapsedTime = new helpers.RunTime({s: Math.floor(Date.now() / 1000) - startTime}).toDirectFormatFull();
     else elapsedTime = new helpers.RunTime({s: staticTime}).toDirectFormatFull();
   }
 
-  // const updateProcessSettings = (data: Process.Settings) => {
-  //   if (data['progress.endTime'] === -1) {
-  //     if (data['progress.startTime'] === -1) {
-  //       timeElapsing = false;
-  //       staticTime = 0;
-  //     } else {
-  //       timeElapsing = true;
-  //       staticTime = -1;
-  //       startTime = data['progress.startTime'];
-  //     }
-  //   } else {
-  //     timeElapsing = false;
-  //     staticTime = data['progress.endTime'] - data['progress.startTime']
-  //   }
-  //   displayElapsedTime();
-  // }
-  // if (data.processSettings !== null) updateProcessSettings(data.processSettings);
+  // Process Settings ------------------------------------------------------------------------------
+  const updateProcessSettings = (data: API.Types.ProcessSettings) => {
+    if (data['progress.endTime'] === -1) {
+      if (data['progress.startTime'] === -1) {
+        timeElapsing = false;
+        staticTime = 0;
+      } else {
+        timeElapsing = true;
+        staticTime = -1;
+        startTime = data['progress.startTime'];
+      }
+    } else {
+      timeElapsing = false;
+      staticTime = data['progress.endTime'] - data['progress.startTime']
+    }
+    processPaused = data['progress.paused'];
+    displayElapsedTime();
+  }
+
+  // Process Data ----------------------------------------------------------------------------------
 
   // Create an object that will hold the client copy of the process system
   const processBookMap: {[key: string]: ProcessQueueBOOK} = {};
   
   // Populate the process book object with initial values from the API call
   for (const book of data.booksInProcess) processBookMap[book.id] = book;
-  console.log(processBookMap);
+  if (data.processSettings !== null) updateProcessSettings(data.processSettings);
 
+  let lastRefresh = Date.now();
   const refreshProcessData = async () => {
     const booksInProcess = await (await fetch('/api/process/get/book')).json() as API.Response;
     if (booksInProcess.ok !== true || booksInProcess.type !== 'process.book') return;
     for (const key of Object.keys(processBookMap)) delete processBookMap[key];
     for (const book of booksInProcess.processes) processBookMap[book.id] = book;
+    updateProcessSettings(booksInProcess.settings);
+    updateBookStatistics();
+    lastRefresh = Date.now();
   }
 
   // Create some variables to hold common statistics that the front-end will use
@@ -191,22 +261,23 @@
   let booksInProgress = 0;
   let booksWaiting = 0;
   let totalBooks = 0;
-
   let totalPercentage = 0;
+  let downloadManagerBlue = false;
 
   // When we get process updates this function can be ran to update the statistics
   const updateBookStatistics = () => {
-    const booksInProgressArr = booksAsArray.filter((b) => b.in_progress === true);
     booksAsArray = Object.keys(processBookMap).map((key) => processBookMap[key]);
     booksDone = booksAsArray.filter((b) => b.is_done === true).length;
     booksNotDone = booksAsArray.filter((b) => b.is_done === false).length;
     booksInProgress = booksAsArray.filter((b) => b.in_progress === true).length;
     booksWaiting = booksAsArray.filter((b) => b.in_progress === false && b.is_done === false).length;
     totalBooks = booksAsArray.length;
+
+    downloadManagerBlue = booksNotDone > 0;
     
     if (totalBooks > 0) {
       let inProgressPercentages = 0;
-      for (const b of booksInProgressArr) {
+      for (const b of booksAsArray.filter((b) => b.in_progress === true)) {
         if (b.book === null) continue;
         // Calculate this book's percentage
         const bP = ((b.book.download_progress + b.book.process_progress) / 2 * 100);
@@ -229,105 +300,15 @@
 
     const removalFunctions: (() => void)[] = [];
 
-    // // process.settings ---------------------------------------------------------------
-    // removalFunctions.push(events.on('process.settings', updateProcessSettings));
+    // processor.settings -------------------------------------------------------------
+    removalFunctions.push(events.on('processor.settings', updateProcessSettings));
 
-    // // process.dismissed --------------------------------------------------------------
-    // removalFunctions.push(events.on('process.dismissed', async (ids) => {
-    //   // for (const id of ids) delete processBookMap[id];
-      
-    //   await refreshProcessData();
+    // processor.settings -------------------------------------------------------------
+    removalFunctions.push(events.on('processor.book.inProgress', (val) => downloadManagerBlue = val));
 
-    //   // Update the book statistics after these changes
-    //   updateBookStatistics();
-    // }));
-
-    // // process.book -------------------------------------------------------------------
-    // removalFunctions.push(events.on('process.book', async (data) => {
-    //   // Check if that book exists. If not, we don't have the data to do anything about it.
-    //   // The `process.book.queued` event must fire first.
-    //   if (!(data.id in processBookMap)) return;
-
-    //   // // Assign the running and done flags
-    //   // processBookMap[data.id].in_progress = data.r;
-    //   // processBookMap[data.id].is_done = data.d;
-
-    //   await refreshProcessData();
-
-    //   // Update the book statistics after these changes
-    //   updateBookStatistics();
-    // }));
-
-    // // process.book.queued ------------------------------------------------------------
-    // removalFunctions.push(events.on('process.book.queued', async (data) => {
-    //   // processBookMap[data.id] = data
-
-    //   console.log('queued', data);
-
-    //   await refreshProcessData();
-      
-    //   // Update the book statistics after these changes
-    //   updateBookStatistics();
-    // }));
-
-    // // process.book.result ------------------------------------------------------------
-    // removalFunctions.push(events.on('process.book.result', async (data) =>{
-    //   // Check if that book exists. If not, we don't have the data to do anything about it.
-    //   // The `process.book.queued` event must fire first.
-    //   if (!(data.id in processBookMap)) return;
-
-    //   // // Assign the running and done flags
-    //   // processBookMap[data.id].in_progress = data.r;
-    //   // processBookMap[data.id].is_done = data.d;
-    //   // processBookMap[data.id].result = data.result;
-
-
-    //   await refreshProcessData();
-
-    //   // Update the book statistics after these changes
-    //   updateBookStatistics();
-    // }));
-    
-    // // process.book.progress ----------------------------------------------------------
-    // removalFunctions.push(events.on('process.book.progress', (data) =>{
-    //   // Check if that book exists. If not, we don't have the data to do anything about it.
-    //   // The `process.book.queued` event must fire first.
-    //   if (!(data.id in processBookMap)) return;
-    //   console.log('progress', data);
-
-    //   // Assign the running and done flags
-    //   processBookMap[data.id].in_progress = data.r;
-    //   processBookMap[data.id].is_done = data.d;
-
-    //   const book = processBookMap[data.id].book;
-
-    //   // Update the book statistics after these changes
-    //   updateBookStatistics();
-
-    //   // Only continue if the book exists
-    //   if (book === null) return;
-
-    //   // Assign properties based on the type of progress update message
-    //   if (data.t === Process.Book.Task.DOWNLOAD) {
-    //     book.download_progress = data.p;
-    //     book.process_progress = 0;
-    //     book.speed = data.s ?? null;
-    //     book.downloaded_mb = data.mb ?? null;
-    //     book.total_mb = data.tb ?? null;
-    //   } else if (data.t === Process.Book.Task.PROCESS) {
-    //     book.download_progress = 1;
-    //     book.process_progress = data.p;
-    //     book.speed = data.s ?? null;
-    //   }
-
-    //   // Update the book statistics after these changes
-    //   updateBookStatistics();
-
-    //   // // Re-assign the book back
-    //   // processBookMap[data.id].book = book;
-    // }));
-
-    const calculateTimeInterval = setInterval(displayElapsedTime, 1000);
+    // Add the function to close the download manager because that will release
+    // all the callbacks associated with it
+    removalFunctions.push(closeDownloadManager);
 
     return () => {
       for (const remove of removalFunctions) remove();
@@ -721,7 +702,7 @@
           </button>
 
           <div class="relative">
-            <button on:click={toggleDownloadManager} on:mouseenter={refreshProcessData} bind:this={showDownloadManagerButton} type="button" class="relative -m-2.5 p-2.5 {booksNotDone ? 'text-sky-500' : 'text-gray-400'}  hover:text-gray-500">
+            <button on:click={toggleDownloadManager} on:mouseenter={refreshProcessData} bind:this={showDownloadManagerButton} type="button" class="relative -m-2.5 p-2.5 {downloadManagerBlue ? 'text-sky-500' : 'text-gray-400'}  hover:text-gray-500">
               <span class="sr-only">View Status</span>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />

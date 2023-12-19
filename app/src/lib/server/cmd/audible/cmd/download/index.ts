@@ -79,8 +79,7 @@ export const download = async (asin: string, processID: string, tmpDir: string):
       }
     }
   });
-  events.emitProgress('processor.book', {
-    id: processID,
+  events.emitProgress('processor.book', processID, {
     r: true,
     d: false,
     p: 0,
@@ -154,8 +153,7 @@ export const download = async (asin: string, processID: string, tmpDir: string):
               }
             }
           });
-          events.emitProgress('processor.book', {
-            id: processID,
+          events.emitProgress('processor.book', processID, {
             r: true,
             d: false,
             p: isNaN(progress) ? 0 : helpers.round(progress),
@@ -382,8 +380,7 @@ export const download = async (asin: string, processID: string, tmpDir: string):
       }
     }
   });
-  events.emitProgress('processor.book', {
-    id: processID,
+  events.emitProgress('processor.book', processID, {
     r: true,
     d: false,
     p: 1,

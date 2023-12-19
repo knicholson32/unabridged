@@ -2,6 +2,7 @@ import * as child_process from 'node:child_process';
 import * as fs from 'fs'
 import { v4 as uuidv4 } from 'uuid';
 import type { Library, BookFromCLI } from '../../types';
+import { Event } from '$lib/types';
 import { isLocked } from '../../';
 import prisma from '$lib/server/prisma';
 import { writeConfigFile } from '$lib/server/cmd/audible/cmd/profile';
@@ -326,9 +327,8 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
     //         status: 'RUNNING'
     //     }
     // })
-    events.emitProgress('basic.account.sync', {
-        id: id,
-        type: 'start'
+    events.emitProgress('basic.account.sync', id, {
+        t: Event.Progress.Basic.Stage.START
     });
 
     try {
@@ -356,11 +356,10 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
             //         message: book.title
             //     }
             // });
-            events.emitProgress('basic.account.sync', {
-                id: id,
-                type: 'in_progress',
-                progress: helpers.round(numProcessed / totalNumBooks),
-                message: book.title
+            events.emitProgress('basic.account.sync', id, {
+                t: Event.Progress.Basic.Stage.IN_PROGRESS,
+                p: helpers.round(numProcessed / totalNumBooks),
+                m: book.title
             });
 
         }
@@ -377,9 +376,8 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
         });
 
         // await prisma.progress.update({ where: { id_type: { id, type: 'sync'} }, data: { progress: 1, status: 'DONE' } });
-        events.emitProgress('basic.account.sync', {
-            id: id,
-            type: 'done',
+        events.emitProgress('basic.account.sync', id, {
+            t: Event.Progress.Basic.Stage.DONE,
             success: true
         });
 
@@ -397,11 +395,10 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
         //         message: 'Error during sync'
         //     }
         // });
-        events.emitProgress('basic.account.sync', {
-            id: id,
-            type: 'done',
+        events.emitProgress('basic.account.sync', id, {
+            t: Event.Progress.Basic.Stage.DONE,
             success: false,
-            message: `Error during sync`,
+            m: `Error during sync`,
             data: err.stdout.toString()
         });
         try {

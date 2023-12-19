@@ -17,7 +17,7 @@ export function GET({ request, url }) {
   const targets = url.searchParams.getAll('targets') as Event.Progress.Name[];
 
   // There must be at least one event type to capture
-  if (targets.length === 0) return API.response._400({ missingURLParams: ['target'] });
+  if (targets.length === 0) return API.response._400({ missingURLParams: ['targets'] });
 
   // All the event types being captured must be valid
   let problematicTargets: string[] = [];
@@ -40,7 +40,7 @@ export function GET({ request, url }) {
   if (encoding !== 'none') headers['Content-Encoding'] = encoding;
 
   // Initialize a function that will be used to encode data
-  let packageEvent: (event: Event.Progress.Name, data: any) => Uint8Array;
+  let packageEvent: (event: Event.Progress.Name, id: string, data: any) => Uint8Array;
 
   // Assign the function based on what encoding we can use
   switch (encoding) {
@@ -55,13 +55,13 @@ export function GET({ request, url }) {
     //   break;
     default:
       const encoder = new TextEncoder();
-      packageEvent = (event, data): Uint8Array => encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      packageEvent = (event, id, data): Uint8Array => encoder.encode(`id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
       break;
   }
 
   // Create a variable to hold all the callbacks. We do this so we can remove the callbacks when the connection
   // closes, so we don't have hanging events
-  const callbackMap: { [key: string]: (data: any) => void } = {};
+  const callbackMap: { [key: string]: (id: string, data: any) => void } = {};
 
   // Create a function that will clean up the callbacks upon connection close
   const cleanup = () => {
@@ -77,13 +77,13 @@ export function GET({ request, url }) {
   const emit = <T extends Event.Progress.Name>(event: T) => {
     // Create a callback function that will handle data from the event system. We create this as a variable
     // so we can store it, which makes removing it later possible.
-    const callback = (data: any) => {
+    const callback = (id: string, data: any) => {
       // Make sure the controller exists
       if (controller !== null) {
         try {
           // Package and send the data
-          controller.enqueue(packageEvent(event, data));
-          console.log('/api/events/progress/ -> emitted', event, data);
+          controller.enqueue(packageEvent(event, id, data));
+          console.log('/api/events/progress/ -> emitted', event, id, data);
         } catch (e) {
           // If this didn't work, the connection is broken. Remove it and de-register all callbacks
           controller = null;
@@ -104,9 +104,11 @@ export function GET({ request, url }) {
       controller = c;
       // Loop through every event name that we want to attach to and create a handler function.
       for (const t of targets) progress.on(t, emit(t));
+      controller.enqueue(packageEvent('initialize' as Event.Progress.Name, '', { targets }));
+      console.log('progress event stream opened');
     },
     async cancel(reason) {
-      console.log('cancel', reason);
+      console.log('progress event stream closed', reason);
       // Upon disconnect, clean up all callback handlers
       cleanup();
     }

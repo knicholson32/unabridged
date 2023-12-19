@@ -1,16 +1,12 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { page } from '$app/stores'
-  import { EscapeOrClickOutside, KeyBind, UpDownEnter } from '$lib/components/events/index.js';
-  import { fade, scale } from 'svelte/transition';
-  import { cubicOut, cubicInOut, linear } from 'svelte/easing';
+  import { fade } from 'svelte/transition';
+  import { cubicInOut } from 'svelte/easing';
   import { intlFormatDistance } from 'date-fns'
   import * as events from '$lib/events';
   import type { ActionData } from './$types.js';
-	import { Accordion, CircularProgress } from '$lib/components/decorations/index.js';
-	import type { GenerateAlert, Progress } from '$lib/types/index.js';
+	import { type GenerateAlert, Event } from '$lib/types';
 	import { getContext, onMount } from 'svelte';
-	import { icons } from '$lib/components/index.js';
 	import { Submit } from '$lib/components/buttons';
   import { Bullet, LoadingCircle } from '$lib/components/decorations';
   export let data: import('./$types').PageData;
@@ -120,19 +116,19 @@
   for (const p of data.profiles) progresses[p.id] = { spin: false, value: 0 };
 
   onMount(() => {
-    return events.on('progress.account.sync', (data) => {
-      if (progresses[data.id] === undefined) progresses[data.id] = { spin: false, value: 0 };
+    return events.onProgress('basic.account.sync', null, (id, data) => {
+      if (progresses[id] === undefined) progresses[id] = { spin: false, value: 0 };
       console.log(data);
-      if (data.type === 'start') {
+      if (data.t === Event.Progress.Basic.Stage.START) {
         console.log('received start');
-        progresses[data.id] = { spin: true, value: 0 };
+        progresses[id] = { spin: true, value: 0 };
       } 
-      else if (data.type === 'in_progress') {
+      else if (data.t === Event.Progress.Basic.Stage.IN_PROGRESS) {
         console.log('received in_progress');
-        progresses[data.id] = { spin: false, value: data.progress };
+        progresses[id] = { spin: false, value: data.p };
       }
-      else if (data.type === 'done') {
-        progresses[data.id] = { spin: false, value: 0 };
+      else if (data.t === Event.Progress.Basic.Stage.DONE) {
+        progresses[id] = { spin: false, value: 0 };
       }
     })
   });

@@ -22,11 +22,10 @@ export const GET = async ({ params }) => {
     await settings.set('progress.startTime', -1);
     await settings.set('progress.endTime', -1);
     await settings.set('progress.paused', await settings.get('progress.startPaused'));
-    events.emit('process.settings', await settings.getSet('progress'));
   }
 
   // Emit the events
-  events.emit('process.dismissed', [id]);
+  events.emit('processor.invalidate', { v: '11' });
 
   // Return
   return API.response.success();

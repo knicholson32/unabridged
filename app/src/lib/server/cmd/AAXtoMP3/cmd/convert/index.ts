@@ -87,8 +87,7 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
 
   // Update process progress for process to 0
   await prisma.processQueue.update({ where: { id: processID }, data: { book: { update: { process_progress: 0 } } } });
-  events.emitProgress('processor.book', {
-    id: processID,
+  events.emitProgress('processor.book', processID, {
     r: true,
     d: false,
     p: round(0),
@@ -174,8 +173,7 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
               }
             }
           });
-          events.emitProgress('processor.book', {
-            id: processID,
+          events.emitProgress('processor.book', processID, {
             r: true,
             d: false,
             p: isNaN(progress) ? 0 : round(progress),
@@ -232,8 +230,7 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
           }
         }
       });
-      events.emitProgress('processor.book', {
-        id: processID,
+      events.emitProgress('processor.book', processID, {
         r: true,
         d: false,
         p: 1,

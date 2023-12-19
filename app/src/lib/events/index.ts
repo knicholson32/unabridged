@@ -86,7 +86,7 @@ const connectProgress = () => {
       evtSourceProgress.close()
       evtSourceProgress = null;
     }
-    const url = `/api/events/progress?${targets.map((el, idx) => 'target[' + idx + ']=' + el).join('&')}`;
+    const url = `/api/events/progress?${targets.map((el, idx) => 'targets=' + el).join('&')}`;
     console.log('connecting progress event', url, targets);
     evtSourceProgress = new EventSource(url);
     evtSourceProgress.onopen = () => {
@@ -95,9 +95,9 @@ const connectProgress = () => {
     evtSourceProgress.onerror = () => {
       evtSourceProgress?.close();
       evtSourceProgress = null;
-      // Try to reconnect in 1 second
-      console.log('progress event connection error. Retry in 1 second');
-      setTimeout(connectProgress, 1000);
+      // Try to reconnect in 3 seconds
+      console.log('progress event connection error. Retry in 3 seconds');
+      setTimeout(connectProgress, 3000);
     }
   }
 }
@@ -110,7 +110,12 @@ const connectProgress = () => {
  * @param callback the callback function
  * @returns a function to remove this event attachment
  */
-export const onProgress = <T extends Event.Progress.Name>(event: T, id: string | null, callback: (data: Event.Progress.Type<T>) => void) => {
+export type IDType = string | null;
+export type OnProgressCallback<ID extends IDType, T extends Event.Progress.Name> = 
+  ID extends string ? (data: Event.Progress.Type<T>) => void :
+  ID extends null ? (id: string, data: Event.Progress.Type<T>) => void :
+  never;
+export const onProgress = <ID extends IDType, T extends Event.Progress.Name>(event: T, id: ID, callback: OnProgressCallback<ID, T>) => {
   // Only attach if in the browser
   if (!browser) return () => { };
 
@@ -128,9 +133,10 @@ export const onProgress = <T extends Event.Progress.Name>(event: T, id: string |
   let c: (d: MessageEvent<any>) => void;
 
   // Assign the callback to either take every message and pass each one to the callback,
-  // or just pass the messages with the correct ID
-  if (id === null) c = (d: MessageEvent<any>) => callback(JSON.parse(d.data) as Event.Progress.Type<T>);
-  else c = (d: MessageEvent<any>) => (((d.data) as Event.Progress.Type<T>).id === id) ? callback(JSON.parse(d.data) as Event.Progress.Type<T>) : null;
+  // or just pass the messages with the correct ID. This callback changes based on if an ID
+  // was provided to `onProgress`.
+  if (id === null) c = (d: MessageEvent<any>) => (callback as OnProgressCallback<null, T>)(d.lastEventId, JSON.parse(d.data) as Event.Progress.Type<T>);
+  else c = (d: MessageEvent<any>) => (d.lastEventId === id) ? (callback as OnProgressCallback<string, T>)(JSON.parse(d.data) as Event.Progress.Type<T>) : null;
 
   // Add the callback to the map for restoration if the evtSource gets recreated
   callbackMapProgress[event].push(c);
