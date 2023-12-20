@@ -163,7 +163,8 @@ export const reset = async () => {
   if (global.plex.generalTimeout !== undefined) clearTimeout(global.plex.generalTimeout);
 }
 
-const reportAndReturn = async (result: publicTypes.ScanAndGenerate): Promise<publicTypes.ScanAndGenerate> => {
+const reportAndReturn = async (result: publicTypes.ScanAndGenerate, notify=true): Promise<publicTypes.ScanAndGenerate> => {
+  if (!notify) return result;
   events.emit('collection.result', result);
   // Save a notification if required
   if (result !== publicTypes.ScanAndGenerate.NO_ERROR && result !== publicTypes.ScanAndGenerate.NO_ERROR_COLLECTIONS_DISABLED) {
@@ -309,7 +310,7 @@ export const triggerAutoScan = async (): Promise<publicTypes.ScanAndGenerate> =>
     if (result.success === false) return reportAndReturn(publicTypes.ScanAndGenerate.NO_CONNECTION_TO_PLEX);
 
     // Check if there is one running right now. If so, don't schedule but also don't resolve the schedule request.
-    if (plexSettings['plex.library.autoScan.inProgress'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.ALREADY_IN_PROGRESS);
+    if (plexSettings['plex.library.autoScan.inProgress'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.ALREADY_IN_PROGRESS, false);
   }
 
   console.log('scheduler trigger')

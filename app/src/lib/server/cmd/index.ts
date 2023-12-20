@@ -534,9 +534,9 @@ export namespace LibraryManager {
 
             // Trigger a library scan if it should be issued (IE. we have added at least one book)
             if (libraryScanShouldBeIssued) {  
-              const plexSettings = await settings.getMany('plex.enable', 'plex.collections.enable');
+              const plexSettings = await settings.getMany('plex.enable', 'plex.collections.enable', 'plex.library.autoScan.enable', 'plex.library.autoScan.scheduled');
               console.log(plexSettings);
-              if (plexSettings['plex.enable'] === true && plexSettings['plex.collections.enable'] === true) Plex.triggerAutoScan();
+              if (plexSettings['plex.enable'] === true && plexSettings['plex.collections.enable'] === true && plexSettings['plex.library.autoScan.enable'] === true && plexSettings['plex.library.autoScan.scheduled'] == false) Plex.triggerAutoScan();
             }
             libraryScanShouldBeIssued = false;
           }
