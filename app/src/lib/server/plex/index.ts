@@ -4,9 +4,13 @@ import { LibraryManager } from '../cmd';
 import * as types from './types';
 import * as publicTypes from '$lib/types';
 import * as settings from '$lib/server/settings';
+import { v4 as uuidv4 } from 'uuid';
 import * as helpers from '$lib/server/helpers';
 import * as tools from './tools';
 import * as scan from './auto-scan';
+import * as events from '$lib/server/events';
+import prisma from '../prisma';
+import { icons } from '$lib/components';
 
 export * as collections from './collections';
 export * as types from './types';
@@ -159,10 +163,33 @@ export const reset = async () => {
   if (global.plex.generalTimeout !== undefined) clearTimeout(global.plex.generalTimeout);
 }
 
+const reportAndReturn = async (result: publicTypes.ScanAndGenerate): Promise<publicTypes.ScanAndGenerate> => {
+  events.emit('collection.result', result);
+  // Save a notification if required
+  if (result !== publicTypes.ScanAndGenerate.NO_ERROR && result !== publicTypes.ScanAndGenerate.NO_ERROR_COLLECTIONS_DISABLED) {
+    const notification: publicTypes.Notification = {
+      id: uuidv4(),
+      icon_path: icons.warning,
+      icon_color: 'text-red-400',
+      issuer: 'plex.scan.result' satisfies publicTypes.Issuer,
+      theme: 'info' satisfies publicTypes.ModalTheme,
+      text: publicTypes.scanAndGenerateToStringLong(result),
+      sub_text: 'Collections could not be generated',
+      identifier: null,
+      linger_time: -1,
+      needs_clearing: true,
+      auto_open: false
+    }
+    await prisma.notification.create({ data: notification });
+    events.emit('notification.created', [notification]);
+  }
+  return result;
+}
+
 /**
  * Scan the Plex Library and, if able, generate the collections
  */
-export const scanAndGenerate = async (): Promise<publicTypes.ScanAndGenerate> => {
+export const scanAndGenerate = async (progress?: { scan: (progress: number) => void, generate: (progress: number) => void }): Promise<publicTypes.ScanAndGenerate> => {
   // Get settings
   let plexSettings = await settings.getSet('plex');
 
@@ -173,8 +200,8 @@ export const scanAndGenerate = async (): Promise<publicTypes.ScanAndGenerate> =>
 
   // We are now in-progress
   await settings.set('plex.library.autoScan.inProgress', true);
-  await settings.set('plex.library.autoScan.progress', 0);
-  await settings.set('plex.library.collection.progress', 0);
+  // await settings.set('plex.library.autoScan.progress', 0);
+  // await settings.set('plex.library.collection.progress', 0);
 
   // Clear the timeouts
   if (global.plex === undefined) global.plex = { generalTimeout: undefined };
@@ -192,7 +219,7 @@ export const scanAndGenerate = async (): Promise<publicTypes.ScanAndGenerate> =>
 
     // Scan the library files
     console.log('start scan');
-    const scanResult = await scan.scanLibraryFiles();
+    const scanResult = await scan.scanLibraryFiles(progress !== undefined ? progress.scan : undefined);
     if (scanResult !== publicTypes.ScanAndGenerate.NO_ERROR) {
       // We were unable to scan the Plex library. This is an error.
       console.log('Unable to scan Plex library:', scanResult);
@@ -209,7 +236,7 @@ export const scanAndGenerate = async (): Promise<publicTypes.ScanAndGenerate> =>
       // Delay for 1 second to give Plex time to catch up
       await helpers.delay(200);
       console.log('collecting');
-      const collectionsResult = await scan.generateCollections();
+      const collectionsResult = await scan.generateCollections(progress !== undefined ? progress.generate : undefined);
       if (collectionsResult !== publicTypes.ScanAndGenerate.NO_ERROR) {
         // We were unable to generate the collections. This is an error.
         console.log('Unable to generate collections:', collectionsResult);
@@ -244,21 +271,22 @@ export const triggerAutoScan = async (): Promise<publicTypes.ScanAndGenerate> =>
   // Block scope the first half so we can reuse variables (we will be doing many of the same checks)
   {
     // Check that we have permission to do this sync
-    if (plexSettings['plex.enable'] === false) return publicTypes.ScanAndGenerate.PLEX_DISABLED;
-    if(plexSettings['plex.library.autoScan.enable'] === false) return publicTypes.ScanAndGenerate.AUTO_SCAN_DISABLED;
-    if(plexSettings['plex.library.autoScan.scheduled'] === true) return publicTypes.ScanAndGenerate.AUTO_SCAN_ONLY_ALLOWED_DURING_CRON;
+    if (plexSettings['plex.enable'] === false) return reportAndReturn(publicTypes.ScanAndGenerate.PLEX_DISABLED);
+    if(plexSettings['plex.library.autoScan.enable'] === false) return reportAndReturn(publicTypes.ScanAndGenerate.AUTO_SCAN_DISABLED);
+    if(plexSettings['plex.library.autoScan.scheduled'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.AUTO_SCAN_ONLY_ALLOWED_DURING_CRON);
 
     // Check if there is one running right now. If so, don't schedule but also don't resolve the schedule request.
-    if (plexSettings['plex.library.autoScan.inProgress'] === true) return publicTypes.ScanAndGenerate.ALREADY_IN_PROGRESS;
+    if (plexSettings['plex.library.autoScan.inProgress'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.ALREADY_IN_PROGRESS);
 
     // Test the plex connection
     const result = await testPlexConnection(plexSettings['plex.address'], plexSettings['plex.token'], false);
-    if (result.success === false) return publicTypes.ScanAndGenerate.NO_CONNECTION_TO_PLEX;
+    if (result.success === false) return reportAndReturn(publicTypes.ScanAndGenerate.NO_CONNECTION_TO_PLEX);
   }
 
   // Set the schedule time
   const scheduleTime = Math.floor(Date.now() / 1000) + plexSettings['plex.library.autoScan.delay'];
   await settings.set('plex.library.autoScan.nextRun', scheduleTime);
+  events.emit('collection.scheduled', scheduleTime);
 
   // Wait for the autoScan delay to expire
   await helpers.delay(plexSettings['plex.library.autoScan.delay'] * 1000);
@@ -269,25 +297,58 @@ export const triggerAutoScan = async (): Promise<publicTypes.ScanAndGenerate> =>
   // Block scope the second half of this function
   {
     // Check that we have permission to do this sync
-    if (plexSettings['plex.enable'] === false) return publicTypes.ScanAndGenerate.PLEX_DISABLED;
-    if (plexSettings['plex.library.autoScan.enable'] === false) return publicTypes.ScanAndGenerate.AUTO_SCAN_DISABLED;
-    if (plexSettings['plex.library.autoScan.scheduled'] === true) return publicTypes.ScanAndGenerate.AUTO_SCAN_ONLY_ALLOWED_DURING_CRON;
+    if (plexSettings['plex.enable'] === false) return reportAndReturn(publicTypes.ScanAndGenerate.PLEX_DISABLED);
+    if (plexSettings['plex.library.autoScan.enable'] === false) return reportAndReturn(publicTypes.ScanAndGenerate.AUTO_SCAN_DISABLED);
+    if (plexSettings['plex.library.autoScan.scheduled'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.AUTO_SCAN_ONLY_ALLOWED_DURING_CRON);
 
     // Check that there are no books processing (IE. the processor is idle)
-    if(LibraryManager.getNoneWorking() === false) return publicTypes.ScanAndGenerate.BOOKS_STILL_PROCESSING;
+    if(LibraryManager.getNoneWorking() === false) return reportAndReturn(publicTypes.ScanAndGenerate.BOOKS_STILL_PROCESSING);
 
     // Test the plex connection
     const result = await testPlexConnection(plexSettings['plex.address'], plexSettings['plex.token'], false);
-    if (result.success === false) return publicTypes.ScanAndGenerate.NO_CONNECTION_TO_PLEX;
+    if (result.success === false) return reportAndReturn(publicTypes.ScanAndGenerate.NO_CONNECTION_TO_PLEX);
 
     // Check if there is one running right now. If so, don't schedule but also don't resolve the schedule request.
-    if (plexSettings['plex.library.autoScan.inProgress'] === true) return publicTypes.ScanAndGenerate.ALREADY_IN_PROGRESS;
+    if (plexSettings['plex.library.autoScan.inProgress'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.ALREADY_IN_PROGRESS);
   }
 
   console.log('scheduler trigger')
   // We are now running, so no need to record when the next run is
   await settings.set('plex.library.autoScan.nextRun', -1);
+  events.emit('collection.scheduled', -1);
 
   // Perform the scan and generate
-  return await scanAndGenerate();
+  const progressId = '';
+  events.emitProgress('basic.collection.scan', progressId, {
+    t: publicTypes.Event.Progress.Basic.Stage.START
+  });
+
+  let r: publicTypes.ScanAndGenerate;
+  try {
+    r = await scanAndGenerate({
+      scan: (progress: number) => events.emitProgress('basic.collection.scan', progressId, {
+        t: publicTypes.Event.Progress.Basic.Stage.IN_PROGRESS,
+        p: progress / 2
+      }),
+      generate: (progress: number) => events.emitProgress('basic.collection.scan', progressId, {
+        t: publicTypes.Event.Progress.Basic.Stage.IN_PROGRESS,
+        p: progress / 2 + 0.5
+      })
+    });
+    events.emitProgress('basic.collection.scan', progressId, {
+      t: publicTypes.Event.Progress.Basic.Stage.DONE,
+      m: publicTypes.scanAndGenerateToStringLong(r),
+      success: r === publicTypes.ScanAndGenerate.NO_ERROR || r === publicTypes.ScanAndGenerate.NO_ERROR_COLLECTIONS_DISABLED,
+    });
+  } catch (e) {
+    console.log('scan and generate error', e);
+    r = publicTypes.ScanAndGenerate.UNKNOWN_ERROR;
+  }
+  events.emitProgress('basic.collection.scan', progressId, {
+    t: publicTypes.Event.Progress.Basic.Stage.DONE,
+    m: publicTypes.scanAndGenerateToStringLong(r),
+    data: r,
+    success: r === publicTypes.ScanAndGenerate.NO_ERROR || r === publicTypes.ScanAndGenerate.NO_ERROR_COLLECTIONS_DISABLED,
+  });
+  return reportAndReturn(r);
 }

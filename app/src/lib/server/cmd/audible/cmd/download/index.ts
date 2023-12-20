@@ -54,6 +54,8 @@ export const download = async (asin: string, processID: string, tmpDir: string):
 
   const debug = await settings.get('system.debug');
 
+  if (debug) console.log('Downloading', asin, processID);
+
   // Get the book from the DB
   const book = await prisma.book.findUnique({ 
     where: { asin: asin },
@@ -118,6 +120,8 @@ export const download = async (asin: string, processID: string, tmpDir: string):
     ['-P', cli_id, 'download', '-o', tmpDir, '-a', asin, '--aaxc', '--pdf', '--cover', '--cover-size', '1215', '--chapter', '--annotation'],
     { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }
   );
+
+  if (debug) console.log('Audible CLI instance created');
 
   // Assign cancel map
   global.audible.cancelMap[asin] = {
@@ -200,6 +204,7 @@ export const download = async (asin: string, processID: string, tmpDir: string):
 
     // Attach to the exit event
     audible.on('exit', async () => {
+      if (debug) console.log('Audible CLI exited');
       if (global.audible.cancelMap[asin] !== undefined) {
         if (global.audible.cancelMap[asin].canceled === true) {
           delete global.audible.cancelMap[asin];

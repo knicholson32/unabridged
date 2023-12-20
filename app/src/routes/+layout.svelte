@@ -20,6 +20,7 @@
 	import FinishedBook from '$lib/components/routeSpecific/layout/FinishedBook.svelte';
   import * as events from '$lib/events';
 	import StatusBarEmpty from '$lib/components/routeSpecific/layout/StatusBarEmpty.svelte';
+	import CollectionProgress from '$lib/components/routeSpecific/layout/CollectionProgress.svelte';
   export let data;
 
   // -----------------------------------------------------------------------------------------------
@@ -183,6 +184,8 @@
     // Clear any callbacks or interval functions
     for (const func of downloadManagerRemovalFunctions) func();
     downloadManagerRemovalFunctions = [];
+    // Clear interval
+    clearInterval(calculateTimeInterval);
   }
   const toggleDownloadManager = () => {
     if (downloadManagerVisible) closeDownloadManager();
@@ -206,6 +209,7 @@
   let startTime = -1;
   let staticTime = 0;
   let elapsedTime = '00:00:00';
+  let collectionScheduledTime = -1;
   let calculateTimeInterval: number;
   const displayElapsedTime = () => {
     if (timeElapsing === true) elapsedTime = new helpers.RunTime({s: Math.floor(Date.now() / 1000) - startTime}).toDirectFormatFull();
@@ -293,6 +297,9 @@
 
     // processor.invalidate -----------------------------------------------------------
     removalFunctions.push(events.on('processor.invalidate', processorInvalidated));
+
+    // collection.scheduled -----------------------------------------------------------
+    removalFunctions.push(events.on('collection.scheduled', (time) => collectionScheduledTime = time));
 
     // Add the function to close the download manager because that will release
     // all the callbacks associated with it
@@ -739,6 +746,7 @@
                 <div in:fade="{{duration: 100, easing: cubicOut}}" out:fade="{{duration: 75, easing: cubicOut}}" class=" antialiase">
 
                   <div class="absolute right-2 top-2 flex gap-1">
+                    <CollectionProgress bind:scheduled={collectionScheduledTime} />
                     <button on:click={togglePause} type="button" class="px-1 py-1 text-gray-500 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100" >
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
                         {#if processPaused}

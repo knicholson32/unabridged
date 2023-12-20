@@ -11,7 +11,7 @@ import prisma from '$lib/server/prisma';
  * Start a library file scan with Plex
  * @returns whether or not the library scan was started
  */
-export const scanLibraryFiles = async (): Promise<publicTypes.ScanAndGenerate> => {
+export const scanLibraryFiles = async (progressCallback?: (progress: number) => void): Promise<publicTypes.ScanAndGenerate> => {
 
   // The scan is starting, so should no longer be scheduled
   await settings.set('plex.library.autoScan.nextRun', -1);
@@ -32,7 +32,8 @@ export const scanLibraryFiles = async (): Promise<publicTypes.ScanAndGenerate> =
 
     // Set some initial settings
     await settings.set('plex.library.autoScan.inProgress', true);
-    await settings.set('plex.library.autoScan.progress', 0);
+    // await settings.set('plex.library.autoScan.progress', 0);
+    if (progressCallback !== undefined) progressCallback(0);
 
     // Populate the plex URL and token
     const plexURL = plexSettings['plex.address'];
@@ -68,7 +69,8 @@ export const scanLibraryFiles = async (): Promise<publicTypes.ScanAndGenerate> =
           resolve(publicTypes.ScanAndGenerate.SCAN_TIMEOUT_WAITING_FOR_FINISH);
         }, plexSettings['plex.library.autoScan.timeout'] * 1000);
         // Reset the progress
-        await settings.set('plex.library.autoScan.progress', 0);
+        // await settings.set('plex.library.autoScan.progress', 0);
+        if (progressCallback !== undefined) progressCallback(0);
         // Issue the library refresh (in 200ms to let the websocket settle)
         await helpers.delay(200);
         // Get the result from the library refresh
@@ -100,14 +102,16 @@ export const scanLibraryFiles = async (): Promise<publicTypes.ScanAndGenerate> =
           // Switch based on the message type
           if (entry.event === 'updated') {
             // Set the new progress
-            await settings.set('plex.library.autoScan.progress', entry.Activity.progress / 100);
+            // await settings.set('plex.library.autoScan.progress', entry.Activity.progress / 100);
+            if (progressCallback !== undefined) progressCallback(entry.Activity.progress / 100);
           } else if (entry.event === 'ended') {
             // Clear the timer
             clearTimeout(global.plex.generalTimeout);
             global.plex.generalTimeout = undefined;
             console.log('Message: ended', entry.uuid);
             // Set the progress as complete
-            await settings.set('plex.library.autoScan.progress', 1);
+            // await settings.set('plex.library.autoScan.progress', 1);
+            if (progressCallback !== undefined) progressCallback(1);
             // Close the websocket and resolve
             ws.close();
             return resolve(publicTypes.ScanAndGenerate.NO_ERROR);
@@ -132,7 +136,7 @@ export const scanLibraryFiles = async (): Promise<publicTypes.ScanAndGenerate> =
  * Generate Plex collections
  * @returns 
  */
-export const generateCollections = async (): Promise<publicTypes.ScanAndGenerate> => {
+export const generateCollections = async (progressCallback?: (progress: number) => void): Promise<publicTypes.ScanAndGenerate> => {
   // Get settings since it may have been a while
   const plexSettings = await settings.getSet('plex');
   const debug = await settings.get('system.debug');
@@ -140,7 +144,8 @@ export const generateCollections = async (): Promise<publicTypes.ScanAndGenerate
   if (plexSettings['plex.collections.enable'] === false) return publicTypes.ScanAndGenerate.COLLECTIONS_DISABLED;
   console.log('start collecting');
   // Set the collection progress to 0
-  await settings.set('plex.library.collection.progress', 0);
+  // await settings.set('plex.library.collection.progress', 0);
+  if (progressCallback !== undefined) progressCallback(0);
   try {
     // Switch based on the collection type
     if (plexSettings['plex.collections.by'] === publicTypes.CollectionBy.series) {
@@ -155,7 +160,8 @@ export const generateCollections = async (): Promise<publicTypes.ScanAndGenerate
         const s = series[i];
         await collections.collectBySeries(s, plexSettings['plex.address'], plexSettings['plex.token'], debug);
         // Update the collection progress
-        await settings.set('plex.library.collection.progress', i / series.length);
+        // await settings.set('plex.library.collection.progress', i / series.length);
+        if (progressCallback !== undefined) progressCallback(i / series.length);
       }
       // Get all books that don't have a series
       const books = await prisma.book.findMany({ where: { processed: true, seriesId: null }, include: { authors: true } });

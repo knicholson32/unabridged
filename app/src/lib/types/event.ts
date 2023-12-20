@@ -29,6 +29,8 @@ namespace Event {
       'notification.deleted',
       'processor.invalidate',
       'processor.settings',
+      'collection.result',
+      'collection.scheduled'
     ] as const;
     export type Name = typeof Names[number];
 
@@ -37,6 +39,8 @@ namespace Event {
       T extends 'notification.deleted' ? string[] :
       T extends 'processor.invalidate' ? boolean :
       T extends 'processor.settings' ? types.API.Types.ProcessSettings :
+      T extends 'collection.result' ? types.ScanAndGenerate | null :
+      T extends 'collection.scheduled' ? number :
       never;
 
     // ---------------------------------------------------------------------------------------------
@@ -56,13 +60,15 @@ namespace Event {
     // Progress Event Names
     // ---------------------------------------------------------------------------------------------
     export const Names = [
-      'basic.account.sync',  // Basic Event
-      'processor.book',  // Processor.BOOK Event
+      'basic.account.sync',         // Basic Event
+      'basic.collection.scan',      // Basic Event
+      'processor.book',             // Processor.BOOK Event
     ] as const;
     export type Name = typeof Names[number];
 
     export type Type<T extends Name> =
       T extends 'basic.account.sync' ? Basic :
+      T extends 'basic.collection.scan' ? Basic :
       T extends 'processor.book' ? Processor.BOOK :
       never;
 

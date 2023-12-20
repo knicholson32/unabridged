@@ -51,7 +51,6 @@ export function GET({ request, url }) {
 
   // Create a function that will clean up the callbacks upon connection close
   const cleanup = () => {
-    console.log('cleanup');
     for (const e of Event.Progress.Names) if (callbackMap[e] !== undefined) progress.off(e, callbackMap[e]);
   }
 
@@ -69,7 +68,7 @@ export function GET({ request, url }) {
         try {
           // Package and send the data
           controller.enqueue(packageEvent(event, id, data));
-          console.log('/api/events/progress/ -> emitted', event, id, data);
+          // console.log('/api/events/progress/ -> emitted', event, id, data);
         } catch (e) {
           // If this didn't work, the connection is broken. Remove it and de-register all callbacks
           controller = null;

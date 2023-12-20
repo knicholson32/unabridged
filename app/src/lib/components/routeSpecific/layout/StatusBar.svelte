@@ -10,10 +10,6 @@
 
   $: barProgress = (downloaded ? (process.book?.process_progress ?? 0) / 2 + 0.5 : (process.book?.download_progress ?? 0) / 2)
 
-  $: {
-    console.log('download', process.book?.download_progress);
-  }
-
   const cancel = async () => {
     await fetch(`/api/library/cancel/book/${process.book?.bookAsin}`);
   }

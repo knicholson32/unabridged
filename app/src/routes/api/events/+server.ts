@@ -53,7 +53,6 @@ export function GET({ request }) {
 
   // Create a function that will clean up the callbacks upon connection close
   const cleanup = () => {
-    console.log('cleanup');
     for (const e of Event.Base.Names) if (callbackMap[e] !== undefined) base.off(e, callbackMap[e]);
   }
 
@@ -72,7 +71,7 @@ export function GET({ request }) {
           // Package and send the data
           if (data === undefined) data = {};
           controller.enqueue(packageEvent(event, data));
-          console.log('/api/events/ -> emitted', event, data);
+          // console.log('/api/events/ -> emitted', event, data);
         } catch (e) {
           // If this didn't work, the connection is broken. Remove it and de-register all callbacks
           controller = null;

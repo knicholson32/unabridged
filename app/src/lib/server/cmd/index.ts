@@ -533,7 +533,11 @@ export namespace LibraryManager {
             await sendInvalidate();
 
             // Trigger a library scan if it should be issued (IE. we have added at least one book)
-            if (libraryScanShouldBeIssued) Plex.triggerAutoScan();
+            if (libraryScanShouldBeIssued) {  
+              const plexSettings = await settings.getMany('plex.enable', 'plex.collections.enable');
+              console.log(plexSettings);
+              if (plexSettings['plex.enable'] === true && plexSettings['plex.collections.enable'] === true) Plex.triggerAutoScan();
+            }
             libraryScanShouldBeIssued = false;
           }
 

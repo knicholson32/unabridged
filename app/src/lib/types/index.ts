@@ -111,7 +111,7 @@ export type NotificationSettings = {
 
 export type GenerateAlert = (text: string, settings?: AlertSettings) => void;
 
-export type Issuer = 'general' | 'audible.download' | 'plex.scan' | 'account.sync';
+export type Issuer = 'general' | 'audible.download' | 'plex.scan.result' | 'account.sync';
 
 export type Notification = Prisma.NotificationGetPayload<{}> & {
     theme: ModalTheme,  // This is a string in the DB, so we overwrite it here so it is strongly typed

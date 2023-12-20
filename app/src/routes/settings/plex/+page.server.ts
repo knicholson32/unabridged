@@ -224,21 +224,6 @@ export const actions = {
     }
   },
   testPlexIntegration: async () => {
-    const notification: Notification = {
-      id: uuidv4(),
-      icon_color: null,
-      icon_path: null,
-      issuer: 'audible.download' satisfies Issuer,
-      identifier: 'test456',
-      theme: 'info' satisfies ModalTheme,
-      text: `<span class="text-gray-600">Downloaded</span>`,
-      sub_text: new Date().toISOString(),
-      linger_time: 10000,
-      needs_clearing: true,
-      auto_open: true
-    };
-    await prisma.notification.create({ data: notification });
-    events.emit('notification.created', [notification]);
     const addressAndToken = await settings.getMany('plex.address', 'plex.token');
     const results = await Plex.testPlexConnection(addressAndToken['plex.address'], addressAndToken['plex.token']);
     return { action: '?/updatePlexIntegration', invalidatedParams: false, name: results.source, success: results.success, message: results.message };

@@ -29,11 +29,10 @@ export const GET = async ({ params }) => {
         }
       }
     });
-    events.emit('process.book', {
-      id: id,
-      d: false,
-      r: false,
-    })
+    // events.emitProgress('processor.book', id, {
+    //   d: false,
+    //   r: false,
+    // })
     await LibraryManager.eventLoop();
   } catch (e) {
     console.log(e);

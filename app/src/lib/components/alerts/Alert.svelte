@@ -12,7 +12,6 @@
   let defAsAlert: AlertDefinition;
   let defAsNotification: NotificationDefinition;
 
-  console.log(definition.settings);
   const theme = (definition as unknown as AlertDefinition).settings.theme ?? 'info';
   let bg: string;
   let defIconColor: string;
