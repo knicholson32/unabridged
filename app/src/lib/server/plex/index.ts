@@ -163,7 +163,8 @@ export const reset = async () => {
   if (global.plex.generalTimeout !== undefined) clearTimeout(global.plex.generalTimeout);
 }
 
-const reportAndReturn = async (result: publicTypes.ScanAndGenerate, notify=true): Promise<publicTypes.ScanAndGenerate> => {
+const reportAndReturn = async (result: publicTypes.ScanAndGenerate, notify = true, skipResult?: publicTypes.ScanAndGenerate): Promise<publicTypes.ScanAndGenerate> => {
+  if (skipResult !== undefined && result === skipResult) return result;
   if (!notify) return result;
   events.emit('collection.result', result);
   // Save a notification if required
@@ -351,5 +352,5 @@ export const triggerAutoScan = async (): Promise<publicTypes.ScanAndGenerate> =>
     data: r,
     success: r === publicTypes.ScanAndGenerate.NO_ERROR || r === publicTypes.ScanAndGenerate.NO_ERROR_COLLECTIONS_DISABLED,
   });
-  return reportAndReturn(r);
+  return reportAndReturn(r, true, publicTypes.ScanAndGenerate.ALREADY_IN_PROGRESS);
 }
