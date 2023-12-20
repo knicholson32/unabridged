@@ -38,6 +38,7 @@ export enum ProfileCreationError {
     USER_TIMEOUT = 'USER_TIMEOUT',
     URL_DID_NOT_WORK = 'URL_DID_NOT_WORK',
     PROCESS_NOT_STARTED = 'PROCESS_NOT_STARTED',
+    ACCOUNT_ALREADY_EXISTS = 'ACCOUNT_ALREADY_EXISTS',
     UNKNOWN_STATE = 'UNKNOWN_STATE'
 }
 
@@ -55,6 +56,8 @@ export const profileCreationErrorToMessage = (e: ProfileCreationError): string =
             return 'The user-provided URL did not work';
         case ProfileCreationError.PROCESS_NOT_STARTED:
             return 'The sign-in process was never started';
+        case ProfileCreationError.ACCOUNT_ALREADY_EXISTS:
+            return 'The account already exists';
         default:
             return 'An unknown error occurred';
     }

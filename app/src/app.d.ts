@@ -26,6 +26,9 @@ declare global {
 			let base: EventEmitter | undefined;
 			let progress: EventEmitter | undefined;
 		}
+		declare namespace audible {
+			let instance: child_process.ChildProcessWithoutNullStreams | undefined
+		}
 	}
 }
 

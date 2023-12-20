@@ -108,10 +108,10 @@
 
 				<span class="px-3 py-1 text-xs align-middle text-blue-600 bg-blue-100 rounded-full dark:bg-gray-800 dark:text-blue-400">
 					<span class="inline-flex leading-5">{data.bookCount} {helpers.basicPlural('book', data.bookCount)}</span>
-					{#each data.profiles as profile}
+					{#each data.sources as source}
 						<img
 							class="h-5 w-5 rounded-full inline-flex border-2 border-blue-100 -mr-1.5"
-							src="{profile.profile_image_url}/56"
+							src="{source.profile_image_url}/56"
 							alt=""
 						/>
 					{/each}
@@ -139,7 +139,7 @@
 				<span>Import</span>
 			</button>
 
-			<form method="POST" action="/accounts/?/add">
+			<form method="POST" action="/sources/?/add">
 				<button class="flex items-center justify-center w-1/2 px-5 py-2 text-sm tracking-wide text-white transition-colors duration-200 bg-blue-500 rounded-lg shrink-0 sm:w-auto gap-x-2 hover:bg-blue-600 dark:hover:bg-blue-500 dark:bg-blue-600" >
 					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5" >
 						<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -272,9 +272,9 @@
 										</td>
 										<td class="{tableXPadding} py-2 text-sm whitespace-nowrap">
 											<div class="flex items-center justify-center">
-												{#each series.books.flatMap((b) => b.profiles).filter((e, p, s) => s.findIndex((e2) => e.id === e2.id) === p) as profile}
-													<a href="/accounts/{profile.id}" class="object-cover w-6 h-6 -mx-1 border-2 border-white rounded-full overflow-hidden dark:border-gray-700 shrink-0">
-														<img src="{profile.profile_image_url}/56" alt="" />
+												{#each series.books.flatMap((b) => b.sources).filter((e, p, s) => s.findIndex((e2) => e.id === e2.id) === p) as source}
+													<a href="/sources/{source.id}" class="object-cover w-6 h-6 -mx-1 border-2 border-white rounded-full overflow-hidden dark:border-gray-700 shrink-0">
+														<img src="{source.profile_image_url}/56" alt="" />
 													</a>
 												{/each}
 											</div>
@@ -436,8 +436,8 @@
 						Clear Search
 				</a>
 
-				<a href="/accounts" class="flex items-center justify-center w-1/2 px-5 py-2 text-sm tracking-wide text-white transition-colors duration-200 bg-blue-500 rounded-lg shrink-0 sm:w-auto gap-x-2 hover:bg-blue-600 dark:hover:bg-blue-500 dark:bg-blue-600">
-					<span>View Accounts</span>
+				<a href="/sources" class="flex items-center justify-center w-1/2 px-5 py-2 text-sm tracking-wide text-white transition-colors duration-200 bg-blue-500 rounded-lg shrink-0 sm:w-auto gap-x-2 hover:bg-blue-600 dark:hover:bg-blue-500 dark:bg-blue-600">
+					<span>View Sources</span>
 				</a>
 			</div>
 		</div>

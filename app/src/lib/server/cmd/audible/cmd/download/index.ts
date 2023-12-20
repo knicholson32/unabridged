@@ -13,7 +13,8 @@ import { BookDownloadError } from '../../types';
 import type { AmazonChapterData } from '../../types';
 import { writeConfigFile } from '../profile';
 import { AUDIBLE_FOLDER, AUDIBLE_CMD } from '$lib/server/env';
-import { Event } from '$lib/types';
+import { Event, SourceType } from '$lib/types';
+import { LibraryManager } from '$lib/server/cmd';
 
 // --------------------------------------------------------------------------------------------
 // Download helpers
@@ -39,34 +40,47 @@ export const cancel = async (asin: string): Promise<boolean> => {
   return false;
 }
 
-export const download = async (asin: string, processID: string, tmpDir: string): Promise<BookDownloadError> => {
+export const download = async (asin: string, processID: string, tmpDir: string): Promise<{e: BookDownloadError, sourceId?: string}> => {
   // Check if audible is locked
-  if (isLocked()) return BookDownloadError.AUDIBLE_LOCKED;
+  if (isLocked()) return { e: BookDownloadError.AUDIBLE_LOCKED };
 
   const debug = await settings.get('system.debug');
 
   // Get the book from the DB
   const book = await prisma.book.findUnique({ 
-    where: { asin },
+    where: { asin: asin },
     include: {
-      profiles: true,
+      sources: {
+        where: {
+          NOT: { audible: null },
+          type: SourceType.AUDIBLE
+        },
+        include: {
+          audible: true
+        }
+      },
       cover: true
     }
   });
 
   // Check that the book exists and that there is a profile
-  if (book === null) return BookDownloadError.BOOK_NOT_FOUND;
-  if (book.profiles.length === 0) return BookDownloadError.NO_PROFILE;
+  if (book === null) return { e: BookDownloadError.BOOK_NOT_FOUND };
+  if (book.sources.length === 0) return { e: BookDownloadError.NO_PROFILE };
 
-  let profileID: string | undefined = undefined;
-  for (const profile of book.profiles) {
-    if (profile.activation_bytes !== null) {
-      profileID = profile.id
-      break;
+  let cli_id: string | undefined = undefined;
+  let sourceId: string | undefined = undefined;
+  for (const source of book.sources) {
+    if (source.type === SourceType.AUDIBLE && source.audible !== null) {
+      const audibleAccount = source.audible;
+      if (audibleAccount.activation_bytes !== null) {
+        cli_id = audibleAccount.cli_id;
+        sourceId = source.id;
+        break;
+      }
     }
   }
 
-  if (profileID === undefined) return BookDownloadError.NO_PROFILE_WITH_AUTHCODE;
+  if (cli_id === undefined || sourceId === undefined) return { e: BookDownloadError.NO_PROFILE_WITH_AUTHCODE };
 
   // Update process progress for download to 0
   await prisma.processQueue.update({
@@ -93,7 +107,7 @@ export const download = async (asin: string, processID: string, tmpDir: string):
   // audible -P 175aaff6-4f92-4a2c-b592-6758e1b54e5f download -o /app/db/download/skunk -a B011LR4PW4 --aaxc --pdf --cover --cover-size 1215 --chapter --annotation
   const audible = child_process.spawn(
     AUDIBLE_CMD,
-    ['-P', profileID, 'download', '-o', tmpDir, '-a', asin, '--aaxc', '--pdf', '--cover', '--cover-size', '1215', '--chapter', '--annotation'],
+    ['-P', cli_id, 'download', '-o', tmpDir, '-a', asin, '--aaxc', '--pdf', '--cover', '--cover-size', '1215', '--chapter', '--annotation'],
     { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }
   );
 
@@ -163,7 +177,10 @@ export const download = async (asin: string, processID: string, tmpDir: string):
             t: Event.Progress.Processor.BOOK.Task.DOWNLOAD
           });
         } catch(e) {
-          console.log('ERR', e);
+          console.log('ERR Process Loading', e);
+          // If this errors, the processQueue entry has been deleted.
+          // This may have happened because the account was deleted. We are done.
+          await LibraryManager.cancelBook(asin);
         }
       }
 
@@ -277,7 +294,7 @@ export const download = async (asin: string, processID: string, tmpDir: string):
           break;
       }
       // Save the file
-      await media.saveFile(tmpDir + '/' + file, book.asin, { description, title });
+      await media.saveFile(tmpDir + '/' + file, book.asin, sourceId, { description, title });
     }
 
     // Loop through the JSON files
@@ -359,34 +376,41 @@ export const download = async (asin: string, processID: string, tmpDir: string):
     });
 
   } else {
-    // Assign the book as downloaded
-    await prisma.book.update({
-      where: { asin: book.asin },
-      data: { downloaded: false, processed: false }
-    });
+    // Assign the book as not downloaded
+    try {
+      await prisma.book.update({
+        where: { asin: book.asin },
+        data: { downloaded: false, processed: false }
+      });
+    } catch (e) { }
   }
 
   // Assign progress
-  await prisma.processQueue.update({
-    where: { id: processID },
-    data: {
-      book: {
-        update: {
-          download_progress: 1,
-          downloaded_mb: null,
-          total_mb: null,
-          speed: null
+  try {
+    await prisma.processQueue.update({
+      where: { id: processID },
+      data: {
+        book: {
+          update: {
+            download_progress: 1,
+            downloaded_mb: null,
+            total_mb: null,
+            speed: null
+          }
         }
       }
-    }
-  });
-  events.emitProgress('processor.book', processID, {
-    r: true,
-    d: false,
-    p: 1,
-    t: Event.Progress.Processor.BOOK.Task.DOWNLOAD
-  });
+    });
+    events.emitProgress('processor.book', processID, {
+      r: true,
+      d: false,
+      p: 1,
+      t: Event.Progress.Processor.BOOK.Task.DOWNLOAD
+    });
+  } catch (e) { }
 
-  return results;
+  return {
+    e: results,
+    sourceId: sourceId
+  }
 
 }

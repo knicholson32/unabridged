@@ -60,9 +60,9 @@
   <Settings.Switch name="general.autoSync" form={form} title="Audible Accounts" update={autoSyncUpdate} bind:value={autoSyncAudible} 
     hoverTitle="Start Paused" />
 
-  {#each data.profiles as profile}
-    <Settings.Switch indent={true} titleImg={profile.profile_image_url} titleLink={`/accounts/${profile.id}`} name="{profile.id}" form={form} title="{profile.email ?? 'Unknown'}" update={autoSyncUpdate} bind:value={profile.auto_sync} 
+  {#each data.sources as source}
+    <Settings.Switch indent={true} titleImg={source.profile_image_url} titleLink={`/sources/${source.id}`} name="{source.id}" form={form} title="{source.name ?? 'Unknown'}" update={autoSyncUpdate} bind:value={source.auto_sync} 
     disabled={autoSyncAudible === false}
-    hoverTitle={autoSyncAudible === false ? 'Disabled because Auto Sync is disabled.' : `Auto Sync '${profile.email??'Unknown'}'`} />
+    hoverTitle={autoSyncAudible === false ? 'Disabled because Auto Sync is disabled.' : `Auto Sync '${source.name??'Unknown'}'`} />
   {/each}
 </Settings.List>

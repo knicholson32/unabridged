@@ -8,11 +8,11 @@ import { CollectionBy } from '$lib/types';
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params }) => {
 
-  const profiles = await prisma.profile.findMany({
+  const sources = await prisma.source.findMany({
     select: {
       auto_sync: true,
-      email: true,
       profile_image_url: true,
+      name: true,
       id: true
     }
   });
@@ -25,7 +25,7 @@ export const load = async ({ params }) => {
 
   return {
     settingValues,
-    profiles
+    sources
   }
 }
 
@@ -60,10 +60,9 @@ export const actions = {
     const autoSync = (data.get('general.autoSync') ?? undefined) as undefined | string;
     if (autoSync !== undefined) await settings.set('general.autoSync', autoSync === 'true');
 
-    const profiles = await prisma.profile.findMany({
+    const profiles = await prisma.source.findMany({
       select: {
         auto_sync: true,
-        email: true,
         id: true
       }
     });
@@ -71,7 +70,7 @@ export const actions = {
     for (const profile of profiles) {
       const d = data.get(profile.id);
       if (d === undefined) continue;
-      await prisma.profile.update({
+      await prisma.source.update({
         where: { id: profile.id },
         data: { auto_sync: d === 'true' }
       });

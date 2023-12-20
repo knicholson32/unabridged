@@ -61,14 +61,6 @@ export const cleanBook = async (asin: string) => {
     if (debug) console.log(e);
     // Nothing to do if it didn't exist anyway
   }
-  // // Delete all the physical files that are associated with authors that just got deleted
-  // for (const author of book.authors) {
-  //   try {
-  //     fs.rmSync(`${LIBRARY_FOLDER}/${sanitize(author.name)}`, { recursive: true, force: true });
-  //   } catch (e) {
-  //     // Nothing to do if it didn't exist anyway
-  //   }
-  // }
   // TODO: Clean authors if there are no more books present
   await prisma.media.deleteMany({ where: { bookAsin: book.asin } });
   await prisma.book.update({ where: { asin }, data: { downloaded: false, processed: false } });
@@ -95,7 +87,11 @@ export const cleanSeries = async (id: string) => {
       if (debug) console.log(e);
     }
     await prisma.media.deleteMany({ where: { bookAsin: book.asin } });
-    await prisma.book.update({ where: { asin: book.asin }, data: { downloaded: false, processed: false } });
+    try {
+      await prisma.book.update({ where: { asin: book.asin }, data: { downloaded: false, processed: false } });
+    } catch (e) {
+      console.log('ERR cleanSeries', e);
+    }
   }
   // TODO: Clean authors if there are no more books present
   await media.clean();
@@ -113,11 +109,6 @@ export const deleteBook = async (asin: string) => {
   } catch(e) {
     // Nothing to do if it didn't exist anyway
   }
-  try {
-    await prisma.progress.deleteMany({ where: { id: book.asin } });
-  } catch (e) {
-    // Nothing to do if it didn't exist anyway
-  }
   // Clean the rest of the DB / files
   await cleanAll();
 }
@@ -126,16 +117,12 @@ export const deleteBook = async (asin: string) => {
  * Delete an account and the associated books
  * @param id the account to delete
  */
-export const deleteAccount = async (id: string) => {
+export const deleteSource = async (id: string) => {
   try {
-    await prisma.profile.delete({ where: { id } });
+    await prisma.source.delete({ where: { id } });
   } catch (e) {
     // Nothing to do if it didn't exist anyway
-  }
-  try {
-    await prisma.progress.deleteMany({ where: { id } });
-  } catch (e) {
-    // Nothing to do if it didn't exist anyway
+    // console.log('ERROR:','deleting source', e, 'end of message');
   }
   // Clean the rest of the DB / files
   await cleanAll();
@@ -145,13 +132,15 @@ export const deleteAccount = async (id: string) => {
  * Clean all books and elements that are hanging
  */
 export const cleanAll = async () => {
+  // TODO: BUG: There is a bug where if the account that has the book gets deleted, the files get removed but
+  //       the DB entry for the book still has downloaded and processed = true
   console.log('CLEAN!');
   try {
     const books = await prisma.book.findMany({
-      where: { profiles: { none: {} } },
+      where: { sources: { none: {} } },
       include: { authors: true }
     });
-    await prisma.book.deleteMany({ where: { profiles: { none: {} } } });
+    await prisma.book.deleteMany({ where: { sources: { none: {} } } });
     const authors = await prisma.author.findMany({ where: { books: { none: {} } } });
     await prisma.series.deleteMany({ where: { books: { none: {} } } });
     await prisma.author.deleteMany({ where: { books: { none: {} } } });
@@ -167,6 +156,7 @@ export const cleanAll = async () => {
         const rm = `${LIBRARY_FOLDER}/${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}`;
         if (debug) console.log('Remove', rm)
         fs.rmSync(rm, { recursive: true, force: true });
+        await prisma.book.update({ where: { asin: book.asin }, data: { downloaded: false, processed: false }});
       } catch (e) {
         // Nothing to do if it didn't exist anyway
       }

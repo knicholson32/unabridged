@@ -115,5 +115,5 @@ export function GET({ request, url }) {
   });
 
   // Return the response
-  return new Response(readable, { headers });;
+  return new Response(readable, { headers });
 }

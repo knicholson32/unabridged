@@ -7,7 +7,7 @@ import * as settings from '$lib/server/settings';
 import { icons } from '$lib/components';
 import * as serverHelpers from '$lib/server/helpers';
 import * as events from '$lib/server/events';
-import type { Issuer, ModalTheme, Notification } from '$lib/types';
+import { SourceType, type Issuer, type ModalTheme, type Notification } from '$lib/types';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params, fetch }) => {
@@ -19,7 +19,7 @@ export const load = async ({ params, fetch }) => {
     if (id === null || id === undefined) throw error(404, 'Not found');
 
     // Get the profile from the database
-    const profile = await prisma.profile.findUnique({ 
+    const source = await prisma.source.findUnique({ 
         where: { id }, 
         include: { 
             books: {
@@ -30,38 +30,24 @@ export const load = async ({ params, fetch }) => {
                         }
                     }
                 }
-            }
+            },
+            audible: true
         }
     });
 
     // Return if the profile was not found
-    if (profile === null || profile === undefined) throw error(404, 'Not found');
+    if (source === null || source === undefined) throw error(404, 'Not found');
 
-    for (const book of profile.books) book.rating = book.rating.toNumber() as unknown as Decimal;
+    // Redirect if the source type isn't correct
+    if (source.type !== SourceType.AUDIBLE) throw redirect(301, `/sources/${id}`);
 
-    // const syncing = {
-    //     val: false,
-    //     progress: 0
-    // }
-
-    // const progressResp: ProgressAPI = await (await fetch(`/api/progress/specific/${id}/sync`)).json() as ProgressAPI;        
-
-
+    // Protect against Decimal JSON conversion issues by making it a number
+    for (const book of source.books) book.rating = book.rating.toNumber() as unknown as Decimal;
 
     return {
-        profile,
-        // syncing,
+        source,
         tz: await settings.get('general.timezone')
     };
-
-    // if (params.id === 'hello-world') {
-    //     return {
-    //         title: 'Hello world!',
-    //         content: 'Welcome to our blog. Lorem ipsum dolor sit amet...'
-    //     };
-    // }
-
-    // throw error(404, 'Not found');
 }
 
 
@@ -73,13 +59,16 @@ export const actions = {
         if (id === null || id === undefined) throw error(404, 'Not found');
 
         // Get the profile from the database
-        const profile = await prisma.profile.findUnique({ where: { id } });
+        const source = await prisma.source.findUnique({ where: { id } });
 
         // Return if the profile was not found
-        if (profile === null || profile === undefined) throw error(404, 'Not found');
+        if (source === null || source === undefined) throw error(404, 'Not found');
+
+        console.log('deregister', id);
 
         // Remove the profile
         const success = await audible.cmd.profile.remove(id);
+        console.log('success', success);
         if (success) {
             const notification: Notification = {
                 id: uuidv4(),
@@ -87,7 +76,7 @@ export const actions = {
                 icon_color: 'text-red-400',
                 theme: 'info',
                 text: 'Account deleted',
-                sub_text: `The Audible account for <span class="text-gray-400">${profile.first_name} ${profile.last_name}</span> has been removed.`,
+                sub_text: `The Audible account for <span class="text-gray-400">${source.name}</span> has been removed.`,
                 linger_time: 15000,
                 needs_clearing: true,
                 auto_open: true,
@@ -96,7 +85,7 @@ export const actions = {
             }
             await prisma.notification.create({ data: notification});
             events.emit('notification.created', [notification]);
-            throw redirect(307, `/accounts`);
+            throw redirect(307, `/sources`);
         }
         else
             return { response: 'deregister', success: false, message: 'Could not delete the account' };
@@ -107,10 +96,10 @@ export const actions = {
         if (id === null || id === undefined) throw error(404, 'Not found');;
 
         // Get the profile from the database
-        const profile = await prisma.profile.findUnique({ where: { id } });
+        const source = await prisma.source.findUnique({ where: { id } });
 
         // Return if the profile was not found
-        if (profile === null || profile === undefined) throw error(404, 'Not found');
+        if (source === null || source === undefined) throw error(404, 'Not found');
 
         console.log('get');
         const results = await audible.cmd.library.get(id);
@@ -145,16 +134,16 @@ export const actions = {
         if (id === null || id === undefined) throw error(404, 'Not found');;
 
         // Get the profile from the database
-        const profile = await prisma.profile.findUnique({ where: { id } });
+        const sources = await prisma.source.findUnique({ where: { id } });
 
         // Return if the profile was not found
-        if (profile === null || profile === undefined) throw error(404, 'Not found');
+        if (sources === null || sources === undefined) throw error(404, 'Not found');
 
         // Get form data
         const data = await request.formData();
         let auto_sync = (data.get('auto-sync') as string) === 'true' ? true : false;
 
-        await prisma.profile.update({
+        await prisma.source.update({
             where: { id },
             data: { auto_sync }
         });
@@ -168,10 +157,10 @@ export const actions = {
         if (id === null || id === undefined) throw error(404, 'Not found');;
 
         // Get the profile from the database
-        const profile = await prisma.profile.findUnique({ where: { id } });
+        const sources = await prisma.source.findUnique({ where: { id } });
 
         // Return if the profile was not found
-        if (profile === null || profile === undefined) throw error(404, 'Not found');
+        if (sources === null || sources === undefined) throw error(404, 'Not found');
 
         // Get form data
         const data = await request.formData();
@@ -205,7 +194,7 @@ export const actions = {
         });
 
         // Update the profile to include the new image url
-        await prisma.profile.update({
+        await prisma.source.update({
             where: { id },
             data: {
                 profile_image_url: '/api/image/' + id
@@ -220,42 +209,42 @@ export const actions = {
         if (id === null || id === undefined) throw error(404, 'Not found');;
 
         // Get the profile from the database
-        const profile = await prisma.profile.findUnique({ where: { id } });
+        const source = await prisma.source.findUnique({ where: { id } });
 
         // Return if the profile was not found
-        if (profile === null || profile === undefined) throw error(404, 'Not found');
+        if (source === null || source === undefined) throw error(404, 'Not found');
 
         // Get form data
         const data = await request.formData();
-        let first_name = data.get('first-name') as string;
-        let last_name = data.get('last-name') as string;
-        let email = data.get('email') as string;
+        let name = data.get('name') as string;
         let country = data.get('country') as string;
         let about = data.get('about') as string;
 
         console.log('data');
-        console.log('first_name', first_name);
-        console.log('last_name', last_name);
-        console.log('email', email);
+        console.log('name', name);
         console.log('country', country);
         console.log('about', about);
 
-        await prisma.profile.update({
+        await prisma.source.update({
             where: { id },
             data: {
-                first_name: first_name === '' ? undefined : first_name,
-                last_name: last_name === '' ? undefined : last_name,
-                email: email === '' ? undefined : email,
-                locale_code: country === null ? undefined : country,
+                name: name === '' ? undefined : name,
                 description: about === '' ? undefined : about
             }
-        })
+        });
 
+        // Update the country code if applicable
+        if (source.type === SourceType.AUDIBLE && country !== '' && country !== undefined && country !== null) {
+            try {
+                await prisma.audibleAccount.update({
+                    where: { id: source.id },
+                    data: { locale_code: country },
+                });
+            } catch (e) {
+                // Nothing to do if this fails
+            }
+        }
 
-        // const p = new Promise((resolve) => {
-        //     setTimeout(resolve, 1000);
-        // });
-        // await p;
         return { response: 'update', success: true };
     },
 };

@@ -3,7 +3,7 @@
 	import { Submit } from '$lib/components/buttons';
 	import Rating from '$lib/components/decorations/Rating.svelte';
   import * as helpers from '$lib/helpers';
-	import type { GenerateAlert, PageNeedsProgress } from '$lib/types';
+	import type { GenerateAlert, PageNeedsProgress, SourceType } from '$lib/types';
 	import { getContext } from 'svelte';
   import * as dateFns from 'date-fns'
 	import TextArea from '$lib/components/input/selectable/TextArea.svelte';
@@ -11,6 +11,7 @@
   import * as alerts from '$lib/components/alerts';
 	import { White } from '$lib/components/frames';
 	import { invalidate } from '$app/navigation';
+	import { extension } from 'mime-types';
 
   export let data: import('./$types').PageData;
   export let form: import('./$types').ActionData;
@@ -27,6 +28,7 @@
     await fetch(`/api/library/remove/book/${data.book.asin}`);
     invalidate(`/library/books/${data.book.asin}`);
   }
+
     
   let updatesSubmitting: boolean = false;
 
@@ -348,16 +350,16 @@
             </td>
           </tr>
           <tr class="{rowClass}">
-            {#if data.book.profiles.length === 1}
+            {#if data.book.sources.length === 1}
               <td class="{dataTitleClass} whitespace-nowrap">Source</td>
             {:else}
               <td class="{dataTitleClass} whitespace-nowrap">Sources</td>
             {/if}
             <td class="{dataValueClass} flex space-x-1">
-              {#each data.book.profiles as profile}
-                <a class="mr-1" href="/accounts/{profile.id}">
-                  <img src="{profile.profile_image_url}" class="inline-flex align-bottom h-[1.25rem] rounded-full" alt="Profile picture for {profile.first_name} {profile.last_name}"/>
-                  {profile.first_name} {profile.last_name}
+              {#each data.book.sources as source}
+                <a class="mr-1" href="/sources/{source.id}">
+                  <img src="{source.profile_image_url}" class="inline-flex align-bottom h-[1.25rem] rounded-full" alt="Profile picture for {source.name}"/>
+                  {source.name}
                 </a>
               {/each}
             </td>
@@ -427,6 +429,7 @@
           <table class="text-sm">
             <thead>
               <tr class="{rowClass} border-b border-gray-300 bg-white">
+                <th class="{fileTitleClass} w-[1%]">Source</th>
                 <th class="{fileTitleClass} w-[1%]">Icon</th>
                 <th class="{fileTitleClass} !text-left">Name</th>
                 <th class="{fileTitleClass} hidden md:table-cell !text-left">Description</th>
@@ -437,12 +440,19 @@
             <tbody class="divide-y divide-gray-300">
               {#each data.book.media as file}
                 <tr class="{rowClass}">
+                  <td class="{fileDataClass} text-center">
+                    <a class="mr-1" href="/sources/{file.source.id}" title="File source '{file.source.name}'">
+                      <img src="{file.source.profile_image_url}" class="inline-flex align-bottom h-[1.25rem] rounded-full" alt="Profile picture for {file.source.name}"/>
+                    </a>
+                  </td>
                   <td class="{fileDataClass} w-[1%] whitespace-nowrap">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
                       {@html helpers.extensionLogo(file.extension)}
                     </svg>
                   </td>
-                  <td class="{fileDataClass} italic font-mono text-xs">{file.title}.{file.extension}</td>
+                  <td class="{fileDataClass} italic font-mono text-xs">
+                    {file.title}.{file.extension}
+                  </td>
                   <td class="{fileDataClass} hidden md:table-cell text-left">{file.description}</td>
                   <td class="{fileDataClass} hidden md:table-cell text-center">{helpers.numBytesToString(file.size_b)}</td>
                   <td class="{fileDataClass} w-[1%] text-center">

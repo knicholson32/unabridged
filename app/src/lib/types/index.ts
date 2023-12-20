@@ -47,7 +47,8 @@ export type SideMenu = {
     elements: LinkMenuItem[],
     button?: {
         iconPath: string,
-        href: string
+        href: string,
+        usePost?: boolean
     }
 }
 
@@ -70,6 +71,15 @@ export type ProfileMenuEntryWithID = {
 
 export type ProfileMenu = (ProfileMenuEntry[])[];
 export type ProfileMenuWithID = (ProfileMenuEntryWithID[])[];
+
+
+// -------------------------------------------------------------------------------------------------
+// DB Source Types
+// -------------------------------------------------------------------------------------------------
+
+export enum SourceType {
+    AUDIBLE = 'audible'
+}
 
 // -------------------------------------------------------------------------------------------------
 // Notifications / Alerts

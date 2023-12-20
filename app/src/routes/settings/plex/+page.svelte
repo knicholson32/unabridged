@@ -29,6 +29,7 @@
   let plexIntegrationUnsavedChanges = false;
   let plexEnable = data.settingValues['plex.enable'];
   let plexAddress = data.settingValues['plex.address'] + '/';
+  if (plexAddress === '/') plexAddress = '';
   let token = data.settingValues['plex.token'];
   let library = data.settingValues['plex.library.id'];
 

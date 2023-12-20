@@ -17,10 +17,10 @@
       series: true,
       narrators: true,
       cover: true,
-      profiles: {
+      sources: {
         select: {
-          first_name: true,
-          last_name: true,
+          name: true,
+          type: true,
           profile_image_url: true,
           id: true
         }
@@ -123,8 +123,8 @@
   </td>
   <td class="{tableXPadding} py-2 text-sm whitespace-nowrap text-center">
     <div class="flex items-center justify-center">
-      {#each book.profiles as profile}
-        <a href="/accounts/{profile.id}" class="object-cover w-6 h-6 -mx-1 border-2 border-white rounded-full overflow-hidden dark:border-gray-700 shrink-0"><img src="{profile.profile_image_url}/56" alt="" /></a>
+      {#each book.sources as source}
+        <a href="/sources/{source.id}" class="object-cover w-6 h-6 -mx-1 border-2 border-white rounded-full overflow-hidden dark:border-gray-700 shrink-0"><img src="{source.profile_image_url}/56" alt="" /></a>
       {/each}
       <!-- <img class="object-cover w-6 h-6 -mx-1 border-2 border-white rounded-full dark:border-gray-700 shrink-0" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=256&q=80" alt="" />
       <img class="object-cover w-6 h-6 -mx-1 border-2 border-white rounded-full dark:border-gray-700 shrink-0" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=256&q=80" alt="" />

@@ -36,7 +36,7 @@
     }
   }
   $:{
-    if (browser && form?.invalidate && data.profile.profile_image_url) {
+    if (browser && form?.invalidate && data.source.profile_image_url) {
       form.invalidate = false;
       console.log('INVALIDATE');
       invalidate('/');
@@ -129,7 +129,7 @@
   let syncingProgress = 0;
   let profileSyncing = false;
 
-  onMount(() => events.onProgress('basic.account.sync', data.profile.id, (data) => {
+  onMount(() => events.onProgress('basic.account.sync', data.source.id, (data) => {
     if (data.t === Event.Progress.Basic.Stage.START) {
       profileSyncing = true;
       syncingProgress = 0;
@@ -178,27 +178,25 @@
   // -----------------------------------------------------------------------------------------------
 
   let profile_picture: HTMLImageElement;
-  let first_name: string;
-  let last_name: string;
+  let name: string = data.source.name;
   let email: string;
   let country: HTMLSelectElement;
   let description: string;
   let profileSubmitting: boolean = false;
   let profileDeleting: boolean = false;
   let profileSync: Submit;
-  let profileAutoSync = data.profile.auto_sync;
+  let profileAutoSync = data.source.auto_sync;
 
-  let lastSyncPretty = data.profile.last_sync === null ? 'Never' : intlFormatDistance(new Date(data.profile.last_sync * 1000), new Date());
-  let lastSyncSpecific = data.profile.last_sync === null ? 'Never' : toISOStringTZ(data.profile.last_sync * 1000, data.tz);
+  let lastSyncPretty = data.source.last_sync === null ? 'Never' : intlFormatDistance(new Date(data.source.last_sync * 1000), new Date());
+  let lastSyncSpecific = data.source.last_sync === null ? 'Never' : toISOStringTZ(data.source.last_sync * 1000, data.tz);
   setInterval(() => {
-    lastSyncPretty = data.profile.last_sync === null ? 'Never' : intlFormatDistance(new Date(data.profile.last_sync * 1000), new Date());
+    lastSyncPretty = data.source.last_sync === null ? 'Never' : intlFormatDistance(new Date(data.source.last_sync * 1000), new Date());
   }, 1000);
 
   const resetProfileDataForm = () => {
-    first_name = '';
-    last_name = '';
+    name = '';
     email = '';
-    country.selectedIndex = countryCodes.findIndex(code => code.code === data.profile.locale_code);
+    country.selectedIndex = countryCodes.findIndex(code => code.code === data.source.audible?.locale_code);
     description = '';
   }
 
@@ -284,7 +282,7 @@
     num_downloaded = 0;
     total_run_time_min = 0;
     downloaded_run_time_min = 0;
-    for (const book of data.profile.books) {
+    for (const book of data.source.books) {
       if (book.downloaded) {
         num_downloaded += 1;
         downloaded_run_time_min += (book.runtime_length_min ?? 0);
@@ -317,7 +315,7 @@
           <svg class="h-full w-6 flex-shrink-0 text-gray-200" viewBox="0 0 24 44" preserveAspectRatio="none" fill="currentColor" aria-hidden="true">
             <path d="M.293 0l22 22-22 22h1.414l22-22-22-22H.293z" />
           </svg>
-          <a href="/accounts" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700">Accounts</a>
+          <a href="/sources" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700">Sources</a>
         </div>
       </li>
       <li class="flex">
@@ -325,7 +323,7 @@
           <svg class="h-full w-6 flex-shrink-0 text-gray-200" viewBox="0 0 24 44" preserveAspectRatio="none" fill="currentColor" aria-hidden="true">
             <path d="M.293 0l22 22-22 22h1.414l22-22-22-22H.293z" />
           </svg>
-          <a href="/accounts/{data.profile.id}" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700" aria-current="page">{data.profile.first_name}'s Account</a>
+          <a href="/sources/audible/{data.source.id}" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700" aria-current="page">{data.source.name}</a>
         </div>
       </li>
     </ol>
@@ -334,7 +332,7 @@
   <div class="overflow-hidden relative w-full h-60 md:h-36">
     <div class="absolute left-0 right-0 top-0 bottom-0">
       <div class="absolute -left-6 grid grid-rows-5 md:grid-rows-3 grid-flow-col">
-        {#each data.profile.books as book}
+        {#each data.source.books as book}
           <div class="h-12 w-12">
             <img class=" bg-gray-300" src="{book.cover?.url_50}" alt="">
           </div>
@@ -345,12 +343,14 @@
     <div class="absolute left-0 right-0 top-0 bottom-0 flex items-center justify-between space-x-6 p-6">
       <div class="flex-1 truncate">
         <div class="flex items-center space-x-3">
-          <h3 class="truncate text-lg md:text-base font-semibold leading-6 text-white">{data.profile.first_name} {data.profile.last_name}</h3>
+          <h3 class="truncate text-lg md:text-base font-semibold leading-6 text-white">{data.source.name}</h3>
           <span class="inline-flex flex-shrink-0 items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Audible</span>
         </div>
-        <p class="mt-1 truncate text-sm text-gray-500">{data.profile.email}</p>
+        {#if data.source.audible?.email !== undefined}
+          <p class="mt-1 truncate text-sm text-gray-500">{data.source.audible?.email}</p>
+        {/if}
       </div>
-      <img class="h-20 w-20 md:h-10 md:w-10 flex-shrink-0 rounded-full bg-gray-100" src="{data.profile.profile_image_url}/128" alt="">
+      <img class="h-20 w-20 md:h-10 md:w-10 flex-shrink-0 rounded-full bg-gray-100" src="{data.source.profile_image_url}/128" alt="">
     </div>
   </div>
 
@@ -382,7 +382,7 @@
               </p>
             </dt>
             <dd class="ml-16 flex items-baseline pb-6 sm:pb-7">
-              <p class="text-2xl font-semibold text-gray-900"><Number value={data.profile.books.length}/> Books</p>
+              <p class="text-2xl font-semibold text-gray-900"><Number value={data.source.books.length}/> Books</p>
               <p class="ml-2 flex items-baseline text-sm font-semibold text-gray-400">
                 <Number value={total.hours}/>hr
               </p>
@@ -396,7 +396,7 @@
                           update();
                       };
                   }}>
-                    <Switch title={'Auto Sync'} value={data.profile.auto_sync} type={'submit'} valueName={'auto-sync'}/>
+                    <Switch title={'Auto Sync'} value={data.source.auto_sync} type={'submit'} valueName={'auto-sync'}/>
                   </form>
                   <form class="pl-3" method="POST" action="?/sync" use:enhance={() => {
                       profileSyncing = true;
@@ -426,9 +426,9 @@
             <dd class="ml-16 flex items-baseline pb-6 sm:pb-7">
               <p class="text-2xl font-semibold text-gray-900">{num_downloaded}</p>
               <p class="ml-2 flex items-baseline text-sm font-semibold text-gray-400">
-                of {data.profile.books.length}
+                of {data.source.books.length}
                 <span class="inline-flex ml-2 text-xs items-baseline rounded-full px-2.5 py-0.5 font-medium bg-green-100 text-green-800 md:mt-2 lg:mt-0">
-                  {(num_downloaded * 100 / data.profile.books.length).toPrecision(2)}%
+                  {(num_downloaded * 100 / data.source.books.length).toPrecision(2)}%
                 </span>
               </p>
               <div class="absolute inset-x-0 bottom-0 bg-gray-50 px-4 py-4 sm:px-6">
@@ -465,29 +465,22 @@
                   <!-- <svg class="h-12 w-12 text-gray-300" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path fill-rule="evenodd" d="M18.685 19.097A9.723 9.723 0 0021.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 003.065 7.097A9.716 9.716 0 0012 21.75a9.716 9.716 0 006.685-2.653zm-12.54-1.285A7.486 7.486 0 0112 15a7.486 7.486 0 015.855 2.812A8.224 8.224 0 0112 20.25a8.224 8.224 0 01-5.855-2.438zM15.75 9a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" clip-rule="evenodd" />
                   </svg> -->
-                  <img bind:this={profile_picture} src="{data.profile.profile_image_url}/128" class="h-24 w-24 rounded-full" alt="Profile picture for {data.profile.first_name + ' ' + data.profile.last_name}">
+                  <img bind:this={profile_picture} src="{data.source.profile_image_url}/128" class="h-24 w-24 rounded-full" alt="Profile picture for {data.source.name} - {data.source.audible?.email}">
                   <button on:click={openProfilePictureDialog} type="button" class="rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Change</button>
                 </div>
               </div>
 
               <div class="sm:col-span-3">
-                <label for="first-name" class="block text-sm font-medium leading-6 text-gray-900">First name</label>
+                <label for="name" class="block text-sm font-medium leading-6 text-gray-900">Account Name</label>
                 <div class="mt-2">
-                  <input bind:value={first_name} type="text" name="first-name" id="first-name" autocomplete="given-name" placeholder="{data.profile.first_name}" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
-                </div>
-              </div>
-
-              <div class="sm:col-span-3">
-                <label for="last-name" class="block text-sm font-medium leading-6 text-gray-900">Last name</label>
-                <div class="mt-2">
-                  <input bind:value={last_name} type="text" name="last-name" id="last-name" autocomplete="family-name" placeholder="{data.profile.last_name}" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                  <input bind:value={name} type="text" name="name" id="name" autocomplete="given-name" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
                 </div>
               </div>
 
               <div class="sm:col-span-4">
                 <label for="email" class="block text-sm font-medium leading-6 text-gray-900">Email address</label>
                 <div class="mt-2">
-                  <input bind:value={email} id="email" name="email" type="email" autocomplete="email" placeholder="{data.profile.email}" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                  <input value={data.source.audible?.email ?? 'unset'} id="email" name="disabled" type="email" disabled autocomplete="email" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
                 </div>
               </div>
 
@@ -497,7 +490,7 @@
                   <select bind:this={country} id="country" name="country" autocomplete="country-name" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:max-w-xs sm:text-sm sm:leading-6">
                     <!-- <option value="" disabled>{countryCodes.find(code => code.code === data.profile.locale_code)?.name}</option> -->
                     {#each countryCodes as code}
-                      <option value="{code.code}" selected={data.profile.locale_code === code.code}>{code.name}</option>
+                      <option value="{code.code}" selected={data.source.audible?.locale_code === code.code}>{code.name}</option>
                     {/each}
                   </select>
                 </div>
@@ -506,7 +499,7 @@
               <div class="col-span-full">
                 <label for="about" class="block text-sm font-medium leading-6 text-gray-900">About</label>
                 <div class="mt-2">
-                  <textarea bind:value={description} placeholder="{data.profile.description}" id="about" name="about" rows="3" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"></textarea>
+                  <textarea bind:value={description} placeholder="{data.source.description}" id="about" name="about" rows="3" class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"></textarea>
                 </div>
                 <p class="mt-3 text-sm leading-6 text-gray-600">Write some details about this account</p>
               </div>
@@ -590,7 +583,7 @@
               <div class="px-4 pt-2 pb-5 sm:p-6 ">
                 <div class="flex items-center space-x-3">
                   <div class="shrink-0">
-                    <img bind:this={profilePicturePreview} class="h-20 w-20 object-cover rounded-full" src="{data.profile.profile_image_url}/128" alt="Current profile" />
+                    <img bind:this={profilePicturePreview} class="h-20 w-20 object-cover rounded-full" src="{data.source.profile_image_url}/128" alt="Current profile" />
                   </div>
                   <label class="block">
                     <span class="sr-only">Choose profile photo</span>
@@ -673,7 +666,7 @@
                           update();
                       };
                   }}>
-                <input name="id" value="{data.profile.id}" type="hidden">
+                <input name="id" value="{data.source.id}" type="hidden">
                 <!-- <button class="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto">Delete</button> -->
                 <Submit bind:this={profileSync} theme={{primary: 'red'}}  class="w-full justify-center rounded-md sm:ml-3 sm:w-auto" submitting={profileDeleting} actionText={"Delete"} actionTextInProgress={"Deleting"}/>
               </form>

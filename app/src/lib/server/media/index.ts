@@ -16,7 +16,7 @@ export type Media = Prisma.MediaGetPayload<{}>;
  * @param title the title of the file to save (optional)
  * @returns the ID of the saved file
  */
-export const saveFile = async (srcPath: string, asin: string, options?: { description?: string, title?: string, noCopy?: boolean }): Promise<string> => {
+export const saveFile = async (srcPath: string, asin: string, sourceId: string, options?: { description?: string, title?: string, noCopy?: boolean }): Promise<string> => {
   // Create an ID for this file
   const id = uuidv4();
 
@@ -58,6 +58,7 @@ export const saveFile = async (srcPath: string, asin: string, options?: { descri
       extension,
       title: options.title,
       data,
+      sourceId,
       path: options.noCopy === true ? srcPath : undefined,
       size_b: stat.size,
       description: options.description,

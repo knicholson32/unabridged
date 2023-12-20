@@ -269,7 +269,7 @@ export const getMany = async <T extends TypeName>(...settings: T[]): Promise<{ [
 
   // Return the settings
   return results;
-}
+};
 
 /**
  * Set a setting in the database

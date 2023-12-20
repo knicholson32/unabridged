@@ -11,24 +11,31 @@ export const load = async ({ params }) => {
   if (asin === null || asin === undefined) throw error(404, 'Not found');
 
   // Get the profile from the database
-  const book = await prisma.book.findUnique({ where: { asin }, include: { 
-    authors: true,
-    narrators: true,
-    genres: true,
-    series: true,
-    profiles: true,
-    cover: true,
-    media: {
-      select: {
-        id: true,
-        extension: true,
-        title: true,
-        size_b: true,
-        description: true
-      }
-    },
-    chapters: true
-  }});
+  const book = await prisma.book.findUnique({ where: { asin }, 
+    include: { 
+      authors: true,
+      narrators: true,
+      genres: true,
+      series: true,
+      sources: {
+        include: {
+          audible: true
+        }
+      },
+      cover: true,
+      chapters: true,
+      media: {
+        select: {
+          id: true,
+          extension: true,
+          title: true,
+          size_b: true,
+          description: true,
+          source: true
+        }
+      },
+    }
+  });
 
   // Return if the profile was not found
   if (book === null || book === undefined) throw error(404, 'Not found');
@@ -57,16 +64,7 @@ export const actions = {
     if (asin === null || asin === undefined) throw error(404, 'Not found');
 
     // Get the profile from the database
-    const book = await prisma.book.findUnique({
-      where: { asin }, include: {
-        authors: true,
-        narrators: true,
-        genres: true,
-        series: true,
-        profiles: true,
-        cover: true
-      }
-    });
+    const book = await prisma.book.findUnique({ where: { asin } });
 
     // Return if the profile was not found
     if (book === null || book === undefined) throw error(404, 'Not found');

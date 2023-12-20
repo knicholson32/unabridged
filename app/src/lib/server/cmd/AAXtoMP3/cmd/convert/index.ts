@@ -7,7 +7,7 @@ import * as media from '$lib/server/media';
 import { AAXtoMP3_COMMAND } from '$lib/server/env';
 import { ConversionError } from '../../types';
 import { sanitizeFile } from '$lib/server/helpers';
-import { Event } from '$lib/types';
+import { Event, SourceType } from '$lib/types';
 import { round } from '$lib/helpers';
 
 // --------------------------------------------------------------------------------------------
@@ -34,12 +34,21 @@ export const cancel = async (asin: string): Promise<boolean> => {
 // Download Functions
 // --------------------------------------------------------------------------------------------
 
-export const exec = async (asin: string, processID: string, tmpDir: string): Promise<ConversionError> => {
+export const exec = async (asin: string, sourceId: string, processID: string, tmpDir: string): Promise<ConversionError> => {
+
   // Get the book from the DB
   const book = await prisma.book.findUnique({
-    where: { asin },
+    where: { asin: asin },
     include: {
-      profiles: true,
+      sources: {
+        where: {
+          NOT: { audible: null },
+          type: SourceType.AUDIBLE
+        },
+        include: {
+          audible: true
+        }
+      },
       authors: true,
       cover: true
     }
@@ -47,23 +56,25 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
 
   // Check that the book exists and that there is a profile
   if (book === null) return ConversionError.BOOK_NOT_FOUND;
-  if (book.profiles.length === 0) return ConversionError.NO_PROFILE;
+  if (book.sources.length === 0) return ConversionError.NO_PROFILE;
 
   // Create the temp folder
   if (!fs.existsSync(tmpDir)) return ConversionError.NO_FOLDER;
 
   let authCode: string | undefined = undefined;
-  let profileID: string | undefined = undefined;
-  for (const profile of book.profiles) {
-    if (profile.activation_bytes !== null) {
-      authCode = profile.activation_bytes;
-      profileID = profile.id
-      break;
+  let cli_id: string | undefined = undefined;
+  for (const source of book.sources) {
+    if (source.type === SourceType.AUDIBLE && source.audible !== null) {
+      if (source.audible.activation_bytes !== null) {
+        authCode = source.audible.activation_bytes;
+        cli_id = source.audible.cli_id
+        break;
+      }
     }
   }
 
   // Exit if no authcode
-  if (authCode === undefined || profileID === undefined) return ConversionError.NO_PROFILE_WITH_AUTHCODE;
+  if (authCode === undefined || cli_id === undefined) return ConversionError.NO_PROFILE_WITH_AUTHCODE;
 
   const LIBRARY_FOLDER = await settings.get('library.location');
 
@@ -97,7 +108,7 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
   // AAXtoMP3 -e:m4b -s --author "Martha Wells" --authcode 4165af03 --dir-naming-scheme '$artist/$title' --file-naming-scheme '$title' --use-audible-cli-data -t /app/db/export ./*.aaxc
   // '--debug', `--audible-cli-library-file`, `"/db/audible/${profileID}.library.tsv"`
   // TODO: Save the directory and filename so we can just save them to the DB to make deleting books easier
-  const args = ['-e:m4b', `-L`, `/db/audible/${profileID}.library.tsv`, '-s', '--skip-dir-checks', '--author', `"${book.authors[0].name}"`, '--title', `"${book.title}"`, '--authcode', authCode, '--dir-naming-scheme', `'"${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}"'`, '--file-naming-scheme', `'"${sanitizeFile(book.title)}"'`, '--use-audible-cli-data', '-t', LIBRARY_FOLDER, './*.aaxc']
+  const args = ['-e:m4b', `-L`, `/db/audible/${cli_id}.library.tsv`, '-s', '--skip-dir-checks', '--author', `"${book.authors[0].name}"`, '--title', `"${book.title}"`, '--authcode', authCode, '--dir-naming-scheme', `'"${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}"'`, '--file-naming-scheme', `'"${sanitizeFile(book.title)}"'`, '--use-audible-cli-data', '-t', LIBRARY_FOLDER, './*.aaxc']
   // Check if we should use debug mode
   if (await settings.get('system.debug') > 0) args.unshift('--debug');
   console.log(`${AAXtoMP3_COMMAND} ${args.join(' ')}`);
@@ -210,7 +221,7 @@ export const exec = async (asin: string, processID: string, tmpDir: string): Pro
   if (results === ConversionError.NO_ERROR) {
     try {
       // Add the converted file to the media attachments
-      await media.saveFile(`${destinationFolder}/${sanitizeFile(book.title)}.m4b`, book.asin, {
+      await media.saveFile(`${destinationFolder}/${sanitizeFile(book.title)}.m4b`, book.asin, sourceId, {
         description: 'Playable audio book file',
         title: book.title,
         noCopy: true,

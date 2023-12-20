@@ -5,7 +5,7 @@
   import { intlFormatDistance } from 'date-fns'
   import * as events from '$lib/events';
   import type { ActionData } from './$types.js';
-	import { type GenerateAlert, Event } from '$lib/types';
+	import { type GenerateAlert, Event, SourceType } from '$lib/types';
 	import { getContext, onMount } from 'svelte';
 	import { Submit } from '$lib/components/buttons';
   import { Bullet, LoadingCircle } from '$lib/components/decorations';
@@ -35,6 +35,7 @@
   let profileAdding = false;
   let linkClicked = false;
   let linkedPasted = false;
+  let namedSource = false;
   let cancelProfileAddButton: Submit;
   let ownershipCheckbox: HTMLInputElement;
   let nosharingCheckbox: HTMLInputElement;
@@ -45,8 +46,15 @@
 
   let cancelAdd: () => void;
 
+  let progresses: {[key: string]: { spin: boolean, value: number }} = {};
+  for (const s of data.sources) progresses[s.id] = { spin: false, value: 0 };
+
   $: {
     if (form !== undefined && form !== null) {
+
+      progresses = {};
+      for (const s of data.sources) progresses[s.id] = { spin: false, value: 0 };
+
       if (form.success === true) {
         if (form.response === 'add') {
           openAddProfileDialog();
@@ -112,9 +120,6 @@
     };
   };
 
-  let progresses: {[key: string]: { spin: boolean, value: number }} = {};
-  for (const p of data.profiles) progresses[p.id] = { spin: false, value: 0 };
-
   onMount(() => {
     return events.onProgress('basic.account.sync', null, (id, data) => {
       if (progresses[id] === undefined) progresses[id] = { spin: false, value: 0 };
@@ -177,20 +182,23 @@
   </dialog> -->
 
   <ul role="list" class="divide-y divide-gray-100 overflow-hidden bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-    {#each {length: data.profiles.length} as _, i}
+    {#each {length: data.sources.length} as _, i}
       <li class="relative flex justify-between gap-x-6 px-4 py-5 hover:bg-gray-50 sm:px-6">
         <div class="flex min-w-0 gap-x-4">
-          <img class="h-12 w-12 flex-none rounded-full bg-gray-50" src="{data.profiles[i].profile_image_url}" alt="{data.profiles[i].first_name} {data.profiles[i].last_name}">
+          <img class="h-12 w-12 flex-none rounded-full bg-gray-50" src="{data.sources[i].profile_image_url}" alt="{data.sources[i].name}">
           <div class="min-w-0 flex-auto">
             <p class="text-sm font-semibold leading-6 text-gray-900">
-              <a href="/accounts/{data.profiles[i].id}">
+              <a href="/sources/{data.sources[i].id}">
                 <span class="absolute inset-x-0 -top-px bottom-0"></span>
-                {data.profiles[i].first_name + ' ' + data.profiles[i].last_name}
+                {data.sources[i].name}
+                {#if data.sources[i].type === SourceType.AUDIBLE}
+                  <span class="inline-flex flex-shrink-0 items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Audible</span>
+                {/if}
               </a>
             </p>
-            <p class="mt-1 flex text-xs leading-5 text-gray-500">
-              <a href="mailto:{data.profiles[i].email}" class="relative truncate hover:underline">{data.profiles[i].email}</a>
-            </p>
+            <!-- <p class="mt-1 flex text-xs leading-5 text-gray-500">
+              <a href="mailto:{data.sources[i].email}" class="relative truncate hover:underline">{data.sources[i].email}</a>
+            </p> -->
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-x-4">
@@ -201,11 +209,11 @@
             <p class="text-xs leading-5 text-gray-500">Online</p>
           </div> -->
           <div class="hidden sm:flex sm:flex-col sm:items-end">
-            <p class="text-sm leading-6 text-gray-900">{data.profiles[i].num_downloaded} / {data.profiles[i].num_books}<span class="text-xs leading-5 text-gray-500 pl-1">in library</span></p>
-            {#if data.profiles[i].last_sync === null}
+            <p class="text-sm leading-6 text-gray-900">{data.sources[i].num_downloaded} / {data.sources[i].num_books}<span class="text-xs leading-5 text-gray-500 pl-1">in library</span></p>
+            {#if data.sources[i].last_sync === null}
               <p class="mt-1 text-xs leading-5 text-gray-500">Never synced</p>
             {:else}
-            <p class="mt-1 text-xs leading-5 text-gray-500">Synced <time datetime="{new Date((data.profiles[i].last_sync ?? 0) * 1000).toISOString()}">{intlFormatDistance(new Date((data.profiles[i].last_sync ?? 0) * 1000), new Date())}</time></p>
+            <p class="mt-1 text-xs leading-5 text-gray-500">Synced <time datetime="{new Date((data.sources[i].last_sync ?? 0) * 1000).toISOString()}">{intlFormatDistance(new Date((data.sources[i].last_sync ?? 0) * 1000), new Date())}</time></p>
             {/if}
           </div>
           
@@ -214,7 +222,7 @@
           </svg>
         </div>
       </li>
-      <LoadingCircle progress={progresses[data.profiles[i].id].value} spin={progresses[data.profiles[i].id].spin} />
+      <LoadingCircle progress={progresses[data.sources[i].id].value} spin={progresses[data.sources[i].id].spin} />
     {/each}
   </ul>
 
@@ -278,7 +286,7 @@
                   <h3 class="text-lg font-semibold leading-6 text-gray-900" id="modal-title">Add an Audible account</h3>
                 </div>
               </div>
-              <div class="mt-5 text-center sm:mx-4 sm:text-left select-none">
+              <div class="mt-5 text-center sm:text-left select-none">
                 <fieldset>
                   <legend class="text-base font-semibold leading-7 text-gray-900">Instructions</legend>
                   <p class="truncate text-sm text-gray-500">Please read and understand the following steps</p>
@@ -291,7 +299,7 @@
                       </div>
                     </div>
                   </div>
-                  <div class="mt-2 sm:mx-4 block">
+                  <div class="mt-2 block">
                     <input type="hidden" name="url" value={form?.url}/>
                     <a on:click={() => linkClicked = true} href="{form?.url}" target="_blank" class="inline-flex rounded-md bg-white w-full h-9 max-w-sm items-center px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                       <p class="shrink-0">Sign In</p>
@@ -311,7 +319,7 @@
                       </div>
                     </div>
                   </div>
-                  <div class="text-center sm:mx-4 sm:text-left">
+                  <div class="text-center sm:text-left">
                     <div class="relative mt-2 rounded-md shadow-sm">
                       <div class="pointer-events-none absolute inset-y-0 left-0 max-w-sm flex items-center pl-3">
                         <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -324,7 +332,25 @@
                   </div>
                   <div class="space-y-5 mt-4 select-none">
                     <div class="relative flex items-center">
-                      <Bullet value={3} done={acknowledgedItems}/>
+                      <Bullet value={3} done={namedSource}/>
+                      <div class="ml-3 text-sm leading-6 text-gray-500 text-justify sm:text-left">
+                        <span class="font-medium text-gray-900">Name</span> this source
+                      </div>
+                    </div>
+                  </div>
+                  <div class="text-center sm:text-left">
+                    <div class="relative mt-2 rounded-md shadow-sm">
+                      <div class="pointer-events-none absolute inset-y-0 left-0 max-w-sm flex items-center pl-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" data-slot="icon" class="w-5 h-5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                      </div>
+                      <input on:input={() => namedSource = true} type="name" name="name" id="name" class="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" placeholder="My Audible Account">
+                    </div>
+                  </div>
+                  <div class="space-y-5 mt-4 select-none">
+                    <div class="relative flex items-center">
+                      <Bullet value={4} done={acknowledgedItems}/>
                       <div class="ml-3 text-sm leading-6 text-gray-500 text-justify sm:text-left">
                         <span class="font-medium text-gray-900">Acknowledge</span> the required items
                       </div>

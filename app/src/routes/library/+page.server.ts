@@ -63,10 +63,10 @@ export async function load({ url, depends }) {
       series: true,
       narrators: true,
       cover: true,
-      profiles: {
+      sources: {
         select: {
-          first_name: true,
-          last_name: true,
+          name: true,
+          type: true,
           profile_image_url: true,
           id: true
         }
@@ -74,7 +74,7 @@ export async function load({ url, depends }) {
     }
   }>;
 
-  const profiles = await prisma.profile.findMany();
+  const sources = await prisma.source.findMany();
   const singleBooks = await prisma.book.findMany({
     where: {
       series: null
@@ -85,10 +85,10 @@ export async function load({ url, depends }) {
       series: true,
       narrators: true,
       cover: true,
-      profiles: {
+      sources: {
         select: {
-          first_name: true,
-          last_name: true,
+          name: true,
+          type: true,
           profile_image_url: true,
           id: true
         }
@@ -140,10 +140,10 @@ export async function load({ url, depends }) {
             series: true,
             narrators: true,
             cover: true,
-            profiles: {
+            sources: {
               select: {
-                first_name: true,
-                last_name: true,
+                type: true,
+                name: true,
                 profile_image_url: true,
                 id: true
               }
@@ -264,7 +264,7 @@ export async function load({ url, depends }) {
       page: params.page,
       series: seriesExport.slice(start, end),
       singleBooks,
-      profiles,
+      sources,
       autoSubmit
     };
   } else if (params.group === 'author') {
@@ -277,10 +277,10 @@ export async function load({ url, depends }) {
             series: true,
             narrators: true,
             cover: true,
-            profiles: {
+            sources: {
               select: {
-                first_name: true,
-                last_name: true,
+                name: true,
+                type: true,
                 profile_image_url: true,
                 id: true
               }
@@ -314,7 +314,7 @@ export async function load({ url, depends }) {
       page: params.page,
       authors: authors.slice(start, end),
       singleBooks,
-      profiles,
+      sources,
       autoSubmit
     };
   } else if (params.group === 'narrator') {
@@ -327,10 +327,10 @@ export async function load({ url, depends }) {
             series: true,
             narrators: true,
             cover: true,
-            profiles: {
+            sources: {
               select: {
-                first_name: true,
-                last_name: true,
+                name: true,
+                type: true,
                 profile_image_url: true,
                 id: true
               }
@@ -364,7 +364,7 @@ export async function load({ url, depends }) {
       page: params.page,
       authors: narrators.slice(start, end),
       singleBooks,
-      profiles,
+      sources,
       autoSubmit
     };
   }
@@ -373,7 +373,7 @@ export async function load({ url, depends }) {
     bookCount,
     pages: 0,
     singleBooks,
-    profiles,
+    sources,
     autoSubmit
   };
 }

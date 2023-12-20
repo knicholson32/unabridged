@@ -4,31 +4,35 @@ import * as audible from '$lib/server/cmd/audible';
 import type { SideMenu, LinkMenuItem } from '$lib/types/';
 import * as helpers from '$lib/helpers';
 import { redirect } from '@sveltejs/kit';
-import type { Redirect } from '@sveltejs/kit';
 import { ProfileCreationError, profileCreationErrorToMessage } from '$lib/server/cmd/audible/types';
 import { saveGoogleAPIDetails } from '$lib/server/lookup';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ }) {
-    const profilesAndBooks = await prisma.profile.findMany({
+    // TODO: This might be possible with a fancy count call
+    const sourcesAndBooks = await prisma.source.findMany({
         include: {
-            books: true
+            books: {
+                select: {
+                    downloaded: true
+                }
+            }
         }
     });
     
-    const profiles = await prisma.profile.findMany() as (Types.Prisma.ProfileGetPayload<{}> & { num_books: number, num_downloaded: number })[];
+    const sources = await prisma.source.findMany() as (Types.Prisma.SourceGetPayload<{}> & { num_books: number, num_downloaded: number })[];
 
-    for (let i = 0; i < profiles.length; i++) {
-        profiles[i].num_books = profilesAndBooks[i].books.length;
-        profiles[i].num_downloaded = 0;
-        for (const book of profilesAndBooks[i].books) {
+    for (let i = 0; i < sources.length; i++) {
+        sources[i].num_books = sourcesAndBooks[i].books.length;
+        sources[i].num_downloaded = 0;
+        for (const book of sourcesAndBooks[i].books) {
             if (book.downloaded) {
-                profiles[i].num_downloaded += 1;
+                sources[i].num_downloaded += 1;
             }
         }
     }
     return { 
-        profiles
+        sources
     };
 }
 
@@ -51,6 +55,7 @@ export const actions = {
         
         const data = await request.formData();
         const url = data.get('url') as string;
+        const name = data.get('name') as string;
         const urlresponse = data.get('urlresponse') as string;
         const ownership = data.get('ownership') as string;
         const nosharing = data.get('nosharing') as string;
@@ -58,35 +63,28 @@ export const actions = {
         if (urlresponse !== null && ownership !== null && nosharing !== null) {
 
             if (!helpers.validateURL(urlresponse)) {
-                await new Promise<void>((resolve) => setTimeout(resolve, 1000));
                 return { success: false, response: 'urlresponse', url, message: 'Invalid URL' };
             }
 
-            const results = audible.cmd.profile.submitURL(urlresponse);
-            let e: ProfileCreationError;
+            let results;
+
             try {
-                e = await results.e;
+                results = await audible.cmd.profile.submitURL(urlresponse, name);
             } catch (e) {
+                console.log('e2', e);
                 return { success: false, response: 'urlresponse', fatal: true, message: profileCreationErrorToMessage(e as ProfileCreationError) };
             }
-            await new Promise<void>((resolve) => setTimeout(resolve, 1000));
-            if (e === ProfileCreationError.NO_ERROR) {
-                throw redirect(301, '/accounts/' + results.id);
+
+            if (results.e === ProfileCreationError.NO_ERROR) {
+                throw redirect(301, '/sources/' + results.id);
             } else {
-                console.log('e1', e);
-                return { success: false, response: 'urlresponse', fatal: true, message: profileCreationErrorToMessage(e) };
-            }
+                console.log('e1', results.e);
+                return { success: false, response: 'urlresponse', fatal: true, message: profileCreationErrorToMessage(results.e) };
+            }   
             
         } else {
             await new Promise<void>((resolve) => setTimeout(resolve, 1000));
             return { success: false, response: 'urlresponse', url, message: 'All acknowledgements must be checked' };
         }
-        
-
-        // const url = data.get('url') as string;
-        // console.log(url);
-        // const success = await audible.cmd.profile.submitURL(url)
-        // console.log(success);
-        // return { success: false, response: 'urlresponse', };
     }
 };

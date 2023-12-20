@@ -14,19 +14,28 @@ CREATE TABLE "notifications" (
 );
 
 -- CreateTable
-CREATE TABLE "accounts" (
+CREATE TABLE "sources" (
     "id" TEXT NOT NULL PRIMARY KEY,
-    "email" TEXT,
-    "amazon_acct" TEXT,
-    "first_name" TEXT,
-    "last_name" TEXT,
+    "name" TEXT NOT NULL DEFAULT 'Audible',
     "description" TEXT,
-    "profile_image_url" TEXT,
+    "type" TEXT NOT NULL DEFAULT 'audible',
+    "auto_sync" BOOLEAN NOT NULL,
     "last_sync" INTEGER,
     "added_date" INTEGER NOT NULL,
+    "profile_image_url" TEXT,
+    "connected" BOOLEAN NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "audibleAccounts" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "email" TEXT,
+    "cli_id" TEXT NOT NULL,
+    "first_name" TEXT,
+    "last_name" TEXT,
     "locale_code" TEXT NOT NULL,
-    "auto_sync" BOOLEAN NOT NULL,
-    "activation_bytes" TEXT
+    "activation_bytes" TEXT,
+    CONSTRAINT "audibleAccounts_id_fkey" FOREIGN KEY ("id") REFERENCES "sources" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -38,12 +47,13 @@ CREATE TABLE "images" (
     "i256" BLOB NOT NULL,
     "i128" BLOB NOT NULL,
     "i56" BLOB NOT NULL,
-    CONSTRAINT "images_id_fkey" FOREIGN KEY ("id") REFERENCES "accounts" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "images_id_fkey" FOREIGN KEY ("id") REFERENCES "sources" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "authors" (
-    "name" TEXT NOT NULL PRIMARY KEY
+    "name" TEXT NOT NULL PRIMARY KEY,
+    "plexKey" TEXT
 );
 
 -- CreateTable
@@ -59,7 +69,8 @@ CREATE TABLE "genres" (
 -- CreateTable
 CREATE TABLE "series" (
     "id" TEXT NOT NULL PRIMARY KEY,
-    "title" TEXT NOT NULL
+    "title" TEXT NOT NULL,
+    "plexKey" TEXT
 );
 
 -- CreateTable
@@ -68,6 +79,7 @@ CREATE TABLE "books" (
     "google_api_id" TEXT,
     "title" TEXT NOT NULL,
     "subtitle" TEXT,
+    "plexKey" TEXT,
     "series_sequence" INTEGER,
     "runtime_length_min" INTEGER,
     "rating" DECIMAL NOT NULL,
@@ -112,16 +124,18 @@ CREATE TABLE "media" (
     "description" TEXT,
     "extension" TEXT NOT NULL,
     "title" TEXT NOT NULL,
-    "size_b" INTEGER NOT NULL,
-    CONSTRAINT "media_bookAsin_fkey" FOREIGN KEY ("bookAsin") REFERENCES "books" ("asin") ON DELETE CASCADE ON UPDATE CASCADE
+    "size_b" BIGINT NOT NULL,
+    "sourceId" TEXT NOT NULL,
+    CONSTRAINT "media_bookAsin_fkey" FOREIGN KEY ("bookAsin") REFERENCES "books" ("asin") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "media_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "sources" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
-CREATE TABLE "Branding" (
+CREATE TABLE "branding" (
     "asin" TEXT NOT NULL PRIMARY KEY,
     "intro_duration_ms" INTEGER NOT NULL,
     "outro_duration_ms" INTEGER NOT NULL,
-    CONSTRAINT "Branding_asin_fkey" FOREIGN KEY ("asin") REFERENCES "books" ("asin") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "branding_asin_fkey" FOREIGN KEY ("asin") REFERENCES "books" ("asin") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -136,18 +150,32 @@ CREATE TABLE "chapters" (
 );
 
 -- CreateTable
-CREATE TABLE "Progress" (
-    "id" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "ref" TEXT NOT NULL,
-    "status" TEXT NOT NULL,
-    "progress" REAL NOT NULL,
+CREATE TABLE "processQueue" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "in_progress" BOOLEAN NOT NULL DEFAULT false,
+    "is_done" BOOLEAN NOT NULL DEFAULT false,
+    "result" TEXT,
+    "try_after_time" BIGINT,
+    "type" TEXT NOT NULL DEFAULT 'BOOK'
+);
+
+-- CreateTable
+CREATE TABLE "processBook" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "bookAsin" TEXT NOT NULL,
+    "download_progress" REAL NOT NULL DEFAULT 0,
+    "process_progress" REAL NOT NULL DEFAULT 0,
     "downloaded_mb" REAL,
     "total_mb" REAL,
-    "speed_mb_s" REAL,
-    "message" TEXT NOT NULL,
+    "speed" REAL,
+    CONSTRAINT "processBook_bookAsin_fkey" FOREIGN KEY ("bookAsin") REFERENCES "books" ("asin") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "processBook_id_fkey" FOREIGN KEY ("id") REFERENCES "processQueue" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
 
-    PRIMARY KEY ("id", "type")
+-- CreateTable
+CREATE TABLE "settings" (
+    "setting" TEXT NOT NULL PRIMARY KEY,
+    "value" TEXT NOT NULL
 );
 
 -- CreateTable
@@ -159,11 +187,11 @@ CREATE TABLE "_AuthorToBook" (
 );
 
 -- CreateTable
-CREATE TABLE "_BookToProfile" (
+CREATE TABLE "_BookToSource" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL,
-    CONSTRAINT "_BookToProfile_A_fkey" FOREIGN KEY ("A") REFERENCES "books" ("asin") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "_BookToProfile_B_fkey" FOREIGN KEY ("B") REFERENCES "accounts" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "_BookToSource_A_fkey" FOREIGN KEY ("A") REFERENCES "books" ("asin") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "_BookToSource_B_fkey" FOREIGN KEY ("B") REFERENCES "sources" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -183,7 +211,16 @@ CREATE TABLE "_BookToGenre" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "audibleAccounts_email_key" ON "audibleAccounts"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "audibleAccounts_cli_id_key" ON "audibleAccounts"("cli_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "images_id_key" ON "images"("id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "processBook_bookAsin_key" ON "processBook"("bookAsin");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "_AuthorToBook_AB_unique" ON "_AuthorToBook"("A", "B");
@@ -192,10 +229,10 @@ CREATE UNIQUE INDEX "_AuthorToBook_AB_unique" ON "_AuthorToBook"("A", "B");
 CREATE INDEX "_AuthorToBook_B_index" ON "_AuthorToBook"("B");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "_BookToProfile_AB_unique" ON "_BookToProfile"("A", "B");
+CREATE UNIQUE INDEX "_BookToSource_AB_unique" ON "_BookToSource"("A", "B");
 
 -- CreateIndex
-CREATE INDEX "_BookToProfile_B_index" ON "_BookToProfile"("B");
+CREATE INDEX "_BookToSource_B_index" ON "_BookToSource"("B");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "_BookToNarrator_AB_unique" ON "_BookToNarrator"("A", "B");

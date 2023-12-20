@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import * as tools from '$lib/server/cmd/tools';
 import { ProfileCreationError } from '../../types';
 import type { AudibleConfig, AmazonAcctData } from '../../types';
-import type { CountryCode } from '$lib/types';
+import { SourceType, type CountryCode } from '$lib/types';
 import * as crypto from 'crypto';
 import prisma from '$lib/server/prisma';
 import * as media from '$lib/server/media';
@@ -32,12 +32,25 @@ export const writeConfigFile = async () => {
         // Nothing to do if it fails
     }
     // Get the profiles from the DB
-    const profiles = await prisma.profile.findMany();
+    const sources = await prisma.source.findMany({
+        where: { 
+            type: SourceType.AUDIBLE, 
+            NOT: { audible: null }
+        },
+        include: { audible: true }
+    });
+
+    for (const source of sources) {
+        if (source.audible === null) {
+            console.log('ERROR: Source has AUDIBLE tag but no audible object', source);
+            return;
+        }
+    }
 
     // Only write the file if there is at least one profile
-    if (profiles.length !== 0) {
-        let configFile = `title = "Audible Config File"\n\n[APP]\nprimary_profile = "${profiles[0].id}"\n\n`
-        for (const profile of profiles) configFile += `[profile.${profile.id}]\nauth_file = "${profile.id}.json"\ncountry_code = "${profile.locale_code}"\n\n`
+    if (sources.length !== 0) {
+        let configFile = `title = "Audible Config File"\n\n[APP]\nprimary_profile = "${sources[0].audible?.cli_id}"\n\n`
+        for (const source of sources) configFile += `[profile.${source.audible?.cli_id}]\nauth_file = "${source.audible?.cli_id}.json"\ncountry_code = "${source.audible?.locale_code}"\n\n`
         try {
             fs.mkdirSync(path.join(AUDIBLE_FOLDER), { recursive: true });
         } catch(e){
@@ -51,6 +64,22 @@ export const writeConfigFile = async () => {
     }
 }
 
+const getEmailDirect = async (cli_id: string): Promise<string | undefined> => {
+    // Check that the ID was actually submitted
+    if (cli_id === null || cli_id === undefined) return;
+
+    try {
+        const fileBuffer = fs.readFileSync(path.join(AUDIBLE_FOLDER ?? '/audible/', cli_id + '.json'));
+        const data = JSON.parse(fileBuffer.toString()) as AudibleConfig;
+        // Get the account info from Amazon
+        const acctDataStr = await helpers.fetch(`https://api.amazon.com/user/profile?access_token=${data.access_token}`);
+        const acctData = JSON.parse(acctDataStr) as AmazonAcctData;
+        return acctData.email;
+    } catch(e) {
+        return;
+    }
+}
+ 
 /**
  * Get the auth file object for a profile
  * @param id the id to get
@@ -59,15 +88,22 @@ export const writeConfigFile = async () => {
 export const getAuthFile = async (id: string): Promise<AudibleConfig | undefined> => {
     // Check that the ID was actually submitted
     if (id === null || id === undefined) return;
-
+    
     // Get the profile from the database
-    const profile = await prisma.profile.findUnique({ where: { id } });
+    const source = await prisma.source.findUnique({ 
+        where: {
+            type: SourceType.AUDIBLE,
+            NOT: { audible: null },
+            id
+        },
+        include: { audible: true }
+    });
 
     // Return if the profile was not found
-    if (profile === null || profile === undefined || isLocked()) return;
+    if (source === null || source === undefined || source.audible === null || isLocked()) return;
 
     try {
-        const fileBuffer = fs.readFileSync(path.join(AUDIBLE_FOLDER ?? '/audible/', profile.id + '.json'));
+        const fileBuffer = fs.readFileSync(path.join(AUDIBLE_FOLDER ?? '/audible/', source.audible?.cli_id + '.json'));
         return JSON.parse(fileBuffer.toString()) as AudibleConfig;
     } catch (e) {
         return;
@@ -84,10 +120,17 @@ export const fetchMetadata = async (id: string, includeProfile = true): Promise<
     if (id === null || id === undefined) return;
 
     // Get the profile from the database
-    const profile = await prisma.profile.findUnique({ where: { id } });
+    const source = await prisma.source.findUnique({
+        where: {
+            type: SourceType.AUDIBLE,
+            NOT: { audible: null },
+            id
+        },
+        include: { audible: true }
+    });
 
     // Return if the profile was not found
-    if (profile === null || profile === undefined || isLocked()) return;
+    if (source === null || source === undefined || source.audible === null || isLocked()) return;
 
     // Make sure the config file is there
     await writeConfigFile();
@@ -95,7 +138,7 @@ export const fetchMetadata = async (id: string, includeProfile = true): Promise<
     try {
         // Have the audible-cli get the activation bytes
         await new Promise<void>((resolve) => {
-            child_process.exec(`${AUDIBLE_CMD} -P ${profile.id} activation-bytes`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }, () => resolve());
+            child_process.exec(`${AUDIBLE_CMD} -P ${source.audible?.cli_id} activation-bytes`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }, () => resolve());
         });
         // Get the auth file associated with this profile
         const authFile = await getAuthFile(id);
@@ -155,17 +198,21 @@ export const fetchMetadata = async (id: string, includeProfile = true): Promise<
         }
 
         // Update the DB with the bytes
-        await prisma.profile.update({
+        await prisma.source.update({
+            where: { id },
+            data: {
+                profile_image_url: profile_image_url,
+            }
+        });
+        await prisma.audibleAccount.update({
             where: { id },
             data: {
                 activation_bytes: authFile.activation_bytes,
                 first_name,
                 last_name,
                 email: email,
-                amazon_acct: email,
-                profile_image_url: profile_image_url
             }
-        });
+        })
 
         console.log('Account ' + id + 'added');
 
@@ -208,9 +255,11 @@ enum ProfileState {
 
 let audible: child_process.ChildProcessWithoutNullStreams | undefined;
 let audibleData = '';
-let id = '';
+let cli_id = '';
 let cc: CountryCode
 let profileState = ProfileState.PROFILE_NAME;
+
+if (global.audible === undefined) global.audible = { instance: undefined };
 
 /**
  * Get a login URL from the audible CLI
@@ -239,6 +288,7 @@ export const add = async (countryCode: CountryCode = 'us'): Promise<string> => {
         ['quickstart'],
         { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }
     );
+    global.audible.instance = audible;
 
     // Attach to the exit event
     audible?.on('exit', async () => {
@@ -256,8 +306,8 @@ export const add = async (countryCode: CountryCode = 'us'): Promise<string> => {
     // Set initial state
     profileState = ProfileState.PROFILE_NAME;
     
-    // Generate the new profile id
-    id = uuidv4();
+    // Generate the new source id
+    cli_id = uuidv4();
     cc = countryCode;
 
     // Wrap this in a promise so we can respond from this function
@@ -282,7 +332,7 @@ export const add = async (countryCode: CountryCode = 'us'): Promise<string> => {
             switch (profileState) {
                 case ProfileState.PROFILE_NAME:
                     if (audibleData.indexOf('Please enter a name for your primary profile [audible]: ') !== -1) {
-                        audible?.stdin.write(id + ENTER);
+                        audible?.stdin.write(cli_id + ENTER);
                         profileState = ProfileState.COUNTRY_CODE
                     }
                     break;
@@ -294,7 +344,7 @@ export const add = async (countryCode: CountryCode = 'us'): Promise<string> => {
                     break;
                 case ProfileState.AUTH_FILE_NAME:
                     if (audibleData.indexOf('Please enter a name for the auth file [') !== -1 && audibleData.indexOf('.json]: ') !== -1) {
-                        audible?.stdin.write(id + '.json' + ENTER);
+                        audible?.stdin.write(cli_id + '.json' + ENTER);
                         profileState = ProfileState.AUTH_FILE_ENCRYPT
                     }
                     break;
@@ -394,21 +444,21 @@ export const cancelAdd = async () => {
  * @param url the resulting URL from amazon
  * @returns a ProfileCreationError depending on the result
  */
-export const submitURL = (url: string): { e: Promise<ProfileCreationError>, id?: string} => {
+export const submitURL = (url: string, name?: string): Promise<{ e: ProfileCreationError, id: string | null }> => {
     // Check to make sure we are in a correct state to be running this function
-    if (audible === undefined || profileState !== ProfileState.ENTER_URL) return { e: new Promise((resolve) => resolve(ProfileCreationError.PROCESS_NOT_STARTED)) };
+    if (audible === undefined || profileState !== ProfileState.ENTER_URL) return new Promise((resolve) => resolve({e: ProfileCreationError.PROCESS_NOT_STARTED, id: null}));
 
     // Write the resulting URL to the audible-cli
     audible.stdin.write(url + ENTER);
-
-    // Assign id to be exported
-    const exportID = id;
 
     // Update the profile state
     profileState = ProfileState.CHECK_SUCCESS
 
     // Wrap this in a promise so we can respond from this function
-    const p = new Promise<ProfileCreationError>((resolve, reject) => {
+    const p = new Promise<{e: ProfileCreationError, id: string}>((resolve, reject) => {
+
+        // Assign id to be exported
+        let exportID: string | null = null;
 
         // Create a watchdog timeout identifier for use in the data processor
         let watchdog: NodeJS.Timeout;
@@ -433,23 +483,51 @@ export const submitURL = (url: string): { e: Promise<ProfileCreationError>, id?:
                         clearTimeout(watchdog);
                         // Kill the audible-cli
                         audible?.kill();
-                        // Add this profile to the DB
-                        await prisma.profile.create({
-                            data: {
-                                id: id,
-                                locale_code: cc,
-                                added_date: Math.floor(new Date().getTime() / 1000),
-                                auto_sync: true
-                            }
-                        });
-                        // Write the config file
-                        await writeConfigFile();
-                        // Unlock the audible-cli interface
-                        unlock();
-                        // Assign the values from the auth-file to the database profile entry
-                        await fetchMetadata(id);
-                        // Resolve
-                        resolve(ProfileCreationError.NO_ERROR);
+                        // Get the email address for this account
+                        const email = await getEmailDirect(cli_id);
+                        const id = email === undefined ? `audible:${uuidv4()}` : `audible:${email}`;
+                        exportID = id;
+
+                        // Check that this ID does not already exist
+                        const verifySource = await prisma.source.findUnique({ where: { id }});
+                        if (verifySource !== null) {
+                            // This account already exists
+                            // Write the config file
+                            await writeConfigFile();
+                            // Unlock the audible-cli interface
+                            unlock();
+                            // Deregister this account from the CLI
+                            await remove('', cli_id);
+                            // Return failed
+                            reject(ProfileCreationError.ACCOUNT_ALREADY_EXISTS);
+                        } else {
+                            // Add this profile to the DB
+                            await prisma.source.create({
+                                data: {
+                                    id: id,
+                                    audible: {
+                                        create: {
+                                            email: email,
+                                            cli_id: cli_id,
+                                            locale_code: cc,
+                                        }
+                                    },
+                                    name: name === undefined || name === null || name === '' ? (email === undefined ? 'My Audible Account' : email) : name,
+                                    type: SourceType.AUDIBLE,
+                                    added_date: Math.floor(new Date().getTime() / 1000),
+                                    auto_sync: true,
+                                    connected: true
+                                }
+                            });
+                            // Write the config file
+                            await writeConfigFile();
+                            // Unlock the audible-cli interface
+                            unlock();
+                            // Assign the values from the auth-file to the database profile entry
+                            await fetchMetadata(id);
+                            // Resolve
+                            resolve({ e: ProfileCreationError.NO_ERROR, id: exportID });
+                        }
                     } else if (audibleData.indexOf('Exception') !== -1) {
                         // Failure. Clear the watchdog
                         clearTimeout(watchdog);
@@ -486,7 +564,7 @@ export const submitURL = (url: string): { e: Promise<ProfileCreationError>, id?:
         audible?.stdout.on('data', dataProcessor)
     });
 
-    return { e: p, id: exportID };
+    return p;
 }
 
 
@@ -498,18 +576,28 @@ export const submitURL = (url: string): { e: Promise<ProfileCreationError>, id?:
  * Remove a profile
  * @param id the profile ID to remove
  */
-export const remove = async (id: string): Promise<boolean> => {
+export const remove = async (id: string, override_use_cli_id: string | null = null): Promise<boolean> => {
     // Check that the ID was actually submitted
-    if (id === null || id === undefined) return false;
+    if (override_use_cli_id === null && (id === null || id === undefined)) return false;
 
     // Get the profile from the database
-    const profile = await prisma.profile.findUnique({ where: { id } });
+    const source = await prisma.source.findUnique({
+        where: {
+            type: SourceType.AUDIBLE,
+            NOT: { audible: null },
+            id
+        },
+        include: { audible: true }
+    });
+
+    console.log('source', source);
 
     // Return if the profile was not found
-    if (profile === null || profile === undefined || isLocked()) return false;
+    if ((override_use_cli_id === null && (source === null || source === undefined || source.audible === null)) || isLocked()) return false;
 
     // TODO: Await audible-cli unlock
 
+    const cli_id = (source === null) ? override_use_cli_id : source.audible?.cli_id;
 
     // audible manage auth-file remove
     // Please enter name for the auth file:
@@ -531,7 +619,8 @@ export const remove = async (id: string): Promise<boolean> => {
     let audibleData = '';
     enum RemoveState {
         ENTER_AUTH = 1,
-        FINISHED
+        FINISHED,
+        PARK
     }
 
     // Set initial state
@@ -559,22 +648,26 @@ export const remove = async (id: string): Promise<boolean> => {
             switch (state) {
                 case RemoveState.ENTER_AUTH:
                     if (audibleData.indexOf('Please enter name for the auth file: ') !== -1) {
-                        audible?.stdin.write(id + '.json' + ENTER);
+                        audible?.stdin.write(cli_id + '.json' + ENTER);
                         state = RemoveState.FINISHED;
                     }
                     break;
                 case RemoveState.FINISHED:
-                    if (audibleData.indexOf('deregistered') !== -1) {
+                    if (audibleData.indexOf('deregistered') !== -1 || audibleData.indexOf('error: The file doesn\'t') !== -1) {
                         // We have the URL in the buffer and the audible-cli is ready for us to enter the resulting
                         // login URL. Start by clearing the watchdog.
                         clearTimeout(watchdog);
+                        audible.kill();
                         // Remove the data from the DB.
-                        await tools.deleteAccount(profile.id);
+                        if (source !== null) await tools.deleteSource(source.id);
+                        state = RemoveState.PARK;
                         resolve(true);
                     } else if (audibleData.indexOf('Aborted!') !== -1) {
                         // Start by clearing the watchdog
                         clearTimeout(watchdog);
+                        audible.kill();
                         // We couldn't find the profile to remove
+                        state = RemoveState.PARK;
                         resolve(false);
                     }
                     break;
@@ -588,6 +681,7 @@ export const remove = async (id: string): Promise<boolean> => {
         // login URL.
         watchdog = setTimeout(() => {
             audible?.kill();
+            console.log('watchdog killed');
             resolve(false);
         }, 15000);
 

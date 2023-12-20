@@ -23,28 +23,43 @@ model Notification {
   @@map("notifications")
 }
 
-model Profile {
-  id                String        @id
-  email             String?
-  amazon_acct       String?
-  first_name        String?
-  last_name         String?
-  description       String?
-  profile_image_url String?
-  last_sync         Int?
-  added_date        Int
-  locale_code       String
-  auto_sync         Boolean
-  activation_bytes  String?
-  books             Book[]
-  profileImage      ProfileImage?
+model Source {
+  id          String  @id // audible:keenanrnicholson@gmail.com
+  name        String  @default("Audible") // 'My old account'
+  description String?
+  type        String  @default("audible") // 'audible' | 'bookco'
 
-  @@map("accounts")
+  auto_sync  Boolean
+  last_sync  Int?
+  added_date Int
+
+  profile_image_url String?
+  profileImage      ProfileImage?
+  books             Book[]
+  connected         Boolean
+
+  audible AudibleAccount?
+  Media   Media[]
+
+  @@map("sources")
+}
+
+model AudibleAccount {
+  id               String  @id
+  source           Source  @relation(fields: [id], references: [id], onDelete: Cascade)
+  email            String? @unique
+  cli_id           String  @unique
+  first_name       String?
+  last_name        String?
+  locale_code      String
+  activation_bytes String?
+
+  @@map("audibleAccounts")
 }
 
 model ProfileImage {
-  profile      Profile @relation(fields: [id], references: [id], onDelete: Cascade)
-  id           String  @unique
+  source       Source @relation(fields: [id], references: [id], onDelete: Cascade)
+  id           String @unique
   content_type String
   full         Bytes
   i512         Bytes
@@ -89,7 +104,7 @@ model Series {
 model Book {
   asin               String     @id
   google_api_id      String?
-  profiles           Profile[]
+  sources            Source[]
   title              String
   subtitle           String?
   authors            Author[]
@@ -153,6 +168,9 @@ model Media {
   title        String
   size_b       BigInt
 
+  source   Source @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId String
+
   @@map("media")
 }
 
@@ -185,7 +203,7 @@ model ProcessQueue {
   try_after_time BigInt?
   type           String  @default("BOOK")
 
-  book        ProcessBook?
+  book ProcessBook?
 
   @@map("processQueue")
 }
@@ -202,24 +220,6 @@ model ProcessBook {
   queueEntry        ProcessQueue @relation(fields: [id], references: [id], onDelete: Cascade)
 
   @@map("processBook")
-}
-
-model Progress {
-  id   String
-  type String
-
-  ref    String
-  status String
-
-  progress      Float
-  downloaded_mb Float?
-  total_mb      Float?
-  speed_mb_s    Float?
-
-  message String
-
-  @@id([id, type])
-  @@map("progress")
 }
 
 model Settings {

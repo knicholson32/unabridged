@@ -37,7 +37,7 @@ export async function load({ params }) {
       elements: elements,
       // button: {
       //     iconPath: icons.plus,
-      //     href: '/accounts/add'
+      //     href: '/sources/add'
       // }
     }] as SideMenu[]
   };

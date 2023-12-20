@@ -169,7 +169,7 @@ export namespace LibraryManager {
           include: {
             book: {
               include: {
-                profiles: true,
+                sources: true,
                 cover: {
                   select: {
                     url_100: true
@@ -247,7 +247,7 @@ export namespace LibraryManager {
           // Delete present files relating to this book if they exist, but don't delete the book in the DB
           await tools.cleanBook(queueEntry.book.book.asin);
           // 2. Download the book, updating the book progress as required
-          const bookDownload = await audible.cmd.download.download(queueEntry.book.book.asin, queueEntry.id,tmpDir);
+          const { e: bookDownload, sourceId: sourceId } = await audible.cmd.download.download(queueEntry.book.book.asin, queueEntry.id,tmpDir);
           console.log(bookDownload);
           switch (bookDownload) {
             case BookDownloadError.NO_ERROR:
@@ -276,21 +276,40 @@ export namespace LibraryManager {
               await processFailed(queueEntry.id, type, ProcessError.NO_PROFILE, 0, 0);
               break;
             case BookDownloadError.NO_PROFILE_WITH_AUTHCODE:
-              // The profiles need metadata pulled
-              for (const p of queueEntry.book.book.profiles)
-                if (p.activation_bytes === null) await audible.cmd.profile.fetchMetadata(p.id, false);
-              // We need to re-pull these accounts and make sure there are now bytes. If not, we can't re-add them to the queue
-              const book = await prisma.book.findUnique({ where: { asin: queueEntry.book.bookAsin }, include: { profiles: true }});
-              // Check if the book still exists
-              if (book !== null) {
-                // Assume there are no bytes
-                let bytes = false;
-                // Loop through profiles and if any have bytes, set to true
-                for (const p of book.profiles) if (p.activation_bytes !== null) bytes = true;
-                // Check if there are bytes
-                if (bytes === true) {
-                  await tryAgainLater(queueEntry.id, type, ATTEMPT_COOLDOWN_SHORT, ProcessError.NO_PROFILE_WITH_AUTHCODE);
-                  break;
+              // Get the book from the DB
+              const targetBook = await prisma.book.findUnique({
+                where: { asin: queueEntry.book.bookAsin },
+                include: {
+                  sources: {
+                    where: { NOT: { audible: null }, type: types.SourceType.AUDIBLE },
+                    include: { audible: true }
+                  }
+                }
+              });
+              if (targetBook !== undefined && targetBook !== null) {
+                // The profiles need metadata pulled
+                for (const s of targetBook.sources)
+                  if (s.type === types.SourceType.AUDIBLE && s.audible !== null && s.audible.activation_bytes === null) await audible.cmd.profile.fetchMetadata(s.id, false);
+                // We need to re-pull these accounts and make sure there are now bytes. If not, we can't re-add them to the queue
+                const book = await prisma.book.findUnique({ where: { asin: queueEntry.book.bookAsin },
+                  include: {
+                    sources: {
+                      where: { NOT: { audible: null }, type: types.SourceType.AUDIBLE },
+                      include: { audible: true }
+                    }
+                  }
+                });
+                // Check if the book still exists
+                if (book !== null) {
+                  // Assume there are no bytes
+                  let bytes = false;
+                  // Loop through profiles and if any have bytes, set to true
+                  for (const s of book.sources) if (s.type === types.SourceType.AUDIBLE && s.audible !== null && s.audible.activation_bytes !== null) bytes = true;
+                  // Check if there are bytes
+                  if (bytes === true) {
+                    await tryAgainLater(queueEntry.id, type, ATTEMPT_COOLDOWN_SHORT, ProcessError.NO_PROFILE_WITH_AUTHCODE);
+                    break;
+                  }
                 }
               }
               // Delete this queued entry
@@ -303,11 +322,11 @@ export namespace LibraryManager {
               break;
           }
           // Only continue if there was no error
-          if (bookDownload === BookDownloadError.NO_ERROR) {
+          if (bookDownload === BookDownloadError.NO_ERROR && sourceId !== undefined) {
             // Update the progress to show the download done
             await prisma.processQueue.update({ where: { id: queueEntry.id }, data: { result: null, book: { update: { download_progress: 1 } } } });
             // 3. Process the book, updating the book progress as required
-            const bookProcess = await AAXtoMP3.cmd.convert.exec(queueEntry.book.book.asin, queueEntry.id, tmpDir);
+            const bookProcess = await AAXtoMP3.cmd.convert.exec(queueEntry.book.book.asin, sourceId, queueEntry.id, tmpDir);
             switch (bookProcess) {
               case ConversionError.NO_ERROR:
                 // Nothing to do, this is the success case
@@ -331,21 +350,41 @@ export namespace LibraryManager {
                 });
                 break;
               case ConversionError.NO_PROFILE_WITH_AUTHCODE:
-                // The profiles need metadata pulled
-                for (const p of queueEntry.book.book.profiles)
-                  if (p.activation_bytes === null) await audible.cmd.profile.fetchMetadata(p.id, false);
-                // We need to re-pull these accounts and make sure there are now bytes. If not, we can't re-add them to the queue
-                const book = await prisma.book.findUnique({ where: { asin: queueEntry.book.bookAsin }, include: { profiles: true } });
-                // Check if the book still exists
-                if (book !== null) {
-                  // Assume there are no bytes
-                  let bytes = false;
-                  // Loop through profiles and if any have bytes, set to true
-                  for (const p of book.profiles) if (p.activation_bytes !== null) bytes = true;
-                  // Check if there are bytes
-                  if (bytes === true) {
-                    await tryAgainLater(queueEntry.id, type, ATTEMPT_COOLDOWN_SHORT, ProcessError.NO_PROFILE_WITH_AUTHCODE);
-                    break;
+                // Get the book from the DB
+                const targetBook = await prisma.book.findUnique({
+                  where: { asin: queueEntry.book.bookAsin },
+                  include: {
+                    sources: {
+                      where: { NOT: { audible: null }, type: types.SourceType.AUDIBLE },
+                      include: { audible: true }
+                    }
+                  }
+                });
+                if (targetBook !== undefined && targetBook !== null) {
+                  // The profiles need metadata pulled
+                  for (const s of targetBook.sources)
+                    if (s.type === types.SourceType.AUDIBLE && s.audible !== null && s.audible.activation_bytes === null) await audible.cmd.profile.fetchMetadata(s.id, false);
+                  // We need to re-pull these accounts and make sure there are now bytes. If not, we can't re-add them to the queue
+                  const book = await prisma.book.findUnique({
+                    where: { asin: queueEntry.book.bookAsin },
+                    include: {
+                      sources: {
+                        where: { NOT: { audible: null }, type: types.SourceType.AUDIBLE },
+                        include: { audible: true }
+                      }
+                    }
+                  });
+                  // Check if the book still exists
+                  if (book !== null) {
+                    // Assume there are no bytes
+                    let bytes = false;
+                    // Loop through profiles and if any have bytes, set to true
+                    for (const s of book.sources) if (s.type === types.SourceType.AUDIBLE && s.audible !== null && s.audible.activation_bytes !== null) bytes = true;
+                    // Check if there are bytes
+                    if (bytes === true) {
+                      await tryAgainLater(queueEntry.id, type, ATTEMPT_COOLDOWN_SHORT, ProcessError.NO_PROFILE_WITH_AUTHCODE);
+                      break;
+                    }
                   }
                 }
                 // Delete this queued entry
@@ -664,9 +703,6 @@ export namespace LibraryManager {
     return processorPromises.every((p) => p === undefined);
   }
 
-  // export const getProgress = (asin: string) => prisma.progress.findUnique({ where: { id_type: { id: asin, type: PROGRESS_TYPE } } });
-  // export const getAllProgress = async () => prisma.progress.findMany({ where: { type: PROGRESS_TYPE } });
-
 }
 
 process.on('SIGINT', LibraryManager.stop);
@@ -740,30 +776,34 @@ export namespace Cron {
         if (debug) console.log('Library Sync Audible');
 
         // Get the profile from the database
-        const profiles = await prisma.profile.findMany();
+        const sources = await prisma.source.findMany();
 
         // Loop through each profile
-        for (const profile of profiles) {
+        for (const source of sources) {
           // Skip the ones that do not auto-sync
-          if (!profile.auto_sync) {
-            if (debug) console.log(`Skipping ${profile.id} because auto-sync is disabled`);
+          if (!source.auto_sync) {
+            if (debug) console.log(`Skipping ${source.id} because auto-sync is disabled`);
             continue;
           }
-          if (debug) console.log(`Syncing ${profile.id}`);
+          if (debug) console.log(`Syncing ${source.id}`);
 
-          // Sync the profile
-          const results = await audible.cmd.library.get(profile.id);
+          if (source.type === types.SourceType.AUDIBLE) {
+            // Sync the profile
+            const results = await audible.cmd.library.get(source.id);
 
-          if (results !== null) {
-            cronRecord.libSync++;
-            cronRecord.booksAdded += results.numCreated;
-            cronRecord.booksUpdated += results.numUpdated;
-          }
+            if (results !== null) {
+              cronRecord.libSync++;
+              cronRecord.booksAdded += results.numCreated;
+              cronRecord.booksUpdated += results.numUpdated;
+            }
 
-          // Check if the sync worked
-          if (debug) {
-            if (results !== null) console.log(JSON.stringify(results));
-            else console.log('Sync failed');
+            // Check if the sync worked
+            if (debug) {
+              if (results !== null) console.log(JSON.stringify(results));
+              else console.log('Sync failed');
+            }
+          } else {
+            if (debug) console.log(`Source '${source.id}' was not synced because type '${source.type}' is not implemented.`);
           }
           if (await checkCronTime(debug > 0)) throw Error('Cron time expired');
         }

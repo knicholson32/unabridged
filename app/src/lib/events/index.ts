@@ -53,7 +53,7 @@ export const on = <T extends Event.Base.Name>(event: T, callback: (data: Event.B
   callbackMapBase[event].push(c);
 
   // If this is in the browser, add the attachment
-  if (browser && evtSourceBase !== null) evtSourceBase.addEventListener(event, c);
+  if (evtSourceBase !== null) evtSourceBase.addEventListener(event, c);
 
   // Return the removal function
   return () => {

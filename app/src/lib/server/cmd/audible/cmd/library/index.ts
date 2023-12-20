@@ -2,7 +2,7 @@ import * as child_process from 'node:child_process';
 import * as fs from 'fs'
 import { v4 as uuidv4 } from 'uuid';
 import type { Library, BookFromCLI } from '../../types';
-import { Event } from '$lib/types';
+import { Event, SourceType } from '$lib/types';
 import { isLocked } from '../../';
 import prisma from '$lib/server/prisma';
 import { writeConfigFile } from '$lib/server/cmd/audible/cmd/profile';
@@ -182,7 +182,7 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
             await prisma.book.update({
                 where: { asin },
                 data: {
-                    profiles: { connect: { id } },
+                    sources: { connect: { id } },
                     num_ratings,
                     rating
                 }
@@ -252,7 +252,7 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
             asin: asin,
             title: title,
             subtitle: subtitle,
-            profiles: { connect: { id } },
+            sources: { connect: { id } },
             authors: { connect: authors.map((a) => { return { name: a } }) },
             narrators: { connect: narrators?.map((a) => { return { name: a } }) },
             series: seriesConnect,
@@ -296,10 +296,17 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
     if (id === null || id === undefined) return null;
 
     // Get the profile from the database
-    const profile = await prisma.profile.findUnique({ where: { id } });
+    const source = await prisma.source.findUnique({
+        where: {
+            type: SourceType.AUDIBLE,
+            NOT: { audible: null },
+            id
+        },
+        include: { audible: true }
+    });
 
     // Return if the profile was not found
-    if (profile === null || profile === undefined || isLocked()) return null;
+    if (source === null || source === undefined || source.audible === null || isLocked()) return null;
 
     // Create a temp directory for this library
     if (!fs.existsSync(`/tmp`)) fs.mkdirSync(`/tmp`);
@@ -307,40 +314,22 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
     // Make sure the config file is written
     await writeConfigFile();
 
-    // Delete any old progress info relating to this sync
-    try {
-        await prisma.progress.delete({ 
-            where: { id_type: { id, type: 'sync' } }
-        });
-    } catch(e) {
-        // Nothing to do
-    }
-
-    // Generate the ID for progress
-    // await prisma.progress.create({
-    //     data: {
-    //         id: `${id}`,
-    //         type: 'sync',
-    //         progress: 0,
-    //         ref: 'audible.cmd.library.get',
-    //         message: '',
-    //         status: 'RUNNING'
-    //     }
-    // })
     events.emitProgress('basic.account.sync', id, {
         t: Event.Progress.Basic.Stage.START
     });
 
     try {
 
+        const cli_id = source.audible.cli_id;
+
         await new Promise<void>((resolve) => {
-            child_process.exec(`${AUDIBLE_CMD} -P ${id} library export --format json -o /tmp/${id}.library.json`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }, () => resolve());
+            child_process.exec(`${AUDIBLE_CMD} -P ${cli_id} library export --format json -o /tmp/${cli_id}.library.json`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }, () => resolve());
         });
         await new Promise<void>((resolve) => {
-            child_process.exec(`${AUDIBLE_CMD} -P ${id} library export --format tsv -o /db/audible/${id}.library.tsv`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }, () => resolve());
+            child_process.exec(`${AUDIBLE_CMD} -P ${cli_id} library export --format tsv -o /db/audible/${cli_id}.library.tsv`, { env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }, () => resolve());
         });
 
-        const library = JSON.parse(fs.readFileSync(`/tmp/${id}.library.json`).toString()) as Library;
+        const library = JSON.parse(fs.readFileSync(`/tmp/${cli_id}.library.json`).toString()) as Library;
         let numCreated = 0;
         let numUpdated = 0;
         const totalNumBooks = library.length;
@@ -350,12 +339,6 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
             if (res) numCreated++;
             else numUpdated++;
             numProcessed++;
-            // await prisma.progress.update({ where: { id_type: { id, type: 'sync' } },
-            //     data: {
-            //         progress: numProcessed / totalNumBooks,
-            //         message: book.title
-            //     }
-            // });
             events.emitProgress('basic.account.sync', id, {
                 t: Event.Progress.Basic.Stage.IN_PROGRESS,
                 p: helpers.round(numProcessed / totalNumBooks),
@@ -364,18 +347,17 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
 
         }
         try {
-            fs.rmSync(`/tmp/${id}.library.json`, { recursive: true, force: true });
+            fs.rmSync(`/tmp/${cli_id}.library.json`, { recursive: true, force: true });
         } catch (e) { }
 
         // Update the last sync time
-        await prisma.profile.update({
+        await prisma.source.update({
             where: { id },
             data: {
                 last_sync: Math.floor(new Date().getTime() / 1000)
             }
         });
 
-        // await prisma.progress.update({ where: { id_type: { id, type: 'sync'} }, data: { progress: 1, status: 'DONE' } });
         events.emitProgress('basic.account.sync', id, {
             t: Event.Progress.Basic.Stage.DONE,
             success: true
@@ -388,13 +370,6 @@ export const get = async (id: string): Promise<{ numCreated: number, numUpdated:
         const err = e as { stdout: Buffer };
         console.log(err);
         console.log(err.stdout.toString())
-        // await prisma.progress.update({
-        //     where: { id_type: { id, type: 'sync' } },
-        //     data: {
-        //         status: 'ERROR',
-        //         message: 'Error during sync'
-        //     }
-        // });
         events.emitProgress('basic.account.sync', id, {
             t: Event.Progress.Basic.Stage.DONE,
             success: false,
