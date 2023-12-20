@@ -277,7 +277,7 @@ export const triggerAutoScan = async (): Promise<publicTypes.ScanAndGenerate> =>
     if(plexSettings['plex.library.autoScan.scheduled'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.AUTO_SCAN_ONLY_ALLOWED_DURING_CRON);
 
     // Check if there is one running right now. If so, don't schedule but also don't resolve the schedule request.
-    if (plexSettings['plex.library.autoScan.inProgress'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.ALREADY_IN_PROGRESS);
+    if (plexSettings['plex.library.autoScan.inProgress'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.ALREADY_IN_PROGRESS, false);
 
     // Test the plex connection
     const result = await testPlexConnection(plexSettings['plex.address'], plexSettings['plex.token'], false);
