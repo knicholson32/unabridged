@@ -774,7 +774,7 @@
                         </div>
                         <div class="flex justify-between mb-1">
                           <span class="text-xs font-medium text-blue-700 dark:text-white truncate max-w-[7rem]">{booksDone} <span class="text-xxs">of</span> {totalBooks}</span>
-                          <span class="text-xs font-medium text-blue-700 dark:text-white">{helpers.round((booksDone / totalBooks) * 100, 0)}%</span>
+                          <span class="text-xs font-medium text-blue-700 dark:text-white">{helpers.round((isNaN(booksDone / totalBooks) ? 0 : booksDone / totalBooks) * 100, 0)}%</span>
                         </div>
                       </div>
                     </div>
