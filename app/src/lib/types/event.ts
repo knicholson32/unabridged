@@ -29,16 +29,14 @@ namespace Event {
       'notification.deleted',
       'processor.invalidate',
       'processor.settings',
-      'processor.book.inProgress'
     ] as const;
     export type Name = typeof Names[number];
 
     export type Type<T extends Name> =
       T extends 'notification.created' ? Notifications :
       T extends 'notification.deleted' ? string[] :
-      T extends 'processor.invalidate' ? {} :
+      T extends 'processor.invalidate' ? boolean :
       T extends 'processor.settings' ? types.API.Types.ProcessSettings :
-      T extends 'processor.book.inProgress' ? boolean :
       never;
 
     // ---------------------------------------------------------------------------------------------

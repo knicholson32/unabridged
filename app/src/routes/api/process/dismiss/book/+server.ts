@@ -1,7 +1,7 @@
 // Delete the done ones now that we have them
 import prisma from '$lib/server/prisma';
 import * as settings from '$lib/server/settings';
-import { API } from '$lib/types';
+import { API, ProcessType } from '$lib/types';
 import * as events from '$lib/server/events';
 
 export const GET = async () => {
@@ -24,7 +24,7 @@ export const GET = async () => {
     await settings.set('progress.paused', await settings.get('progress.startPaused'));
   }
 
-  events.emit('processor.invalidate', { v: '10' });
+  events.emit('processor.invalidate', await prisma.processQueue.count({ where: { type: ProcessType.BOOK, is_done: false } }) > 0);
 
   // Return
   return API.response.success();

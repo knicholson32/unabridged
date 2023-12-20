@@ -259,7 +259,7 @@ let cli_id = '';
 let cc: CountryCode
 let profileState = ProfileState.PROFILE_NAME;
 
-if (global.audible === undefined) global.audible = { instance: undefined };
+if (global.audible === undefined) global.audible = { instance: undefined, cancelMap: {} };
 
 /**
  * Get a login URL from the audible CLI

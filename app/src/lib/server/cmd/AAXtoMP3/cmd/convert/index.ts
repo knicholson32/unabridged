@@ -14,17 +14,25 @@ import { round } from '$lib/helpers';
 // Download helpers
 // --------------------------------------------------------------------------------------------
 
-const cancelMap: {
-  [key: string]: {
-    canceled: boolean,
-    proc: child_process.ChildProcessWithoutNullStreams
-  }
-} = {}
+
+if (global.aax === undefined) global.aax = { cancelMap: {} };
+for (const asin of Object.keys(global.aax.cancelMap)) {
+  global.aax.cancelMap[asin].canceled = true;
+  global.aax.cancelMap[asin].proc.kill();
+  delete global.aax.cancelMap[asin];
+}
+
+// const cancelMap: {
+//   [key: string]: {
+//     canceled: boolean,
+//     proc: child_process.ChildProcessWithoutNullStreams
+//   }
+// } = {}
 
 export const cancel = async (asin: string): Promise<boolean> => {
-  if (asin in cancelMap) {
-    cancelMap[asin].canceled = true;
-    cancelMap[asin].proc.kill();
+  if (asin in global.aax.cancelMap) {
+    global.aax.cancelMap[asin].canceled = true;
+    global.aax.cancelMap[asin].proc.kill();
     return true;
   }
   return false;
@@ -123,7 +131,7 @@ export const exec = async (asin: string, sourceId: string, processID: string, tm
   );
 
   // Assign cancel map
-  cancelMap[asin] = {
+  global.aax.cancelMap[asin] = {
     proc: aax,
     canceled: false
   }
@@ -139,7 +147,7 @@ export const exec = async (asin: string, sourceId: string, processID: string, tm
       if (data.indexOf('ERROR') !== -1) {
         console.error(data);
         aax.kill();
-        if (data.indexOf('Target Directory does not exist or is not writable') !== -1) {
+        if (data.indexOf('Target Directory does not exist or is not writable!') !== -1) {
           reject(ConversionError.DESTINATION_NOT_WRITABLE);
         } else if (data.indexOf('Invalid File') !== -1){
           reject(ConversionError.INVALID_FILE);
@@ -204,11 +212,11 @@ export const exec = async (asin: string, sourceId: string, processID: string, tm
 
     // Attach to the exit event
     aax.on('exit', async () => {
-      if (asin in cancelMap && cancelMap[asin].canceled === true) {
-        delete cancelMap[asin];
+      if (asin in global.aax.cancelMap && global.aax.cancelMap[asin].canceled === true) {
+        delete global.aax.cancelMap[asin];
         resolve(ConversionError.CANCELED);
       } else {
-        delete cancelMap[asin];
+        delete global.aax.cancelMap[asin];
         resolve(ConversionError.NO_ERROR);
       }
     });

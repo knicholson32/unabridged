@@ -1,6 +1,6 @@
 import prisma from '$lib/server/prisma';
 import * as settings from '$lib/server/settings';
-import { API } from '$lib/types';
+import { API, ProcessType } from '$lib/types';
 import * as events from '$lib/server/events';
 
 export const GET = async ({ params }) => {
@@ -25,7 +25,7 @@ export const GET = async ({ params }) => {
   }
 
   // Emit the events
-  events.emit('processor.invalidate', { v: '11' });
+  events.emit('processor.invalidate', await prisma.processQueue.count({ where: { type: ProcessType.BOOK, is_done: false }}) > 0);
 
   // Return
   return API.response.success();

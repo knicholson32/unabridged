@@ -28,7 +28,7 @@ export function GET({ request }) {
   if (encoding !== 'none') headers['Content-Encoding'] = encoding;
   
   // Initialize a function that will be used to encode data
-  let packageEvent: (event: Event.Base.Name, data: any) => Uint8Array;
+  let packageEvent: (event: Event.Base.Name, data: any, sendRetry?: boolean) => Uint8Array;
   
   // Assign the function based on what encoding we can use
   switch(encoding) {
@@ -43,7 +43,7 @@ export function GET({ request }) {
     //   break;
     default:
       const encoder = new TextEncoder();
-      packageEvent = (event, data): Uint8Array => encoder.encode(`event: ${event}\nretry: 3000\ndata: ${JSON.stringify(data)}\n\n`);
+      packageEvent = (event, data, sendRetry = false): Uint8Array => encoder.encode(`event: ${event}\n${sendRetry ? 'retry: 3000\n' : ''}data: ${JSON.stringify(data)}\n\n`);
       break;
   }
 
@@ -94,7 +94,7 @@ export function GET({ request }) {
       // Loop through every event name that we want to attach to and create a handler function.
       // In this case, it is every possible event because base events are not that frequent.
       for (const e of Event.Base.Names) base.on(e, emit(e));
-      controller.enqueue(packageEvent('initialize' as Event.Base.Name, undefined));
+      controller.enqueue(packageEvent('initialize' as Event.Base.Name, undefined, true));
       console.log('base event stream opened');
     },
     async cancel(reason) {

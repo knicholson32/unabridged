@@ -57,7 +57,7 @@
     }
   ];
 
-  const menuActive = 'bg-gray-800 text-white';
+  const menuActive = 'bg-gray-800 text-white ';
   const menuDefault = 'text-gray-400 hover:text-white hover:bg-gray-800';
 
   const subMenuActive = 'bg-gray-800 text-white';
@@ -133,9 +133,6 @@
     // Clear any lingering functions from the last open
     for (const func of downloadManagerRemovalFunctions) func();
     downloadManagerRemovalFunctions = [];
-
-    // processor.invalidate -----------------------------------------------------------
-    downloadManagerRemovalFunctions.push(events.on('processor.invalidate', refreshProcessData));
 
     // processor.book -----------------------------------------------------------------
     downloadManagerRemovalFunctions.push(events.onProgress('processor.book', null, (id, data) =>{
@@ -254,6 +251,11 @@
     lastRefresh = Date.now();
   }
 
+  const processorInvalidated = (isActive: boolean) => {
+    downloadManagerBlue = isActive;
+    if (downloadManagerVisible === true) refreshProcessData();
+  }
+
   // Create some variables to hold common statistics that the front-end will use
   let booksAsArray: ProcessQueueBOOK[] = [];
   let booksDone = 0;
@@ -261,7 +263,6 @@
   let booksInProgress = 0;
   let booksWaiting = 0;
   let totalBooks = 0;
-  let totalPercentage = 0;
   let downloadManagerBlue = false;
 
   // When we get process updates this function can be ran to update the statistics
@@ -274,19 +275,6 @@
     totalBooks = booksAsArray.length;
 
     downloadManagerBlue = booksNotDone > 0;
-    
-    if (totalBooks > 0) {
-      let inProgressPercentages = 0;
-      for (const b of booksAsArray.filter((b) => b.in_progress === true)) {
-        if (b.book === null) continue;
-        // Calculate this book's percentage
-        const bP = ((b.book.download_progress + b.book.process_progress) / 2 * 100);
-        inProgressPercentages += bP / totalBooks;
-      }
-      totalPercentage = Math.floor(100 * (booksDone / totalBooks)) + inProgressPercentages;
-    } else {
-      totalPercentage = 0;
-    }
 
   }
 
@@ -303,8 +291,8 @@
     // processor.settings -------------------------------------------------------------
     removalFunctions.push(events.on('processor.settings', updateProcessSettings));
 
-    // processor.settings -------------------------------------------------------------
-    removalFunctions.push(events.on('processor.book.inProgress', (val) => downloadManagerBlue = val));
+    // processor.invalidate -----------------------------------------------------------
+    removalFunctions.push(events.on('processor.invalidate', processorInvalidated));
 
     // Add the function to close the download manager because that will release
     // all the callbacks associated with it
@@ -782,11 +770,11 @@
                       </div>
                       <div class="mx-2 mt-1">
                         <div class="relative w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                          <div class="absolute bg-blue-600 h-2.5 rounded-full transition-width duration-500" style="width: {totalPercentage}%"></div>
+                          <div class="absolute bg-blue-600 h-2.5 rounded-full transition-width duration-500" style="width: {(booksDone / totalBooks) * 100}%"></div>
                         </div>
                         <div class="flex justify-between mb-1">
                           <span class="text-xs font-medium text-blue-700 dark:text-white truncate max-w-[7rem]">{booksDone} <span class="text-xxs">of</span> {totalBooks}</span>
-                          <span class="text-xs font-medium text-blue-700 dark:text-white">{helpers.round(totalPercentage, 0)}%</span>
+                          <span class="text-xs font-medium text-blue-700 dark:text-white">{helpers.round((booksDone / totalBooks) * 100, 0)}%</span>
                         </div>
                       </div>
                     </div>

@@ -25,16 +25,24 @@ import { LibraryManager } from '$lib/server/cmd';
 // Download Functions
 // --------------------------------------------------------------------------------------------
 
-const cancelMap: { [key: string]: {
-  canceled: boolean,
-  proc: child_process.ChildProcessWithoutNullStreams,
-  error: BookDownloadError
-} } = {}
+if (global.audible === undefined) global.audible = { instance: undefined, cancelMap: {} };
+for (const asin of Object.keys(global.audible.cancelMap)) {
+  global.audible.cancelMap[asin].canceled = false;
+  global.audible.cancelMap[asin].error = 'UNKNOWN';
+  global.audible.cancelMap[asin].proc.kill();
+  delete global.audible.cancelMap[asin];
+}
+
+// const cancelMap: { [key: string]: {
+//   canceled: boolean,
+//   proc: child_process.ChildProcessWithoutNullStreams,
+//   error: BookDownloadError
+// } } = {}
 
 export const cancel = async (asin: string): Promise<boolean> => {
-  if (asin in cancelMap) {
-    cancelMap[asin].canceled = true;
-    cancelMap[asin].proc.kill();
+  if (asin in global.audible.cancelMap) {
+    global.audible.cancelMap[asin].canceled = true;
+    global.audible.cancelMap[asin].proc.kill();
     return true;
   }
   return false;
@@ -112,7 +120,7 @@ export const download = async (asin: string, processID: string, tmpDir: string):
   );
 
   // Assign cancel map
-  cancelMap[asin] = {
+  global.audible.cancelMap[asin] = {
     proc: audible,
     canceled: false,
     error: BookDownloadError.NO_ERROR
@@ -130,7 +138,7 @@ export const download = async (asin: string, processID: string, tmpDir: string):
 
       // Check for a network error
       if (data.indexOf('audible.exceptions.NetworkError') !== -1) {
-        cancelMap[asin].error = BookDownloadError.NETWORK_ERROR;
+        global.audible.cancelMap[asin].error = BookDownloadError.NETWORK_ERROR;
         audible.kill();
       }
 
@@ -192,16 +200,21 @@ export const download = async (asin: string, processID: string, tmpDir: string):
 
     // Attach to the exit event
     audible.on('exit', async () => {
-      if (cancelMap[asin].canceled === true) {
-        delete cancelMap[asin];
-        resolve(BookDownloadError.CANCELED);
-      } else if (cancelMap[asin].error !== BookDownloadError.NO_ERROR) {
-        const err = cancelMap[asin].error;
-        delete cancelMap[asin];
-        resolve(err);
+      if (global.audible.cancelMap[asin] !== undefined) {
+        if (global.audible.cancelMap[asin].canceled === true) {
+          delete global.audible.cancelMap[asin];
+          resolve(BookDownloadError.CANCELED);
+        } else if (global.audible.cancelMap[asin].error !== BookDownloadError.NO_ERROR) {
+          const err = global.audible.cancelMap[asin].error;
+          delete global.audible.cancelMap[asin];
+          resolve(err);
+        } else {
+          delete global.audible.cancelMap[asin];
+          resolve(BookDownloadError.NO_ERROR);
+        }
       } else {
-        delete cancelMap[asin];
-        resolve(BookDownloadError.NO_ERROR);
+        console.log('audible exit but cancelMap does not exist');
+        resolve('UNKNOWN' as BookDownloadError);
       }
 
     });

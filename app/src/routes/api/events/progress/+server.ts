@@ -25,11 +25,6 @@ export function GET({ request, url }) {
   if (problematicTargets.length > 0) return API.response._400({ message: `The following targets do not exist: '${problematicTargets.join(', ')}'. Options: '${Event.Progress.Names.join(', ')}'` });
 
   // Get the types of encoding we can use
-  const encoding =
-    // request.headers.get('accept-encoding')?.includes('br') ? 'br' :
-    //   request.headers.get('accept-encoding')?.includes('gzip') ? 'gzip' :
-    //     request.headers.get('accept-encoding')?.includes('deflate') ? 'deflate' :
-          'none';
 
   // Assign the headers based on the encoding
   const headers: { [key: string]: string } = {
@@ -37,26 +32,17 @@ export function GET({ request, url }) {
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
   }
-  if (encoding !== 'none') headers['Content-Encoding'] = encoding;
 
+  const encoder = new TextEncoder();
+
+  // Create a variable to hold the last ID. If we are sending the same ID again, we don't need to include the ID
+  // tag because the browser keeps track of that for us.
+  let lastId: null | string = null;
   // Initialize a function that will be used to encode data
-  let packageEvent: (event: Event.Progress.Name, id: string, data: any) => Uint8Array;
-
-  // Assign the function based on what encoding we can use
-  switch (encoding) {
-    // case 'br':
-    //   packageEvent = (event, data): Uint8Array => zlib.brotliCompressSync(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    //   break;
-    // case 'gzip':
-    //   packageEvent = (event, data): Uint8Array => zlib.gzipSync(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    //   break;
-    // case 'deflate':
-    //   packageEvent = (event, data): Uint8Array => zlib.deflateSync(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    //   break;
-    default:
-      const encoder = new TextEncoder();
-      packageEvent = (event, id, data): Uint8Array => encoder.encode(`id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-      break;
+  const packageEvent = (event: Event.Progress.Name, id: string, data: any) => {
+    const idToSend = (lastId === id) ? '' : `id: ${id}\n`;
+    if (lastId !== id) lastId = id;
+    return encoder.encode(`${idToSend}event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   }
 
   // Create a variable to hold all the callbacks. We do this so we can remove the callbacks when the connection

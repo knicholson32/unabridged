@@ -28,6 +28,21 @@ declare global {
 		}
 		declare namespace audible {
 			let instance: child_process.ChildProcessWithoutNullStreams | undefined
+			let cancelMap: {
+				[key: string]: {
+					canceled: boolean,
+					proc: child_process.ChildProcessWithoutNullStreams,
+					error: BookDownloadError
+				}
+			}
+		}
+		declare namespace aax {
+			let cancelMap: {
+				[key: string]: {
+					canceled: boolean,
+					proc: child_process.ChildProcessWithoutNullStreams
+				}
+			}
 		}
 	}
 }
