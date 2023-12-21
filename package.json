@@ -28,7 +28,7 @@
 		"eslint": "^8.28.0",
 		"eslint-config-prettier": "^8.5.0",
 		"eslint-plugin-svelte": "^2.30.0",
-		"fast-average-color-node": "^2.6.0",
+		"fast-average-color-node": "^2.7.0",
 		"fuse.js": "^7.0.0",
 		"mime-types": "^2.1.35",
 		"node-fetch": "^3.3.2",

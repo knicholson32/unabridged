@@ -7,10 +7,10 @@ services:
     environment:
       PUID: 1000
       PGID: 1000
-      ORIGIN: 'http://localhost:3000'
+      ORIGIN: 'http://localhost:5173'
       TZ: 'America/New_York'
     ports:
-      - '3000:3000'
+      - '5173:3000'
     volumes:
-      - ../db:/db
-      - ../library:/library
+      - ../library/db:/db
+      - ../library/files:/library

@@ -1,8 +1,8 @@
 version: '3'
 services:
-  preview:
+  dev:
     image: unabridged-dev
-    container_name: unabridged-preview
+    container_name: unabridged-dev
     volumes:
       - ../node_modules:/app/node_modules
       - ../:/app
@@ -12,12 +12,12 @@ services:
     environment:
       ORIGIN: 'http://localhost:5173'
       TZ: 'America/New_York'
-
+    
     stop_signal: SIGKILL
     working_dir: /app
-    command: bash -c "npm i && npx prisma generate && npm run preview -- --host"
+    command: bash -c "npm i && npx prisma generate && npm run dev -- --host"
     init: true
     ports:
-      - 5173:4173
+      - 5173:5173
     tty: true
     stdin_open: true

@@ -3,10 +3,9 @@
 .gitignore
 *Dockerfile*
 *docker-compose*
-/app/node_modules
-/app/prisma/.env
-/app/build
-/app/.svelte-kit
-/app/db.json
+/node_modules
+/prisma/.env
+/build
+/.svelte-kit
 Makefile
 **/*.bak

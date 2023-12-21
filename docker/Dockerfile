@@ -5,7 +5,6 @@ ARG NODE_VERSION=20.10.0
 ARG USR_LOCAL_EXPORT=/export-usr-bin
 ARG ROOT_EXPORT=/export-root
 ARG WHEEL_EXPORT=/export-wheel
-# ARG SERVER_DIRECTORY=/app
 ARG SERVER_PORT=3000
 
 
@@ -37,16 +36,16 @@ RUN echo "---- INSTALL BUILD DEPENDENCIES ----" \
   && echo http://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories \
   && apk add --no-cache --update --upgrade --virtual=build-dependencies automake boost-dev build-base gcc git tar xz fdk-aac-dev wget
 
-# Install tone
-RUN echo "---- INSTALL TONE ----" \
-  && case "${TARGETARCH}" in \
-    "amd64")  TONE_LINK=https://github.com/sandreas/tone/releases/download/v${TONE_VERSION}/tone-${TONE_VERSION}-linux-musl-x64.tar.gz  ;; \
-    "arm64")  TONE_LINK=https://github.com/sandreas/tone/releases/download/v${TONE_VERSION}/tone-${TONE_VERSION}-linux-musl-arm64.tar.gz  ;; \
-    *) exit 1 ;; \
-  esac; wget $TONE_LINK \
-  && tar xzf tone-*.tar.gz \
-  && mv tone*/tone ${USR_LOCAL_EXPORT}/bin/ \
-  && rm -rf ./tone*
+# # Install tone
+# RUN echo "---- INSTALL TONE ----" \
+#   && case "${TARGETARCH}" in \
+#     "amd64")  TONE_LINK=https://github.com/sandreas/tone/releases/download/v${TONE_VERSION}/tone-${TONE_VERSION}-linux-musl-x64.tar.gz  ;; \
+#     "arm64")  TONE_LINK=https://github.com/sandreas/tone/releases/download/v${TONE_VERSION}/tone-${TONE_VERSION}-linux-musl-arm64.tar.gz  ;; \
+#     *) exit 1 ;; \
+#   esac; wget $TONE_LINK \
+#   && tar xzf tone-*.tar.gz \
+#   && mv tone*/tone ${USR_LOCAL_EXPORT}/bin/ \
+#   && rm -rf ./tone*
 
 # Compile and install MP4V2
 RUN echo "---- COMPILE SANDREAS MP4V2 (for sort-title, sort-album and sort-author) ----" \
@@ -56,16 +55,14 @@ RUN echo "---- COMPILE SANDREAS MP4V2 (for sort-title, sort-album and sort-autho
   && cd mp4v2-master \
   && ./configure --prefix=${USR_LOCAL_EXPORT} && \
   make -j4 && \
-  make install && make distclean
-
-# # Install AAXtoMP3
-# RUN echo "---- INSTALL AAXtoMP3 ----" \
-#   && wget https://github.com/KrumpetPirate/AAXtoMP3/releases/download/v${AAXtoMP3_VERSION}/AAXtoMP3-v${AAXtoMP3_VERSION}.tar.gz -O - | tar -xz \
-#   && cp -vn ./AAXtoMP3/AAXtoMP3 ${USR_LOCAL_EXPORT}/bin/AAXtoMP3
-
-# # Install AAXtoMP3
-# RUN echo "---- INSTALL AAXtoMP3 ----" \
-#   && wget -O ${USR_LOCAL_EXPORT}/bin/AAXtoMP3 https://raw.githubusercontent.com/KrumpetPirate/AAXtoMP3/master/AAXtoMP3
+  make install && make distclean \
+  && rm ${USR_LOCAL_EXPORT}/bin/mp4extract \
+  && rm ${USR_LOCAL_EXPORT}/bin/mp4file \
+  && rm ${USR_LOCAL_EXPORT}/bin/mp4info \
+  && rm ${USR_LOCAL_EXPORT}/bin/mp4subtitle \
+  && rm ${USR_LOCAL_EXPORT}/bin/mp4tags \
+  && rm ${USR_LOCAL_EXPORT}/bin/mp4track \
+  && rm ${USR_LOCAL_EXPORT}/bin/mp4trackdump
 
 # Install AAXtoMP3
 COPY ./bin/AAXtoMP3 ${USR_LOCAL_EXPORT}/bin/AAXtoMP3
@@ -74,29 +71,6 @@ COPY ./bin/AAXtoMP3 ${USR_LOCAL_EXPORT}/bin/AAXtoMP3
 RUN echo "---- REMOVE BUILD DEPENDENCIES (to keep image small) ----" \
    && apk del --purge build-dependencies && rm -rf /tmp/* \
    && rm -rf /root/.cache /tmp/*
-
-# ######### Wheel Build Stage ########################################################################
-# FROM python:3.11.4-alpine3.18 as wheel
-
-# # Renew args from above
-# ARG WHEEL_EXPORT
-
-# # Install dependancies that will be used only to aid the build process
-# RUN echo "---- INSTALL BUILD DEPENDENCIES ----" \
-#   && echo http://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories \
-#   && apk add --no-cache --update --upgrade --virtual=build-dependencies gcc libgcc musl-dev jpeg-dev zlib-dev
-
-# # Compile the wheels and save to export location
-# RUN echo "---- BUILD WHEELS ----" \
-#   && pip3 install wheel \
-#   && pip3 wheel -w ${WHEEL_EXPORT} audible-cli markdownify natsort
-
-# # Remove build dependancies and packages
-# RUN echo "---- REMOVE BUILD DEPENDENCIES (to keep image small) ----" \
-#    && apk del --purge build-dependencies && rm -rf /tmp/* \
-#    && rm -rf /root/.cache /tmp/*
-
-
 
 ######### Development Stage ########################################################################
 FROM python:3.12.1-alpine3.18 as dev
@@ -108,7 +82,6 @@ ARG WHEEL_EXPORT
 
 # Copy artifacts from the previous stage ()
 COPY --from=dependancies "${USR_LOCAL_EXPORT}/" "/usr/local/"
-# COPY --from=wheel "${WHEEL_EXPORT}/" "/tmp/whl/"
 
 # Install development dependancies
 RUN echo "---- INSTALL DEPENDENCIES ----" \
@@ -123,20 +96,18 @@ COPY --from=node_install /usr/local/bin /usr/local/bin
 
 # Install the Audible-CLI python module and dependancies
 RUN echo "---- INSTALL AUDIBLE-CLI ----" \
-  # && pip3 --no-cache-dir install audible-cli markdownify natsort
-  && pip3 install  audible-cli markdownify natsort
-  # && rm -rf /tmp/*
-# && pip3 install --no-index --find-links=/tmp/whl audible-cli markdownify natsort \
+  && pip3 install audible-cli markdownify natsort
 
 ARG GIT_COMMIT
 ENV GIT_COMMIT=$GIT_COMMIT
 ENV PROC_SHELL='/bin/sh'
 
+
 ######### Node Modules & Build #####################################################################
 FROM node:${NODE_VERSION}-alpine3.18 as build
 
 # Copy the application and move to the copied folder
-COPY ./app/ /app/
+COPY ./ /app/
 WORKDIR /app
 
 # Install node modules
@@ -147,8 +118,10 @@ RUN echo "---- INSTALL NODE MODULES ----" \
 RUN echo "---- BUILD SERVER ----" \
   && ORIGIN=${ORIGIN} PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host npm run build
 
+
 ######### Production Stage #########################################################################
 FROM python:3.12.1-alpine3.18 as prod
+
 
 # Assign labels
 LABEL org.opencontainers.image.title unabridged
@@ -184,16 +157,9 @@ COPY --from=node_install /usr/local/lib /usr/local/lib
 COPY --from=node_install /usr/local/include /usr/local/include
 COPY --from=node_install /usr/local/bin /usr/local/bin
 
-# # Copy artifacts from the previous stage (wheel)
-# COPY --from=wheel "${WHEEL_EXPORT}/" "/tmp/whl/"
-
 # Install the Audible-CLI python module and dependancies
-# TODO: When this issue is resolved, the wheel should already exist: https://github.com/python-pillow/pillow-wheels/issues/346
 RUN echo "---- INSTALL AUDIBLE-CLI ----" \
-  # && ls /tmp/whl \
   && pip3 install audible-cli markdownify natsort
-  # && rm -rf /tmp/*
-# && pip3 install --no-index --find-links=/tmp/whl audible-cli markdownify natsort \
 
 # Copy artifacts from the previous stage (base & node)
 COPY --from=dependancies "${USR_LOCAL_EXPORT}/" "/usr/local/"
@@ -209,11 +175,6 @@ RUN echo "---- Install Production Dependancies ----" \
 
 COPY --from=build "/app/build/" "/app/"
 
-# # Prepare the DB
-# RUN echo "---- Prepare the Database ----" \
-#   && cd /app \
-#   && npx prisma generate
-
 ARG GIT_COMMIT
 ENV GIT_COMMIT=$GIT_COMMIT
 
@@ -221,4 +182,3 @@ STOPSIGNAL SIGKILL
 # Set Docker command entry point and expose the proper port
 EXPOSE ${SERVER_PORT}/tcp
 CMD ["sh","-c","cd /app && npx prisma migrate deploy && PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host /usr/local/bin/node /app"]
-# ENTRYPOINT ["/init"]app

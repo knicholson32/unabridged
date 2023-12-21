@@ -190,6 +190,8 @@ export const actions = {
 
         const images = await serverHelpers.cropImages(await image.arrayBuffer());
 
+        console.log(images);
+
         try {
             await prisma.profileImage.delete({ where: { id }});
         } catch(e) {
