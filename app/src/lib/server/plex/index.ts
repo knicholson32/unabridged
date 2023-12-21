@@ -163,12 +163,10 @@ export const reset = async () => {
   if (global.plex.generalTimeout !== undefined) clearTimeout(global.plex.generalTimeout);
 }
 
-const reportAndReturn = async (result: publicTypes.ScanAndGenerate, notify = true, skipResult?: publicTypes.ScanAndGenerate): Promise<publicTypes.ScanAndGenerate> => {
-  if (skipResult !== undefined && result === skipResult) return result;
-  if (!notify) return result;
+const reportAndReturn = async (result: publicTypes.ScanAndGenerate): Promise<publicTypes.ScanAndGenerate> => {
   events.emit('collection.result', result);
   // Save a notification if required
-  if (result !== publicTypes.ScanAndGenerate.NO_ERROR && result !== publicTypes.ScanAndGenerate.NO_ERROR_COLLECTIONS_DISABLED) {
+  if (publicTypes.scanAndGenerateIsError(result)) {
     const notification: publicTypes.Notification = {
       id: uuidv4(),
       icon_path: icons.warning,
@@ -198,7 +196,7 @@ export const scanAndGenerate = async (progress?: { scan: (progress: number) => v
   if (plexSettings['plex.enable'] === false) return publicTypes.ScanAndGenerate.PLEX_DISABLED;
   if (plexSettings['plex.library.autoScan.enable'] === false) return publicTypes.ScanAndGenerate.AUTO_SCAN_DISABLED;
   if (plexSettings['plex.library.key'] === '') return publicTypes.ScanAndGenerate.NO_LIBRARY_CONFIGURED;
-  if (plexSettings['plex.library.autoScan.inProgress'] === true) return publicTypes.ScanAndGenerate.ALREADY_IN_PROGRESS;
+  if (plexSettings['plex.library.autoScan.inProgress'] === true) return publicTypes.ScanAndGenerate.NO_ERROR_ALREADY_IN_PROGRESS;
 
   // We are now in-progress
   await settings.set('plex.library.autoScan.inProgress', true);
@@ -278,7 +276,7 @@ export const triggerAutoScan = async (): Promise<publicTypes.ScanAndGenerate> =>
     if(plexSettings['plex.library.autoScan.scheduled'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.AUTO_SCAN_ONLY_ALLOWED_DURING_CRON);
 
     // Check if there is one running right now. If so, don't schedule but also don't resolve the schedule request.
-    if (plexSettings['plex.library.autoScan.inProgress'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.ALREADY_IN_PROGRESS, false);
+    if (plexSettings['plex.library.autoScan.inProgress'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.NO_ERROR_ALREADY_IN_PROGRESS);
 
     // Test the plex connection
     const result = await testPlexConnection(plexSettings['plex.address'], plexSettings['plex.token'], false);
@@ -311,7 +309,7 @@ export const triggerAutoScan = async (): Promise<publicTypes.ScanAndGenerate> =>
     if (result.success === false) return reportAndReturn(publicTypes.ScanAndGenerate.NO_CONNECTION_TO_PLEX);
 
     // Check if there is one running right now. If so, don't schedule but also don't resolve the schedule request.
-    if (plexSettings['plex.library.autoScan.inProgress'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.ALREADY_IN_PROGRESS, false);
+    if (plexSettings['plex.library.autoScan.inProgress'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.NO_ERROR_ALREADY_IN_PROGRESS);
   }
 
   console.log('scheduler trigger')
@@ -352,5 +350,5 @@ export const triggerAutoScan = async (): Promise<publicTypes.ScanAndGenerate> =>
     data: r,
     success: r === publicTypes.ScanAndGenerate.NO_ERROR || r === publicTypes.ScanAndGenerate.NO_ERROR_COLLECTIONS_DISABLED,
   });
-  return reportAndReturn(r, true, publicTypes.ScanAndGenerate.ALREADY_IN_PROGRESS);
+  return reportAndReturn(r);
 }

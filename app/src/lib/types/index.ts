@@ -305,7 +305,7 @@ export enum ScanAndGenerate {
     AUTO_SCAN_DISABLED = 'AUTO_SCAN_DISABLED',
     AUTO_SCAN_ONLY_ALLOWED_DURING_CRON = 'AUTO_SCAN_ONLY_ALLOWED_DURING_CRON',
     COLLECTIONS_DISABLED = 'COLLECTIONS_DISABLED',
-    ALREADY_IN_PROGRESS = 'ALREADY_IN_PROGRESS',
+    NO_ERROR_ALREADY_IN_PROGRESS = 'NO_ERROR_ALREADY_IN_PROGRESS',
     NO_CONNECTION_TO_PLEX = 'NO_CONNECTION_TO_PLEX',
     FAILED_TO_SCAN_LIBRARY = 'FAILED_TO_SCAN_LIBRARY',
     FAILED_TO_GENERATE_COLLECTIONS = 'FAILED_TO_GENERATE_COLLECTIONS',
@@ -319,12 +319,24 @@ export enum ScanAndGenerate {
     UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
 
+export const scanAndGenerateIsError = (result: ScanAndGenerate) => {
+    switch (result) {
+        case ScanAndGenerate.NO_ERROR:
+        case ScanAndGenerate.NO_ERROR_COLLECTIONS_DISABLED:
+        case ScanAndGenerate.NO_ERROR_ALREADY_IN_PROGRESS:
+            return false;
+    }
+    return true;
+}
+
 export const scanAndGenerateToStringShort = (p: ScanAndGenerate) => {
     switch (p) {
         case ScanAndGenerate.NO_ERROR:
             return 'Success';
         case ScanAndGenerate.NO_ERROR_COLLECTIONS_DISABLED:
             return 'Success, no Collections';
+        case ScanAndGenerate.NO_ERROR_ALREADY_IN_PROGRESS:
+            return 'Already In Progress';
         case ScanAndGenerate.PLEX_DISABLED:
             return 'Plex Disabled';
         case ScanAndGenerate.AUTO_SCAN_DISABLED:
@@ -333,8 +345,6 @@ export const scanAndGenerateToStringShort = (p: ScanAndGenerate) => {
             return 'Cron Only';
         case ScanAndGenerate.COLLECTIONS_DISABLED:
             return 'Collections Disabled';
-        case ScanAndGenerate.ALREADY_IN_PROGRESS:
-            return 'Already In Progress';
         case ScanAndGenerate.NO_CONNECTION_TO_PLEX:
             return 'No Connection';
         case ScanAndGenerate.FAILED_TO_SCAN_LIBRARY:
@@ -375,7 +385,7 @@ export const scanAndGenerateToStringLong = (p: ScanAndGenerate) => {
             return 'Auto Scan is only allowed to occur during the Cron. See settings.';
         case ScanAndGenerate.COLLECTIONS_DISABLED:
             return 'Collections are disabled in settings.';
-        case ScanAndGenerate.ALREADY_IN_PROGRESS:
+        case ScanAndGenerate.NO_ERROR_ALREADY_IN_PROGRESS:
             return 'A scan / collection generation is already in progress.';
         case ScanAndGenerate.NO_CONNECTION_TO_PLEX:
             return 'Cannot connect to the Plex instance.';
