@@ -54,6 +54,7 @@ export const load = async ({ params, fetch }) => {
 export const actions = {
     deregister: async ({ request, fetch }) => {
         const data = await request.formData();
+        const debug = await settings.get('system.debug');
         const id = data.get('id') as string;
         // Check that the ID was actually submitted
         if (id === null || id === undefined) throw error(404, 'Not found');
@@ -64,11 +65,29 @@ export const actions = {
         // Return if the profile was not found
         if (source === null || source === undefined) throw error(404, 'Not found');
 
-        console.log('deregister', id);
+        // We need to check if there are any books being downloaded or processed
+        const count = await prisma.processBook.count({
+           where: {
+            queueEntry: {
+                is_done: false,
+            },
+            book: {
+                sources: {
+                    some: {
+                        id: id
+                    }
+                }
+            }
+           } 
+        });
+
+        if (count > 0) return { response: 'deregister', success: false, message: 'Could not delete the account: One or more books using this source are currently being downloaded or processed.' };
+
+        if (debug) console.log('deregister', id);
 
         // Remove the profile
         const success = await audible.cmd.profile.remove(id);
-        console.log('success', success);
+        if (debug) console.log('success', success);
         if (success) {
             const notification: Notification = {
                 id: uuidv4(),
@@ -101,11 +120,8 @@ export const actions = {
         // Return if the profile was not found
         if (source === null || source === undefined) throw error(404, 'Not found');
 
-        console.log('get');
         const results = await audible.cmd.library.get(id);
-        console.log('get done');
 
-        console.log('Create notification');
         const notification: Notification = {
             id: uuidv4(),
             icon_color: null,

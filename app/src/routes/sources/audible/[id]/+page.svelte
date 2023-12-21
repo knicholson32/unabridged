@@ -31,6 +31,8 @@
         console.log('Form failure!');
         if (form?.response === 'sync') {
           showAlert('Profile sync error', { subText: form?.message, theme: 'error'});
+        } else if (form?.response === 'deregister') {
+          showAlert('Source deletion error', { subText: form?.message, theme: 'error'});
         }
       }
     }
@@ -401,7 +403,7 @@
                   <form class="pl-3" method="POST" action="?/sync" use:enhance={() => {
                       profileSyncing = true;
                       return async ({ update }) => {
-                          showAlert('Profile sync complete', {linger_ms: 4000, iconPath: icons.ok, iconColor: 'text-gray-400'});
+                          // showAlert('Profile sync complete', {linger_ms: 4000, iconPath: icons.ok, iconColor: 'text-gray-400'});
                           update();
                       };
                   }}>
@@ -428,7 +430,7 @@
               <p class="ml-2 flex items-baseline text-sm font-semibold text-gray-400">
                 of {data.source.books.length}
                 <span class="inline-flex ml-2 text-xs items-baseline rounded-full px-2.5 py-0.5 font-medium bg-green-100 text-green-800 md:mt-2 lg:mt-0">
-                  {(num_downloaded * 100 / data.source.books.length).toPrecision(2)}%
+                  {(data.source.books.length === 0) ? 0 : (num_downloaded * 100 / data.source.books.length).toPrecision(1)}%
                 </span>
               </p>
               <div class="absolute inset-x-0 bottom-0 bg-gray-50 px-4 py-4 sm:px-6">

@@ -140,7 +140,7 @@
       // Check if that book exists. If not, we don't have the data to do anything about it.
       // The `process.book.queued` event must fire first.
       if (!(id in processBookMap)) return;
-      console.log('progress', data);
+      // console.log('progress', data);
 
       // Assign the running and done flags
       processBookMap[id].in_progress = data.r;
