@@ -311,7 +311,7 @@ export enum ScanAndGenerate {
     FAILED_TO_GENERATE_COLLECTIONS = 'FAILED_TO_GENERATE_COLLECTIONS',
     UNIMPLEMENTED_COLLECTION_TYPE = 'UNIMPLEMENTED_COLLECTION_TYPE',
     NO_LIBRARY_CONFIGURED = 'NO_LIBRARY_CONFIGURED',
-    BOOKS_STILL_PROCESSING = 'BOOKS_STILL_PROCESSING',
+    NO_ERROR_BOOKS_STILL_PROCESSING = 'NO_ERROR_BOOKS_STILL_PROCESSING',
     SCAN_TIMEOUT_WAITING_FOR_CONNECTION = 'SCAN_TIMEOUT_WAITING_FOR_CONNECTION',
     SCAN_TIMEOUT_WAITING_FOR_FINISH = 'SCAN_TIMEOUT_WAITING_FOR_FINISH',
     SCAN_CONNECTION_ERROR = 'SCAN_CONNECTION_ERROR',
@@ -324,6 +324,7 @@ export const scanAndGenerateIsError = (result: ScanAndGenerate) => {
         case ScanAndGenerate.NO_ERROR:
         case ScanAndGenerate.NO_ERROR_COLLECTIONS_DISABLED:
         case ScanAndGenerate.NO_ERROR_ALREADY_IN_PROGRESS:
+        case ScanAndGenerate.NO_ERROR_BOOKS_STILL_PROCESSING:
             return false;
     }
     return true;
@@ -337,6 +338,8 @@ export const scanAndGenerateToStringShort = (p: ScanAndGenerate) => {
             return 'Success, no Collections';
         case ScanAndGenerate.NO_ERROR_ALREADY_IN_PROGRESS:
             return 'Already In Progress';
+        case ScanAndGenerate.NO_ERROR_BOOKS_STILL_PROCESSING:
+            return 'Books Processing';
         case ScanAndGenerate.PLEX_DISABLED:
             return 'Plex Disabled';
         case ScanAndGenerate.AUTO_SCAN_DISABLED:
@@ -355,8 +358,6 @@ export const scanAndGenerateToStringShort = (p: ScanAndGenerate) => {
             return 'Unimplemented Type';
         case ScanAndGenerate.NO_LIBRARY_CONFIGURED:
             return 'No Library';
-        case ScanAndGenerate.BOOKS_STILL_PROCESSING:
-            return 'Books Processing';
         case ScanAndGenerate.SCAN_TIMEOUT_WAITING_FOR_CONNECTION:
             return 'Connection Timeout';
         case ScanAndGenerate.SCAN_TIMEOUT_WAITING_FOR_FINISH:
@@ -377,6 +378,10 @@ export const scanAndGenerateToStringLong = (p: ScanAndGenerate) => {
             return 'Success';
         case ScanAndGenerate.NO_ERROR_COLLECTIONS_DISABLED:
             return 'Success, however collections were not generated because that feature is disabled.';
+        case ScanAndGenerate.NO_ERROR_ALREADY_IN_PROGRESS:
+            return 'A scan / collection generation is already in progress.';
+        case ScanAndGenerate.NO_ERROR_BOOKS_STILL_PROCESSING:
+            return 'Books are still processing; Unabridged is not idle. Try again later.';
         case ScanAndGenerate.PLEX_DISABLED:
             return 'The Plex integration is disabled in settings.';
         case ScanAndGenerate.AUTO_SCAN_DISABLED:
@@ -385,8 +390,6 @@ export const scanAndGenerateToStringLong = (p: ScanAndGenerate) => {
             return 'Auto Scan is only allowed to occur during the Cron. See settings.';
         case ScanAndGenerate.COLLECTIONS_DISABLED:
             return 'Collections are disabled in settings.';
-        case ScanAndGenerate.NO_ERROR_ALREADY_IN_PROGRESS:
-            return 'A scan / collection generation is already in progress.';
         case ScanAndGenerate.NO_CONNECTION_TO_PLEX:
             return 'Cannot connect to the Plex instance.';
         case ScanAndGenerate.FAILED_TO_SCAN_LIBRARY:
@@ -397,8 +400,6 @@ export const scanAndGenerateToStringLong = (p: ScanAndGenerate) => {
             return 'The requested collection type is unimplemented.';
         case ScanAndGenerate.NO_LIBRARY_CONFIGURED:
             return 'No target Plex library is configured. See settings.';
-        case ScanAndGenerate.BOOKS_STILL_PROCESSING:
-            return 'Books are still processing; Unabridged is not idle. Try again later.';
         case ScanAndGenerate.SCAN_TIMEOUT_WAITING_FOR_CONNECTION:
             return 'The websocket connection to monitor the Plex scan process timed out during connection.';
         case ScanAndGenerate.SCAN_TIMEOUT_WAITING_FOR_FINISH:

@@ -24,6 +24,7 @@ export function GET({ request }) {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
+    // 'Connection': 'upgrade',
   }
   if (encoding !== 'none') headers['Content-Encoding'] = encoding;
   
@@ -51,14 +52,28 @@ export function GET({ request }) {
   // closes, so we don't have hanging events
   const callbackMap: { [key: string]: (data: any) => void } = {};
 
+  let interval: number;
+
   // Create a function that will clean up the callbacks upon connection close
   const cleanup = () => {
     for (const e of Event.Base.Names) if (callbackMap[e] !== undefined) base.off(e, callbackMap[e]);
+    clearInterval(interval);
   }
 
   // Create a Readable Stream Controller. This will be assigned when the connection is made, and
   // will be used to emit data to the client
   let controller: ReadableStreamDefaultController<any> | null = null;
+
+  const ping = () => {
+    if (controller !== null) {
+      try {
+        controller.enqueue(packageEvent('ping' as Event.Base.Name, ''));
+      } catch (e) {
+        controller = null;
+        cleanup();
+      }
+    }
+  }
 
   // Create a function to route data from the server event system to the client
   const emit = <T extends Event.Base.Name>(event: T) => {
@@ -94,6 +109,7 @@ export function GET({ request }) {
       // In this case, it is every possible event because base events are not that frequent.
       for (const e of Event.Base.Names) base.on(e, emit(e));
       controller.enqueue(packageEvent('initialize' as Event.Base.Name, undefined, true));
+      setInterval(ping, 80000);
       console.log('base event stream opened');
     },
     async cancel(reason) {

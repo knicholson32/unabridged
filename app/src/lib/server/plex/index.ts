@@ -302,7 +302,7 @@ export const triggerAutoScan = async (): Promise<publicTypes.ScanAndGenerate> =>
     if (plexSettings['plex.library.autoScan.scheduled'] === true) return reportAndReturn(publicTypes.ScanAndGenerate.AUTO_SCAN_ONLY_ALLOWED_DURING_CRON);
 
     // Check that there are no books processing (IE. the processor is idle)
-    if(LibraryManager.getNoneWorking() === false) return reportAndReturn(publicTypes.ScanAndGenerate.BOOKS_STILL_PROCESSING);
+    if(LibraryManager.getNoneWorking() === false) return reportAndReturn(publicTypes.ScanAndGenerate.NO_ERROR_BOOKS_STILL_PROCESSING);
 
     // Test the plex connection
     const result = await testPlexConnection(plexSettings['plex.address'], plexSettings['plex.token'], false);

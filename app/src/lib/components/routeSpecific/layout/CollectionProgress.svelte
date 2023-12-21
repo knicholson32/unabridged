@@ -40,7 +40,7 @@
 
   const regular = () => {
     if (scheduled !== -1) {
-      const v = 1-(Math.floor(Date.now() / 1000) - scheduled);
+      const v = -(Math.floor(Date.now() / 1000) - scheduled);
       if (v < 0) {
         scheduledCountDown = '';
       } else {
