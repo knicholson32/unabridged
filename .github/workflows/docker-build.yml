@@ -1,9 +1,10 @@
 name: ci
 
 on:
-  push:
-    branches:
-      - "main"
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - "main"
 
 jobs:
   build:
@@ -21,7 +22,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ vars.REGISTRY_IMAGE }}
+          images: |
+            ${{ vars.REGISTRY_IMAGE }}
+            ghcr.io/${{ vars.REGISTRY_IMAGE }}
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -31,6 +34,12 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
         id: build
         uses: docker/build-push-action@v5
@@ -41,6 +50,8 @@ jobs:
             GIT_COMMIT=${{ github.sha }}
             GIT_REF=${{ github.ref_name }}
             GIT_REF_PROTECTED=${{ github.ref_protected }}
+            REGISTRY_IMAGE=${{ vars.REGISTRY_IMAGE }}
+            CI=true
           file: docker/Dockerfile
           outputs: type=image,name=${{ vars.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
           labels: ${{ steps.meta.outputs.labels }}
@@ -75,17 +86,33 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ vars.REGISTRY_IMAGE }}
+          images: |
+            ${{ vars.REGISTRY_IMAGE }}
+            ghcr.io/${{ vars.REGISTRY_IMAGE }}
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Create manifest list and push
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create manifest list and push DockerHub
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ vars.REGISTRY_IMAGE }}@sha256:%s ' *)
-      - name: Inspect image
+      - name: Inspect image DockerHub
         run: |
           docker buildx imagetools inspect ${{ vars.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
+      - name: Create manifest list and push ghcr.io
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf 'ghcr.io/${{ vars.REGISTRY_IMAGE }}@sha256:%s ' *)
+      - name: Inspect image ghcr.io
+        run: |
+          docker buildx imagetools inspect ghcr.io/${{ vars.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}

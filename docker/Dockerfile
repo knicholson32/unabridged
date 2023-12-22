@@ -175,7 +175,16 @@ RUN echo "---- Install Production Dependancies ----" \
 COPY --from=build "/app/build/" "/app/"
 
 ARG GIT_COMMIT
+ARG GIT_REF
+ARG GIT_REF_PROTECTED
+ARG REGISTRY_IMAGE
+ARG CI
+
 ENV GIT_COMMIT=$GIT_COMMIT
+ENV GIT_REF=$GIT_REF
+ENV GIT_REF_PROTECTED=$GIT_REF_PROTECTED
+ENV REGISTRY_IMAGE=$REGISTRY_IMAGE
+ENV CI=$CI
 
 STOPSIGNAL SIGKILL
 # Set Docker command entry point and expose the proper port
