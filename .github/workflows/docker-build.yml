@@ -5,6 +5,10 @@ on:
     branches:
       - "main"
 
+env:
+  REGISTRY_IMAGE: keenanrnicholson/unabridged
+  CACHE_REGISTRY_IMAGE: keenanrnicholson/unabridged-dev
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - linux/amd64
+          # - linux/amd64
           - linux/arm64
     steps:
       - name: Checkout
@@ -21,7 +25,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ vars.REGISTRY_IMAGE }}
+          images: ${{ env.REGISTRY_IMAGE }}
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -43,11 +47,11 @@ jobs:
             GIT_REF_PROTECTED=${{ github.ref_protected }}
           file: docker/Dockerfile
           # push: ${{ github.event_name != 'pull_request' }}
-          outputs: type=image,name=${{ vars.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
-          tags: ${{ steps.meta.outputs.tags }}
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          # tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ vars.CACHE_REGISTRY_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ vars.CACHE_REGISTRY_IMAGE }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.CACHE_REGISTRY_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.CACHE_REGISTRY_IMAGE }}:buildcache,mode=max
       - name: Export digest
         run: |
           mkdir -p /tmp/digests
@@ -87,7 +91,7 @@ jobs:
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ vars.REGISTRY_IMAGE }}@sha256:%s ' *)
+            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ vars.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
