@@ -1,9 +1,9 @@
 ## ![Unabridged Logo](https://github.com/knicholson32/unabridged/raw/assets/Unabridged.png?raw=true)
 
-![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/knicholson32/unabridged/docker-build.yml)
+[![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/knicholson32/unabridged/docker-build.yml)](https://github.com/knicholson32/unabridged/actions)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/knicholson32/unabridged/issues)
-![Docker Image Size with architecture (latest by date/latest semver)](https://img.shields.io/docker/image-size/keenanrnicholson/unabridged)
-![Docker Pulls](https://img.shields.io/docker/pulls/keenanrnicholson/unabridged)
+[![Docker Image Size with architecture (latest by date/latest semver)](https://img.shields.io/docker/image-size/keenanrnicholson/unabridged)](https://hub.docker.com/r/keenanrnicholson/unabridged/tags)
+[![Docker Pulls](https://img.shields.io/docker/pulls/keenanrnicholson/unabridged)](https://hub.docker.com/r/keenanrnicholson/unabridged/tags)
 
 # Introduction
 
