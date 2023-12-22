@@ -37,37 +37,39 @@ You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
 
-
-
-
 ## Notes
 
 ### Steps
+
 1. Link an Audible account
 2. Browse the books in all the accounts and select which ones should be added to the library
 3. For each book or set of books, have the ability to:
-  * Change details about the book such as title, etc.
-  * Add or remove genres / rating
-  * Change the description
-  * Add or remove it from a series/collection
+
+- Change details about the book such as title, etc.
+- Add or remove genres / rating
+- Change the description
+- Add or remove it from a series/collection
+
 4. Download and process selected books to the library
 
 ### Browse Available Library
-* Be able to browse the local library and sort by lots of params
-* Be able to change params for a book or set of books
+
+- Be able to browse the local library and sort by lots of params
+- Be able to change params for a book or set of books
 
 ### Browse Local Library
-* Be able to browse the local library and sort by lots of params
-* Be able to change params for a book or set of books
 
+- Be able to browse the local library and sort by lots of params
+- Be able to change params for a book or set of books
 
 ### ToDo
+
 [X] Allow an account to be re-authenticated, so if there is an issue you don't lose all the books
 [ ] Process parts as well as chapters (See Bobiverse: We Are Legion)
 [~] Re-implement AAXtoMP3 in-house to enable the titles to be what we specifically set (AAXtoMP3 picks second title which is the title and subtitle combined)
 
-
 ### Features To Add
+
 [ ] Add a calendar showing when books were added to Audible / Unabridged
 [ ] Finish the dashboard
 [ ] Push-based progress updates
@@ -76,4 +78,5 @@ You can preview the production build with `npm run preview`.
 [ ] Snapshots to save pending settings changes instead of blocking page navigation (https://svelte.dev/blog/streaming-snapshots-sveltekit)
 
 ### Important Links
-* https://github.com/djdembeck/Audnexus.bundle -> used for getting metadata in Plex
+
+- https://github.com/djdembeck/Audnexus.bundle -> used for getting metadata in Plex

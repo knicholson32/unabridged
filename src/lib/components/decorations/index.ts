@@ -1,4 +1,3 @@
-
 export { default as Number } from './Number.svelte';
 export { default as CircularProgress } from './CircularClose.svelte';
 export { default as Accordion } from './Accordion.svelte';

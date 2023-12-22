@@ -4,10 +4,10 @@ import { API } from '$lib/types';
 import * as events from '$lib/server/events';
 
 export const GET = async ({}) => {
-  const paused = await settings.get('progress.paused');
-  await settings.set('progress.paused', !paused);
-  events.emit('processor.settings', await settings.getSet('progress'));
-  if (paused) LibraryManager.eventLoop();
+	const paused = await settings.get('progress.paused');
+	await settings.set('progress.paused', !paused);
+	events.emit('processor.settings', await settings.getSet('progress'));
+	if (paused) LibraryManager.eventLoop();
 
-  return API.response.success({ bool: !paused });
-}
+	return API.response.success({ bool: !paused });
+};

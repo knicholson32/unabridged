@@ -12,7 +12,7 @@ services:
     environment:
       ORIGIN: 'http://localhost:5173'
       TZ: 'America/New_York'
-    
+
     stop_signal: SIGKILL
     working_dir: /app
     command: bash -c "npm i && npx prisma generate && npm run dev -- --host"

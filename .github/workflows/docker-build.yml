@@ -1,81 +1,93 @@
-name: Docker Build
+name: ci
 
 on:
-  workflow_dispatch:
   push:
-    tags:
-      - 'v*'
-  pull_request:
     branches:
-      - 'master'
+      - "main"
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
     steps:
-    
-      # Checkout the repository
       - name: Checkout
-        uses: actions/checkout@v3
-      
-      # Save metadata about this push to be used in the tag and label process below
+        uses: actions/checkout@v4
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
-          images: |
-            keenanrnicholson/unabridged
-            ghcr.io/knicholson32/unabridged
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=edge,branch=main
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-
-      # Setup QEMU for multi-platform compilations
+          images: ${{ env.REGISTRY_IMAGE }}
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      # Setup Buildx which will actually build the images for various architectures
+        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      # Login to Docker Hub so we can push the created images
+        uses: docker/setup-buildx-action@v3
       - name: Login to Docker Hub
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Build the image for each platform target
-      - name: Build and push with Mongo included
-        uses: docker/build-push-action@v3
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
-          target: prod
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+            GIT_REF=${{ github.ref_name }}
+            GIT_REF_PROTECTED=${{ github.ref_protected }}
           file: docker/Dockerfile
+          # push: ${{ github.event_name != 'pull_request' }}
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=keenanrnicholson/buildcaches:unabridged
-          cache-to: type=registry,ref=keenanrnicholson/buildcaches:unabridged,mode=max
-
-      # Update the Docker Hub description to match the README.md
-      - name: Update repo description
-        if: github.event_name != 'pull_request'
-        uses: peter-evans/dockerhub-description@v3
+          cache-from: type=registry,ref=${{ env.CACHE_REGISTRY_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.CACHE_REGISTRY_IMAGE }}:buildcache,mode=max
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"          
+      - name: Upload digest
+        uses: actions/upload-artifact@v3
         with:
-          username: ${{ secrets.DOCKERHUB_OWNER_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_OWNER_TOKEN }}
-          repository: keenanrnicholson/unabridged
-          short-description: ${{ github.event.repository.description }}
+          name: digests
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v3
+        with:
+          name: digests
+          path: /tmp/digests
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}

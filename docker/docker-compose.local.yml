@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   unabridged:
-    image: 'keenanrnicholson/unabridged:latest'
+    image: 'keenanrnicholson/unabridged:local'
     container_name: unabridged
     restart: unless-stopped
     environment:

@@ -12,7 +12,7 @@ declare global {
 	}
 	declare namespace globalThis {
 		interface BigInt {
-			toJSON(): string | number
+			toJSON(): string | number;
 		}
 		declare namespace plex {
 			let generalTimeout: NodeJS.Timeout | undefined;
@@ -27,22 +27,22 @@ declare global {
 			let progress: EventEmitter | undefined;
 		}
 		declare namespace audible {
-			let instance: child_process.ChildProcessWithoutNullStreams | undefined
+			let instance: child_process.ChildProcessWithoutNullStreams | undefined;
 			let cancelMap: {
 				[key: string]: {
-					canceled: boolean,
-					proc: child_process.ChildProcessWithoutNullStreams,
-					error: BookDownloadError
-				}
-			}
+					canceled: boolean;
+					proc: child_process.ChildProcessWithoutNullStreams;
+					error: BookDownloadError;
+				};
+			};
 		}
 		declare namespace aax {
 			let cancelMap: {
 				[key: string]: {
-					canceled: boolean,
-					proc: child_process.ChildProcessWithoutNullStreams
-				}
-			}
+					canceled: boolean;
+					proc: child_process.ChildProcessWithoutNullStreams;
+				};
+			};
 		}
 	}
 }

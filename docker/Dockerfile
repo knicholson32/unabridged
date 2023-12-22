@@ -122,7 +122,6 @@ RUN echo "---- BUILD SERVER ----" \
 ######### Production Stage #########################################################################
 FROM python:3.12.1-alpine3.18 as prod
 
-
 # Assign labels
 LABEL org.opencontainers.image.title unabridged
 LABEL org.opencontainers.image.description Docker container for managing and archiving audiobooks
