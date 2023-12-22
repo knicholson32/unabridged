@@ -52,9 +52,7 @@ jobs:
             REGISTRY_IMAGE=${{ vars.REGISTRY_IMAGE }}
             CI=true
           file: docker/Dockerfile
-          outputs: |
-            type=image,name=${{ vars.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
-            type=image,name=ghcr.io/${{ vars.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ vars.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ vars.CACHE_REGISTRY_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ vars.CACHE_REGISTRY_IMAGE }}:buildcache,mode=max
