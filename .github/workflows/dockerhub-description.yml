@@ -14,8 +14,8 @@ jobs:
     - name: Docker Hub Description
       uses: peter-evans/dockerhub-description@v3
       with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_PASS }}
+        username: ${{ secrets.DOCKERHUB_OWNER_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_OWNER_PASS }}
         repository: ${{ vars.REGISTRY_IMAGE }}
         short-description: ${{ github.event.repository.description }}
         enable-url-completion: true
