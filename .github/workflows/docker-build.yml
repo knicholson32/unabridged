@@ -1,10 +1,9 @@
 name: ci
 
 on:
-  workflow_dispatch:
-  # push:
-  #   branches:
-  #     - "main"
+  push:
+    branches:
+      - "main"
 
 jobs:
   build:
@@ -14,7 +13,7 @@ jobs:
       matrix:
         platform:
           - linux/amd64
-          - linux/arm64
+          # - linux/arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,7 +52,9 @@ jobs:
             REGISTRY_IMAGE=${{ vars.REGISTRY_IMAGE }}
             CI=true
           file: docker/Dockerfile
-          outputs: type=image,name=${{ vars.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          outputs: |
+            type=image,name=${{ vars.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+            type=image,name=ghcr.io/${{ vars.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ vars.CACHE_REGISTRY_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ vars.CACHE_REGISTRY_IMAGE }}:buildcache,mode=max
@@ -100,19 +101,14 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Create manifest list and push DockerHub
+      - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ vars.REGISTRY_IMAGE }}@sha256:%s ' *)
-      - name: Inspect image DockerHub
+      - name: Inspect image Docker Hub
         run: |
           docker buildx imagetools inspect ${{ vars.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
-      - name: Create manifest list and push ghcr.io
-        working-directory: /tmp/digests
-        run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'ghcr.io/${{ vars.REGISTRY_IMAGE }}@sha256:%s ' *)
-      - name: Inspect image ghcr.io
+      - name: Inspect image GHCR
         run: |
           docker buildx imagetools inspect ghcr.io/${{ vars.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
