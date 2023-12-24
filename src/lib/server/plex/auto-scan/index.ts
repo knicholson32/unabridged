@@ -195,7 +195,7 @@ export const generateCollections = async (
 				console.log('Collect singles');
 				// Make a collection for the single books if one doesn't exist
 				let key: string | null = plexSettings['plex.collections.singlesKey'];
-				if (key === '') {
+				if (key === '' || !await collections.checkCollectionExists(key, plexSettings['plex.address'], plexSettings['plex.token'], debug)) {
 					key = await collections.createCollection(
 						'No Series',
 						plexSettings['plex.library.key'],
