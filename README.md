@@ -195,3 +195,16 @@ if (debug) console.log('Debug message here!');
 ## Audible Accounts
 
 Before clearing the database, it is recommended to delete signed-in Audible accounts so they aren't left signed-in. Once the database is cleared, Unabridged has no way to sign out and another device will be registered if Unabridged is used again.
+
+## Audible CLI
+Unabridged uses [`audible-cli`](https://github.com/mkb79/audible-cli) to communicate with the Audible API and download books. To interact directly with the `cli`, utilize the development container:
+```Bash
+# "SSH" into the docker container
+docker exec -it <container name> /bin/sh
+
+# Find the account IDs
+cat /db/audible/config.toml
+
+# Prepend the CLI with `AUDIBLE_CONFIG_DIR=/db/audible` so it knows where the `config.toml` file is
+AUDIBLE_CONFIG_DIR=/db/audible audible -P <Account ID> library list
+```
