@@ -163,6 +163,9 @@ export const download = async (
 			if (data.indexOf('audible.exceptions.NetworkError') !== -1) {
 				global.audible.cancelMap[asin].error = BookDownloadError.NETWORK_ERROR;
 				audible.kill();
+			} else if (data.indexOf('audible.exceptions.Unauthorized: Forbidden (403)') !== -1) {
+				global.audible.cancelMap[asin].error = BookDownloadError.NOT_AUTHORIZED;
+				audible.kill();
 			}
 		};
 

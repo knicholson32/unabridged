@@ -225,7 +225,8 @@ export enum ProcessError {
 	DESTINATION_NOT_WRITABLE = 'DESTINATION_NOT_WRITABLE',
 	INVALID_FILE = 'INVALID_FILE',
 	CONVERSION_ERROR = 'CONVERSION_ERROR',
-	COULD_NOT_SAVE = 'COULD_NOT_SAVE'
+	COULD_NOT_SAVE = 'COULD_NOT_SAVE',
+	NOT_AUTHORIZED = 'NOT_AUTHORIZED',
 }
 
 export const processErrorToStringShort = (p: ProcessError) => {
@@ -254,6 +255,8 @@ export const processErrorToStringShort = (p: ProcessError) => {
 			return 'Conversion Error';
 		case ProcessError.COULD_NOT_SAVE:
 			return 'Save Error';
+		case ProcessError.NOT_AUTHORIZED:
+			return 'Not Authorized';
 		default:
 			return 'Unknown error';
 	}
@@ -285,6 +288,8 @@ export const processErrorToStringLong = (p: ProcessError) => {
 			return "Something went wrong while converting this book's audio file.";
 		case ProcessError.COULD_NOT_SAVE:
 			return "Something went wrong while copying this book's audio file to storage.";
+		case ProcessError.NOT_AUTHORIZED:
+			return "This account source is not authorized. Please sign-in again.";
 		default:
 			return 'An unknown and unexpected error has occurred.';
 	}

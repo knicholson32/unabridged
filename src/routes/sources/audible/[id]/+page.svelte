@@ -29,7 +29,7 @@
 			} else {
 				console.log('Form failure!');
 				if (form?.response === 'sync') {
-					showAlert('Profile sync error', { subText: form?.message, theme: 'error' });
+					// showAlert('Profile sync error', { subText: form?.message, theme: 'error' });
 				} else if (form?.response === 'deregister') {
 					showAlert('Source deletion error', { subText: form?.message, theme: 'error' });
 				}
@@ -193,12 +193,15 @@
 			: intlFormatDistance(new Date(data.source.last_sync * 1000), new Date());
 	let lastSyncSpecific =
 		data.source.last_sync === null ? 'Never' : toISOStringTZ(data.source.last_sync * 1000, data.tz);
-	setInterval(() => {
+	let interval = setInterval(() => {
 		lastSyncPretty =
 			data.source.last_sync === null
 				? 'Never'
 				: intlFormatDistance(new Date(data.source.last_sync * 1000), new Date());
 	}, 1000);
+
+	// Clear interval for last-synced
+	onMount(() => clearInterval(interval));
 
 	const resetProfileDataForm = () => {
 		name = '';
@@ -302,6 +305,11 @@
 		downloaded = new helpers.RunTime({ min: downloaded_run_time_min });
 	}
 </script>
+{#await data.promise.authenticated}
+	Loading
+{:then data} 
+	{data}
+{/await}
 
 <div class="grow bg-gray-100 h-full w-full">
 	<nav class="flex border-b border-gray-200 bg-white" aria-label="Breadcrumb">

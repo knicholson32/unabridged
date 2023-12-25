@@ -166,6 +166,7 @@ export enum BookDownloadError {
 	BOOK_NOT_FOUND = 'BOOK_NOT_FOUND',
 	CANCELED = 'CANCELED',
 	NETWORK_ERROR = 'NETWORK_ERROR',
+	NOT_AUTHORIZED = 'NOT_AUTHORIZED',
 	NO_PROFILE = 'NO_PROFILE'
 }
 
@@ -183,8 +184,39 @@ export const bookDownloadErrorToString = (e: BookDownloadError): string => {
 			return 'The book download process was canceled';
 		case BookDownloadError.NETWORK_ERROR:
 			return 'A network issue exists that is preventing download';
+		case BookDownloadError.NOT_AUTHORIZED:
+			return 'This account is not authorized by Audible';
 		case BookDownloadError.NO_PROFILE:
 			return 'No profile exists to download this book';
+		default:
+			return 'An unknown error occurred';
+	}
+};
+
+
+export enum CLIError {
+	NO_ERROR = 'NO_ERROR',
+	AUDIBLE_LOCKED = 'AUDIBLE_LOCKED',
+	NO_ID = 'NO_ID',
+	NO_SOURCE = 'NO_SOURCE',
+	NETWORK_ERROR = 'NETWORK_ERROR',
+	NOT_AUTHORIZED = 'NOT_AUTHORIZED',
+}
+
+export const cliErrorToString = (e: CLIError): string => {
+	switch (e) {
+		case CLIError.NO_ERROR:
+			return 'No error';
+		case CLIError.AUDIBLE_LOCKED:
+			return 'The audible CLI is locked';
+		case CLIError.NO_ID:
+			return 'No ID was submitted';
+		case CLIError.NO_SOURCE:
+			return 'No Audible source provided';
+		case CLIError.NETWORK_ERROR:
+			return 'There was a network error';
+		case CLIError.NOT_AUTHORIZED:
+			return 'This account is not authorized by Audible';
 		default:
 			return 'An unknown error occurred';
 	}

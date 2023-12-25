@@ -6,7 +6,7 @@ import * as tools from './tools';
 import * as settings from '$lib/server/settings';
 import * as types from '$lib/types';
 import { v4 as uuidv4 } from 'uuid';
-import { BookDownloadError } from './audible/types';
+import { BookDownloadError, CLIError, cliErrorToString } from './audible/types';
 import type { Issuer, ModalTheme } from '$lib/types';
 import { ConversionError } from './AAXtoMP3/types';
 import { ProcessError } from '$lib/types';
@@ -921,16 +921,16 @@ export namespace Cron {
 						// Sync the profile
 						const results = await audible.cmd.library.get(source.id);
 
-						if (results !== null) {
+						if (results.err === CLIError.NO_ERROR && results.results !== undefined) {
 							cronRecord.libSync++;
-							cronRecord.booksAdded += results.numCreated;
-							cronRecord.booksUpdated += results.numUpdated;
+							cronRecord.booksAdded += results.results.numCreated;
+							cronRecord.booksUpdated += results.results.numUpdated;
 						}
 
 						// Check if the sync worked
 						if (debug) {
-							if (results !== null) console.log(JSON.stringify(results));
-							else console.log('Sync failed');
+							if (results.err === CLIError.NO_ERROR) console.log(JSON.stringify(results));
+							else console.log('Sync failed: ', cliErrorToString(results.err));
 						}
 					} else {
 						if (debug)

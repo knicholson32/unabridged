@@ -1,7 +1,7 @@
 import * as child_process from 'node:child_process';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import type { Library, BookFromCLI } from '../../types';
+import { type Library, type BookFromCLI, type BookDownloadError, CLIError } from '../../types';
 import { Event, SourceType } from '$lib/types';
 import { isLocked } from '../../';
 import prisma from '$lib/server/prisma';
@@ -301,12 +301,11 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
 };
 
 /**
- * Parse a library JSON file and import all the books to the DB
- * @param id the account to associate the book with
+ * Check that an Audible profile is authenticated
+ * @param id the ID of the source to check
+ * @returns whether or not it is authenticated, or null if unknown
  */
-export const get = async (
-	id: string
-): Promise<{ numCreated: number; numUpdated: number } | null> => {
+export const checkAuthenticated = async (id: string): Promise<boolean | null> => {
 	// Check that the ID was actually submitted
 	if (id === null || id === undefined) return null;
 
@@ -323,6 +322,57 @@ export const get = async (
 	// Return if the profile was not found
 	if (source === null || source === undefined || source.audible === null || isLocked()) return null;
 
+	// Make sure the config file is written
+	await writeConfigFile();
+
+	events.emitProgress('basic.account.sync', id, {
+		t: Event.Progress.Basic.Stage.START
+	});
+
+	const cli_id = source.audible.cli_id;
+	try {
+		await new Promise<void>((resolve, reject) => {
+			child_process.exec(
+					`${AUDIBLE_CMD} -P ${cli_id} api /1.0/account/information`,
+				{ env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } },
+				(err, stdout) => {
+					if (err !== null) reject(stdout);
+					else resolve()
+				}
+			);
+		});
+		return true;
+	} catch (e) {
+		const err = e as string;
+		console.log('ERR internal error, not authenticated');
+		console.log(e);
+		return false;
+	}
+}
+
+/**
+ * Parse a library JSON file and import all the books to the DB
+ * @param id the account to associate the book with
+ */
+export const get = async (
+	id: string
+): Promise<{ err: CLIError, results?: { numCreated: number; numUpdated: number }}> => {
+	// Check that the ID was actually submitted
+	if (id === null || id === undefined) return { err: CLIError.NO_ID };
+
+	// Get the profile from the database
+	const source = await prisma.source.findUnique({
+		where: {
+			type: SourceType.AUDIBLE,
+			NOT: { audible: null },
+			id
+		},
+		include: { audible: true }
+	});
+
+	// Return if the profile was not found
+	if (source === null || source === undefined || source.audible === null || isLocked()) return { err: CLIError.NO_SOURCE };
+
 	// Create a temp directory for this library
 	if (!fs.existsSync(`/tmp`)) fs.mkdirSync(`/tmp`);
 
@@ -336,20 +386,39 @@ export const get = async (
 	try {
 		const cli_id = source.audible.cli_id;
 
-		await new Promise<void>((resolve) => {
-			child_process.exec(
-				`${AUDIBLE_CMD} -P ${cli_id} library export --format json -o /tmp/${cli_id}.library.json`,
-				{ env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } },
-				() => resolve()
-			);
-		});
-		await new Promise<void>((resolve) => {
-			child_process.exec(
-				`${AUDIBLE_CMD} -P ${cli_id} library export --format tsv -o /db/audible/${cli_id}.library.tsv`,
-				{ env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } },
-				() => resolve()
-			);
-		});
+		try {
+			await new Promise<void>((resolve, reject) => {
+				child_process.exec(
+					`${AUDIBLE_CMD} -P ${cli_id} library export --format json -o /tmp/${cli_id}.library.json`,
+					{ env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } },
+					(err, stdout) => {
+						if (err !== null) reject(stdout);
+						else resolve()
+					}
+				);
+			});
+			await new Promise<void>((resolve, reject) => {
+				child_process.exec(
+					`${AUDIBLE_CMD} -P ${cli_id} library export --format tsv -o /db/audible/${cli_id}.library.tsv`,
+					{ env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } },
+					(err, stdout) => {
+						if (err !== null) reject(stdout);
+						else resolve()
+					}
+				);
+			});
+		} catch (e) {
+			const err = e as string;
+			console.log('ERR internal error');
+			console.log(e);
+			if (err.indexOf('audible.exceptions.Unauthorized: Forbidden (403)') !== -1) {
+				return { err: CLIError.NOT_AUTHORIZED };
+			} else if (err.indexOf('audible.exceptions.NetworkError: Network down.') !== -1) {
+				return { err: CLIError.NETWORK_ERROR };
+			} else {
+				return { err: 'UNKNOWN' as CLIError };
+			}
+		}
 
 		const library = JSON.parse(
 			fs.readFileSync(`/tmp/${cli_id}.library.json`).toString()
@@ -386,10 +455,10 @@ export const get = async (
 			success: true
 		});
 
-		return { numCreated, numUpdated };
+		return { err: CLIError.NO_ERROR, results: { numCreated, numUpdated } };
 	} catch (e) {
 		// Didn't work
-		console.log('ERR');
+		console.log('ERR', e);
 		const err = e as { stdout: Buffer };
 		console.log(err);
 		console.log(err.stdout.toString());
@@ -402,6 +471,6 @@ export const get = async (
 		try {
 			fs.rmSync(`/tmp/${id}.library.json`, { recursive: true, force: true });
 		} catch (e) {}
-		return null;
+		return { err: 'UNKNOWN' as CLIError };
 	}
 };

@@ -8,6 +8,8 @@ import { icons } from '$lib/components';
 import * as serverHelpers from '$lib/server/helpers';
 import * as events from '$lib/server/events';
 import { SourceType, type Issuer, type ModalTheme, type Notification } from '$lib/types';
+import { CLIError, cliErrorToString } from '$lib/server/cmd/audible/types/index.js';
+import { checkAuthenticated } from '$lib/server/cmd/audible/cmd/library';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params, fetch }) => {
@@ -44,6 +46,9 @@ export const load = async ({ params, fetch }) => {
 
 	return {
 		source,
+		promise: {
+			authenticated: checkAuthenticated(id),
+		},
 		tz: await settings.get('general.timezone')
 	};
 };
@@ -124,26 +129,75 @@ export const actions = {
 
 		const results = await audible.cmd.library.get(id);
 
-		const notification: Notification = {
-			id: uuidv4(),
-			icon_color: null,
-			icon_path: null,
-			issuer: 'account.sync' satisfies Issuer,
-			theme: 'info' satisfies ModalTheme,
-			text: 'Synced at ' + new Date().toISOString(),
-			sub_text: null,
-			identifier: null,
-			linger_time: 10000,
-			needs_clearing: true,
-			auto_open: false
-		};
-		await prisma.notification.create({ data: notification });
-		events.emit('notification.created', [notification]);
+		// const notification: Notification = {
+		// 	id: uuidv4(),
+		// 	icon_color: null,
+		// 	icon_path: null,
+		// 	issuer: 'account.sync' satisfies Issuer,
+		// 	theme: 'info' satisfies ModalTheme,
+		// 	text: 'Synced at ' + new Date().toISOString(),
+		// 	sub_text: null,
+		// 	identifier: null,
+		// 	linger_time: 10000,
+		// 	needs_clearing: true,
+		// 	auto_open: false
+		// };
+		// await prisma.notification.create({ data: notification });
+		// events.emit('notification.created', [notification]);
 
-		if (results !== null) {
+		if (results.err === CLIError.NO_ERROR) {
+			const notification: Notification = {
+				id: uuidv4(),
+				icon_color: null,
+				icon_path: null,
+				issuer: 'account.sync' satisfies Issuer,
+				theme: 'info' satisfies ModalTheme,
+				text: 'Synced at ' + new Date().toISOString(),
+				sub_text: null,
+				identifier: null,
+				linger_time: 10000,
+				needs_clearing: false,
+				auto_open: true
+			};
+			await prisma.notification.create({ data: notification });
+			events.emit('notification.created', [notification]);
 			return { response: 'sync', success: true, results };
 		} else {
-			return { response: 'sync', success: false, message: '' };
+			if (results.err === CLIError.NOT_AUTHORIZED) {
+				const notification: Notification = {
+					id: uuidv4(),
+					icon_color: null,
+					icon_path: null,
+					issuer: 'account.sync' satisfies Issuer,
+					theme: 'info' satisfies ModalTheme,
+					text: `Error: Login expired. <a href="/sources/audible/${id}">Please login again.</a>`,
+					sub_text: null,
+					identifier: null,
+					linger_time: 10000,
+					needs_clearing: false,
+					auto_open: true
+				};
+				await prisma.notification.create({ data: notification });
+				events.emit('notification.created', [notification]);
+				return { response: 'sync', success: false, message: 'Login expired. Please login again.' };
+			} else {
+				const notification: Notification = {
+					id: uuidv4(),
+					icon_color: null,
+					icon_path: null,
+					issuer: 'account.sync' satisfies Issuer,
+					theme: 'error' satisfies ModalTheme,
+					text: 'Error syncing: ' + cliErrorToString(results.err),
+					sub_text: null,
+					identifier: null,
+					linger_time: 10000,
+					needs_clearing: false,
+					auto_open: true
+				};
+				await prisma.notification.create({ data: notification });
+				events.emit('notification.created', [notification]);
+				return { response: 'sync', success: false, message: cliErrorToString(results.err) };
+			}
 		}
 	},
 	auto_sync: async ({ request, params }) => {

@@ -145,11 +145,14 @@ export const fetchMetadata = async (
 
 	try {
 		// Have the audible-cli get the activation bytes
-		await new Promise<void>((resolve) => {
+		await new Promise<void>((resolve, reject) => {
 			child_process.exec(
 				`${AUDIBLE_CMD} -P ${source.audible?.cli_id} activation-bytes`,
 				{ env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } },
-				() => resolve()
+				(err, stdout) => {
+					if (err !== null) reject(stdout);
+					else resolve()
+				}
 			);
 		});
 		// Get the auth file associated with this profile
