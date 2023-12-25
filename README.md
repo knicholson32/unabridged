@@ -123,7 +123,7 @@ npx prisma db push
 npx prisma format
 
 # Create a migration & push the changes to the DB
-npx prisma migrate dev --name v0.0.0 # Changes this version
+npx prisma migrate dev --name v0.0.0 # Change this version
 
 # Check the resulting migration file in `/prisma/migrations` to make sure it will do what is expected during the migration
 ```
@@ -181,7 +181,7 @@ if (global.interval !== undefined) clearInterval(global.interval);
 global.interval = setInterval(() => {}, 1000);
 ```
 
-The production environment does not hot-reload, so these functions are not necessary. However, they also don't cause issues, so they are left in the production.
+The production environment does not hot-reload, so these functions are not necessary. However, they also don't cause issues, so they are left in production code.
 
 ## Debug Logs
 
@@ -195,6 +195,8 @@ if (debug) console.log('Debug message here!');
 ## Audible Accounts
 
 Before clearing the database, it is recommended to delete signed-in Audible accounts so they aren't left signed-in. Once the database is cleared, Unabridged has no way to sign out and another device will be registered if Unabridged is used again.
+
+[Revove devices from your account](https://help.audible.com/s/article/remove-devices-from-account?language=en_US) that were not removed by unabridged if required. 
 
 ## Audible CLI
 Unabridged uses [`audible-cli`](https://github.com/mkb79/audible-cli) to communicate with the Audible API and download books. To interact directly with the `cli`, utilize the development container:
