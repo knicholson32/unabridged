@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext, onMount } from 'svelte';
 	import { enhance } from '$app/forms';
-	import { EscapeOrClickOutside } from '$lib/components/events';
+	import { EscapeOrClickOutside, accordion } from '$lib/components/events';
 	import { fade } from 'svelte/transition';
 	import { cubicInOut } from 'svelte/easing';
 	import { countryCodes } from '$lib/types';
@@ -17,6 +17,7 @@
 	import * as events from '$lib/events';
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
+	import LoadingCircle from '$lib/components/decorations/LoadingCircle.svelte';
 
 	export let data: import('./$types').PageData;
 	export let form: import('./$types').ActionData;
@@ -289,6 +290,14 @@
 	let total: helpers.RunTime;
 	let downloaded: helpers.RunTime;
 
+	let notAuthorized = false;
+
+	data.promise.authenticated.then((data) => {
+		console.log('authed', data);
+		if (data === null) return;
+		notAuthorized = !data;
+	});
+
 	$: {
 		num_downloaded = 0;
 		total_run_time_min = 0;
@@ -305,12 +314,6 @@
 		downloaded = new helpers.RunTime({ min: downloaded_run_time_min });
 	}
 </script>
-{#await data.promise.authenticated}
-	Loading
-{:then data} 
-	{data}
-{/await}
-
 <div class="grow bg-gray-100 h-full w-full">
 	<nav class="flex border-b border-gray-200 bg-white" aria-label="Breadcrumb">
 		<ol role="list" class="mx-auto flex w-full space-x-4 px-4 sm:px-6 lg:px-8">
@@ -389,10 +392,9 @@
 					<h3 class="truncate text-lg md:text-base font-semibold leading-6 text-white">
 						{data.source.name}
 					</h3>
-					<span
-						class="inline-flex flex-shrink-0 items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20"
-						>Audible</span
-					>
+					<span class="inline-flex flex-shrink-0 items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+						Audible
+					</span>
 				</div>
 				{#if data.source.audible?.email !== undefined}
 					<p class="mt-1 truncate text-sm text-gray-500">{data.source.audible?.email}</p>
@@ -405,6 +407,17 @@
 			/>
 		</div>
 	</div>
+
+	{#await data.promise.authenticated}
+	{:then authenticated}
+		<div in:accordion={{ heightRem: 12, duration: 500 }} class="w-full bg-red-600 text-white overflow-hidden">
+			{#if authenticated === false}
+				<div class="h-12 flex justify-center items-center text-center">
+					Account is not logged in. Please log in again.
+				</div>
+			{/if}
+		</div>
+	{/await}
 
 	<div class="p-5">
 		<div class="space-y-10 divide-y divide-gray-900/10">

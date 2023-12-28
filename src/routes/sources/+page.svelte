@@ -9,6 +9,7 @@
 	import { getContext, onMount } from 'svelte';
 	import { Submit } from '$lib/components/buttons';
 	import { Bullet, LoadingCircle } from '$lib/components/decorations';
+	import accordion from '$lib/components/events/accordion.js';
 	export let data: import('./$types').PageData;
 	export let form: ActionData;
 
@@ -209,10 +210,9 @@
 								<span class="absolute inset-x-0 -top-px bottom-0" />
 								{data.sources[i].name}
 								{#if data.sources[i].type === SourceType.AUDIBLE}
-									<span
-										class="inline-flex flex-shrink-0 items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20"
-										>Audible</span
-									>
+									<span class="inline-flex flex-shrink-0 items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+										Audible
+									</span>
 								{/if}
 							</a>
 						</p>
@@ -220,6 +220,19 @@
               <a href="mailto:{data.sources[i].email}" class="relative truncate hover:underline">{data.sources[i].email}</a>
             </p> -->
 					</div>
+					{#if data.sources[i].type === 'audible' && data.sources[i].authenticated !== null}
+						{#await data.sources[i].authenticated}
+							<LoadingCircle progress={0} spin={true} spinnerOnly={true} theme={{primary: 'white'}}/>
+						{:then authenticated}
+							{#if authenticated === false}
+							<p class="text-sm font-semibold leading-6">
+								<span class="inline-flex flex-shrink-0 items-center rounded-full bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+									Not Logged In
+								</span>
+							</p>
+							{/if}
+						{/await}
+					{/if}
 				</div>
 				<div class="flex shrink-0 items-center gap-x-4">
 					<!-- <div class="mt-1 flex items-center gap-x-1.5">

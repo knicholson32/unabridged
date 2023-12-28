@@ -6,6 +6,7 @@ import * as helpers from '$lib/helpers';
 import { redirect } from '@sveltejs/kit';
 import { ProfileCreationError, profileCreationErrorToMessage } from '$lib/server/cmd/audible/types';
 import { saveGoogleAPIDetails } from '$lib/server/lookup';
+import { checkAuthenticated } from '$lib/server/cmd/audible/cmd/library';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({}) {
@@ -23,6 +24,7 @@ export async function load({}) {
 	const sources = (await prisma.source.findMany()) as (Types.Prisma.SourceGetPayload<{}> & {
 		num_books: number;
 		num_downloaded: number;
+		authenticated: Promise<boolean | null> | undefined;
 	})[];
 
 	for (let i = 0; i < sources.length; i++) {
@@ -33,6 +35,7 @@ export async function load({}) {
 				sources[i].num_downloaded += 1;
 			}
 		}
+		if (sources[i].type === 'audible') sources[i].authenticated = checkAuthenticated(sources[i].id);
 	}
 	return {
 		sources

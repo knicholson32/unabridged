@@ -20,7 +20,7 @@
 </script>
 
 {#if visible}
-	<div transition:reveal class="overflow-hidden">
+	<div in:reveal class="overflow-hidden">
 		<div class={clazz}>
 			<slot />
 		</div>
