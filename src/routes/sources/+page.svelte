@@ -192,96 +192,89 @@
       </article>
   </dialog> -->
 
-	<ul
-		role="list"
-		class="divide-y divide-gray-100 overflow-hidden bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl"
-	>
+	<div class="divide-y flex flex-col gap-3 divide-gray-100 overflow-hidden">
 		{#each { length: data.sources.length } as _, i}
-			<li class="relative flex justify-between gap-x-6 px-4 py-5 hover:bg-gray-50 sm:px-6">
-				<div class="flex min-w-0 gap-x-4">
-					<img
-						class="h-12 w-12 flex-none rounded-full bg-gray-50"
-						src={data.sources[i].profile_image_url}
-						alt={data.sources[i].name}
-					/>
-					<div class="min-w-0 flex-auto">
-						<p class="text-sm font-semibold leading-6 text-gray-900">
-							<a href="/sources/{data.sources[i].id}">
-								<span class="absolute inset-x-0 -top-px bottom-0" />
-								{data.sources[i].name}
-								{#if data.sources[i].type === SourceType.AUDIBLE}
-									<span class="inline-flex flex-shrink-0 items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-										Audible
+			<div class="relative flex flex-col justify-between gap-x-6 bg-white rounded-md hover:bg-gray-50 w-full">
+				<div class="flex flex-row gap-2 items-center px-4 py-5 w-full">
+					<div class="flex items-center min-w-0 gap-4">
+						<img
+							class="h-12 w-12 flex-none rounded-full bg-gray-50"
+							src={data.sources[i].profile_image_url}
+							alt={data.sources[i].name}
+						/>
+						<div class="min-w-0 flex-auto">
+							<p class="text-sm font-semibold leading-6 text-gray-900">
+								<a href="/sources/{data.sources[i].id}" class="flex gap-4 items-center">
+									<span class="absolute inset-x-0 -top-px bottom-0" />
+									{data.sources[i].name}
+									{#if data.sources[i].type === SourceType.AUDIBLE}
+										<span class="h-5 inline-flex flex-shrink-0 items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+											Audible
+										</span>
+									{/if}
+								</a>
+							</p>
+						</div>
+						{#if data.sources[i].type === 'audible' && data.sources[i].authenticated !== null}
+							{#await data.sources[i].authenticated}
+								<LoadingCircle progress={0} spin={true} spinnerOnly={true} theme={{primary: 'white'}}/>
+							{:then authenticated}
+								{#if authenticated === false}
+								<p class="text-sm font-semibold leading-6">
+									<span class="h-5 inline-flex flex-shrink-0 items-center rounded-full bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+										Not Logged In
 									</span>
+								</p>
 								{/if}
-							</a>
-						</p>
-						<!-- <p class="mt-1 flex text-xs leading-5 text-gray-500">
-              <a href="mailto:{data.sources[i].email}" class="relative truncate hover:underline">{data.sources[i].email}</a>
-            </p> -->
-					</div>
-					{#if data.sources[i].type === 'audible' && data.sources[i].authenticated !== null}
-						{#await data.sources[i].authenticated}
-							<LoadingCircle progress={0} spin={true} spinnerOnly={true} theme={{primary: 'white'}}/>
-						{:then authenticated}
-							{#if authenticated === false}
-							<p class="text-sm font-semibold leading-6">
-								<span class="inline-flex flex-shrink-0 items-center rounded-full bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
-									Not Logged In
-								</span>
-							</p>
-							{/if}
-						{/await}
-					{/if}
-				</div>
-				<div class="flex shrink-0 items-center gap-x-4">
-					<!-- <div class="mt-1 flex items-center gap-x-1.5">
-            <div class="flex-none rounded-full bg-emerald-500/20 p-1">
-              <div class="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
-            </div>
-            <p class="text-xs leading-5 text-gray-500">Online</p>
-          </div> -->
-					<div class="hidden sm:flex sm:flex-col sm:items-end">
-						<p class="text-sm leading-6 text-gray-900">
-							{data.sources[i].num_downloaded} / {data.sources[i].num_books}<span
-								class="text-xs leading-5 text-gray-500 pl-1">in library</span
-							>
-						</p>
-						{#if data.sources[i].last_sync === null}
-							<p class="mt-1 text-xs leading-5 text-gray-500">Never synced</p>
-						{:else}
-							<p class="mt-1 text-xs leading-5 text-gray-500">
-								Synced <time
-									datetime={new Date((data.sources[i].last_sync ?? 0) * 1000).toISOString()}
-									>{intlFormatDistance(
-										new Date((data.sources[i].last_sync ?? 0) * 1000),
-										new Date()
-									)}</time
-								>
-							</p>
+							{/await}
 						{/if}
 					</div>
+					<div class="grow"></div>
+					<div class="flex shrink-0 items-center gap-x-4">
+						<!-- <div class="mt-1 flex items-center gap-x-1.5">
+							<div class="flex-none rounded-full bg-emerald-500/20 p-1">
+								<div class="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+							</div>
+							<p class="text-xs leading-5 text-gray-500">Online</p>
+						</div> -->
+						<div class="hidden sm:flex sm:flex-col sm:items-end">
+							<p class="text-sm leading-6 text-gray-900">
+								{data.sources[i].num_downloaded} / {data.sources[i].num_books}<span
+									class="text-xs leading-5 text-gray-500 pl-1">in library</span
+								>
+							</p>
+							{#if data.sources[i].last_sync === null}
+								<p class="mt-1 text-xs leading-5 text-gray-500">Never synced</p>
+							{:else}
+								<p class="mt-1 text-xs leading-5 text-gray-500">
+									Synced <time
+										datetime={new Date((data.sources[i].last_sync ?? 0) * 1000).toISOString()}
+										>{intlFormatDistance(
+											new Date((data.sources[i].last_sync ?? 0) * 1000),
+											new Date()
+										)}</time
+									>
+								</p>
+							{/if}
+						</div>
 
-					<svg
-						class="h-5 w-5 flex-none text-gray-400"
-						viewBox="0 0 20 20"
-						fill="currentColor"
-						aria-hidden="true"
-					>
-						<path
-							fill-rule="evenodd"
-							d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
-							clip-rule="evenodd"
-						/>
-					</svg>
+						<svg
+							class="h-5 w-5 flex-none text-gray-400"
+							viewBox="0 0 20 20"
+							fill="currentColor"
+							aria-hidden="true"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+								clip-rule="evenodd"
+							/>
+						</svg>
+					</div>
 				</div>
-			</li>
-			<LoadingCircle
-				progress={progresses[data.sources[i].id].value}
-				spin={progresses[data.sources[i].id].spin}
-			/>
+			</div>
 		{/each}
-	</ul>
+	</div>
 </div>
 
 {#if addProfileDialogOpen}

@@ -548,21 +548,8 @@
 									{#each menu as m}
 										<li>
 											<!-- Current: "bg-gray-800 text-white", Default: "text-gray-400 hover:text-white hover:bg-gray-800" -->
-											<a
-												href={m.href}
-												on:click={closeMobileMenu}
-												class="{$page.url.pathname === m.href
-													? menuActive
-													: menuDefault} group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
-											>
-												<svg
-													class="h-6 w-6 shrink-0"
-													fill="none"
-													viewBox="0 0 24 24"
-													stroke-width="1.5"
-													stroke="currentColor"
-													aria-hidden="true"
-												>
+											<a href={m.href} on:click={closeMobileMenu} class="{$page.url.pathname === m.href ? menuActive : menuDefault} group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold">
+												<svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" >
 													{@html m.iconPath}
 												</svg>
 												{m.title}
@@ -597,19 +584,8 @@
 														</button>
 													</form>
 												{:else}
-													<a
-														href={menu.button.href}
-														on:click={closeMobileMenu}
-														class="shrink-0 text-gray-400 hover:text-gray-200"
-													>
-														<svg
-															class="h-6 w-6 p-0.5 m-auto"
-															fill="none"
-															viewBox="0 0 24 24"
-															stroke-width="1.5"
-															stroke="currentColor"
-															aria-hidden="true"
-														>
+													<a href={menu.button.href} on:click={closeMobileMenu} class="shrink-0 text-gray-400 hover:text-gray-200" >
+														<svg class="h-6 w-6 p-0.5 m-auto" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" >
 															{@html menu.button.iconPath}
 														</svg>
 													</a>
@@ -1006,42 +982,18 @@
 							>
 								<div class="absolute right-2 top-2 flex gap-1">
 									<CollectionProgress bind:scheduled={collectionScheduledTime} />
-									<button
-										on:click={togglePause}
-										type="button"
-										class="px-1 py-1 text-gray-500 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100"
-									>
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											viewBox="0 0 20 20"
-											fill="currentColor"
-											class="w-5 h-5"
-										>
+									<button on:click={togglePause} type="button" class="px-1 py-1 text-gray-500 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100" >
+										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
 											{#if processPaused}
-												<path
-													d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"
-												/>
+												<path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/>
 											{:else}
-												<path
-													d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z"
-												/>
+												<path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
 											{/if}
 										</svg>
 									</button>
-									<button
-										on:click={closeDownloadManager}
-										type="button"
-										class="px-1 py-1 text-gray-500 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100"
-									>
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											viewBox="0 0 20 20"
-											fill="currentColor"
-											class="w-5 h-5"
-										>
-											<path
-												d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"
-											/>
+									<button on:click={closeDownloadManager} type="button" class="px-1 py-1 text-gray-500 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100">
+										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5" >
+											<path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
 										</svg>
 									</button>
 								</div>
@@ -1051,31 +1003,19 @@
 										<div class="font-bold text-lg">Download Manager</div>
 										<div class="flex gap-2">
 											<div class="font-mono grow text-center sm:text-left sm:pl-2">
-												{booksWaiting}<span
-													class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans"
-													>Queued</span
-												>
+												{booksWaiting}<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans" >Queued</span>
 											</div>
 											<div class="border-l grow-0" />
 											<div class="font-mono grow text-center sm:text-left sm:pl-2">
-												{booksInProgress}<span
-													class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans"
-													>In Progress</span
-												>
+												{booksInProgress}<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans" >In Progress</span>
 											</div>
 											<div class="border-l grow-0" />
 											<div class="font-mono grow text-center sm:text-left sm:pl-2">
-												{booksDone}<span
-													class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans"
-													>Finished</span
-												>
+												{booksDone}<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans" >Finished</span>
 											</div>
 											<div class="border-l grow-0" />
 											<div class="font-mono grow text-center sm:text-left sm:pl-2">
-												{elapsedTime}<span
-													class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans"
-													>Elapsed</span
-												>
+												{elapsedTime}<span class="block sm:inline-block text-center sm:text-left sm:ml-1 text-xxs text-gray-600 font-sans" >Elapsed</span>
 											</div>
 										</div>
 										<div class="mx-2 mt-1">
@@ -1120,17 +1060,10 @@
 											<div class="mx-3 flex flex-row gap-1 items-center">
 												<div class="font-bold text-lg">Queue</div>
 												<div class="font-mono grow pl-2 text-sm">
-													{booksWaiting}<span class="ml-1 text-xs text-gray-600 font-sans"
-														>{helpers.basicPlural('Book', booksWaiting)} Waiting{processPaused
-															? ' - Paused'
-															: ''}</span
-													>
+													{booksWaiting}<span class="ml-1 text-xs text-gray-600 font-sans">{helpers.basicPlural('Book', booksWaiting)} Waiting{processPaused ? ' - Paused' : ''}</span>
 												</div>
 											</div>
-											<ul
-												class="flex flex-col max-h-56 overflow-y-scroll overflow-hidden bg-white"
-												role="none"
-											>
+											<ul class="flex flex-col max-h-56 overflow-y-scroll overflow-hidden bg-white" role="none">
 												{#each booksAsArray.filter((p) => p.in_progress === false && p.is_done === false) as p (p.id)}
 													<li class="odd:bg-gray-100"><QueuedBook process={p} /></li>
 												{/each}
@@ -1140,24 +1073,14 @@
 											<div class="border-b-4 border-double my-1" />
 											<div class="relative py-1 pl-3 pr-2 flex flex-row gap-1 items-center">
 												<div class="font-bold text-lg">Finished</div>
-												<div class="font-mono pl-2 text-sm">
-													{booksDone}<span class="ml-1 text-xs text-gray-600 font-sans"
-														>{helpers.basicPlural('Book', booksDone)} Done</span
-													>
+												<div class="font-mono pl-2 text-sm">{booksDone}<span class="ml-1 text-xs text-gray-600 font-sans">{helpers.basicPlural('Book', booksDone)} Done</span>
 												</div>
 												<div class="grow" />
-												<button
-													on:click={dismissAll}
-													type="button"
-													class="transition-colors duration-100 text-xxs rounded-md py-1 px-2 font-mono text-gray-600 border border-gray-400 hover:text-black hover:border-black"
-												>
+												<button on:click={dismissAll} type="button" class="transition-colors duration-100 text-xxs rounded-md py-1 px-2 font-mono text-gray-600 border border-gray-400 hover:text-black hover:border-black">
 													Dismiss All
 												</button>
 											</div>
-											<ul
-												class="flex flex-col max-h-56 overflow-y-scroll overflow-hidden bg-white"
-												role="none"
-											>
+											<ul class="flex flex-col max-h-56 overflow-y-scroll overflow-hidden bg-white" role="none">
 												{#each booksAsArray.filter((p) => p.is_done === true) as p (p.id)}
 													<li class="odd:bg-gray-100"><FinishedBook process={p} /></li>
 												{/each}
@@ -1186,26 +1109,11 @@
 						aria-haspopup="true"
 					>
 						<span class="sr-only">Open user menu</span>
-						<img
-							class="h-8 w-8 rounded-full bg-gray-50"
-							src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-							alt=""
-						/>
+						<img class="h-8 w-8 rounded-full bg-gray-50" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt=""/>
 						<span class="hidden lg:flex lg:items-center">
-							<span class="ml-4 text-sm font-semibold leading-6 text-gray-900" aria-hidden="true"
-								>Tom Cook</span
-							>
-							<svg
-								class="ml-2 h-5 w-5 text-gray-400"
-								viewBox="0 0 20 20"
-								fill="currentColor"
-								aria-hidden="true"
-							>
-								<path
-									fill-rule="evenodd"
-									d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-									clip-rule="evenodd"
-								/>
+							<span class="ml-4 text-sm font-semibold leading-6 text-gray-900" aria-hidden="true">Tom Cook</span>
+							<svg class="ml-2 h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+								<path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
 							</svg>
 						</span>
 					</button>
@@ -1243,22 +1151,13 @@
 									down: accountDropdownDownEvent,
 									enter: accountDropdownEnterEvent
 								}}
-								class="divide-y divide-gray-200 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none antialiase"
-							>
+								class="divide-y divide-gray-200 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none antialiase">
 								<!-- Create Profile Menu -->
 								{#each profileMenuWithID as section}
 									<div class="py-1" role="none">
 										{#each section as link}
 											<!-- Active: "bg-gray-50", Not Active: "" -->
-											<a
-												bind:this={profileMenuListDesktop[link.id]}
-												href={link.href}
-												target={link.newTab ? '_blank' : ''}
-												class="unstyled font-medium hover:bg-gray-100 hover:text-gray-900 text-gray-700 block px-4 py-2 text-sm !no-underline"
-												role="menuitem"
-												tabindex="-1"
-												id="options-menu-item-{link.id}">{link.title}</a
-											>
+											<a bind:this={profileMenuListDesktop[link.id]} href={link.href} target={link.newTab ? '_blank' : ''} class="unstyled font-medium hover:bg-gray-100 hover:text-gray-900 text-gray-700 block px-4 py-2 text-sm !no-underline" role="menuitem" tabindex="-1" id="options-menu-item-{link.id}">{link.title}</a>
 										{/each}
 									</div>
 								{/each}

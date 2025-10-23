@@ -112,6 +112,22 @@ export const actions = {
 
 		const debug = (data.get('system.debug') ?? undefined) as undefined | string;
 		if (debug !== undefined) await settings.set('system.debug', parseInt(debug));
+
+		const migrateDB = (data.get('system.debug.migrateDB') ?? undefined) === 'true';
+		if (migrateDB) {
+			const books = await prisma.book.findMany({});
+
+			const promises: any[] = [];
+
+			for (const book of books) {
+				if (book.date_added === 0 && book.processed === true) {
+					promises.push(prisma.book.update({ where: { asin: book.asin }, data: { date_added: parseInt(book.purchase_date.toString()) } }));
+				}
+			}
+
+			await prisma.$transaction(promises);
+		}
+
 	},
 	updateLocalization: async ({ request }) => {
 		const data = await request.formData();

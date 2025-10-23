@@ -5,6 +5,7 @@
 *docker-compose*
 /node_modules
 /prisma/.env
+/.pnpm-store
 /build
 /.svelte-kit
 Makefile

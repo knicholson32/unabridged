@@ -294,7 +294,8 @@ export const exec = async (
 			await prisma.book.update({
 				where: { asin: book.asin },
 				data: {
-					processed: true
+					processed: true,
+					date_added: Math.floor(new Date().getTime() / 1000),
 				}
 			});
 		} catch (e) {

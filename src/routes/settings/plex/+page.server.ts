@@ -398,12 +398,7 @@ export const actions = {
 			if (debug) console.log('ERROR: Unable to clear Plex Keys');
 		}
 
-		return {
-			action: '?/clearPlexIntegration',
-			name: 'plex.clear',
-			success: true,
-			message: 'Cleared Integration'
-		};
+		return { action: '?/clearPlexIntegration', name: 'plex.clear', success: true, message: 'Cleared Integration' };
 	},
 	updatePlexAPI: async ({ request }) => {
 		const data = await request.formData();

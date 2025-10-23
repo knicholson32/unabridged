@@ -24,10 +24,10 @@ model Notification {
 }
 
 model Source {
-  id          String  @id // audible:keenanrnicholson@gmail.com
-  name        String  @default("Audible") // 'My old account'
+  id          String  @id
+  name        String  @default("Audible")
   description String?
-  type        String  @default("audible") // 'audible' | 'bookco'
+  type        String  @default("audible")
 
   auto_sync  Boolean
   last_sync  Int?
@@ -122,6 +122,8 @@ model Book {
   isbn               String?
   purchase_date      BigInt
   seriesId           String?
+
+  date_added         Int @default(0)
 
   downloaded   Boolean
   processed    Boolean

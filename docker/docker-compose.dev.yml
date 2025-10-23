@@ -15,7 +15,7 @@ services:
 
     stop_signal: SIGKILL
     working_dir: /app
-    command: bash -c "npm i && npx prisma generate && npm run dev -- --host"
+    command: bash -c "pnpm i && pnpm exec prisma generate && pnpm run dev -- --host"
     init: true
     ports:
       - 5173:5173

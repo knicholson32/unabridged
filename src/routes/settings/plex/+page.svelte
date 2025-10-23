@@ -137,18 +137,13 @@
 		{/if}
 	</span>
 	<span slot="button" class="inline-flex">
-		<form
-			method="POST"
-			action={'?/testPlexIntegration'}
-			class="relative inline-flex items-center gap-2"
-			use:enhance={({ cancel }) => {
-				testingPlexIntegration = true;
-				return async ({ update }) => {
-					testingPlexIntegration = false;
-					update({ reset: false });
-				};
-			}}
-		>
+		<form method="POST" action={'?/testPlexIntegration'} class="relative inline-flex items-center gap-2" use:enhance={({ cancel }) => {
+			testingPlexIntegration = true;
+			return async ({ update }) => {
+				testingPlexIntegration = false;
+				update({ reset: false });
+			};
+		}}>
 			<Submit
 				class="w-full sm:w-auto"
 				theme={{ primary: 'white', done: 'white', fail: 'white' }}
@@ -170,62 +165,20 @@
 		</form>
 	</span>
 
-	<Settings.Switch
-		name="plex.enable"
-		{form}
-		title="Enable Plex"
-		update={plexIntegrationUpdate}
-		bind:value={plexEnable}
-		hoverTitle={'Whether or not to enable Plex integration'}
-	/>
+	<Settings.Switch name="plex.enable" {form} title="Enable Plex" update={plexIntegrationUpdate} bind:value={plexEnable} hoverTitle={'Whether or not to enable Plex integration'}/>
 
-	<Settings.Input
-		name="plex.address"
-		{form}
-		title="Plex Address"
-		mono={true}
-		update={plexIntegrationUpdate}
-		bind:value={plexAddress}
-		placeholder="http://127.0.0.1:32400/"
-		hoverTitle={'Plex Address'}
-	/>
+	<Settings.Input name="plex.address" {form} title="Plex Address" mono={true} update={plexIntegrationUpdate} bind:value={plexAddress} placeholder="http://127.0.0.1:32400/" hoverTitle={'Plex Address'}/>
 
-	<Settings.Password
-		name="plex.token"
-		{form}
-		title="Plex Token"
-		update={plexIntegrationUpdate}
-		bind:value={token}
-		hoverTitle="Plex Token"
-	>
-		<button
-			title="Click to sign into Plex to generate a Plex Token for Unabridged to use."
-			name="signIntoPlex"
-			type="submit"
-			on:click={() => (authorizedRedirect = true)}
-			class="select-none w-full sm:w-auto flex justify-center items-center whitespace-nowrap px-3 py-2 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ring-1 ring-inset ring-gray-300 bg-white text-gray-800 hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 disabled:ring-gray-200 focus-visible:outline-grey-500"
-		>
+	<Settings.Password name="plex.token" {form} title="Plex Token" update={plexIntegrationUpdate} bind:value={token} hoverTitle="Plex Token">
+		<button title="Click to sign into Plex to generate a Plex Token for Unabridged to use." name="signIntoPlex" type="submit" on:click={() => (authorizedRedirect = true)} class="select-none w-full sm:w-auto flex justify-center items-center whitespace-nowrap px-3 py-2 rounded-md text-sm font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ring-1 ring-inset ring-gray-300 bg-white text-gray-800 hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 disabled:ring-gray-200 focus-visible:outline-grey-500">
 			Sign Into Plex
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke-width="1.5"
-				stroke="currentColor"
-				class="ml-1 w-4 h-4"
-			>
+			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="ml-1 w-4 h-4">
 				{@html icons.arrowTopRightOnSquare}
 			</svg>
 		</button>
 	</Settings.Password>
 
-	<Settings.Select
-		{form}
-		name="plex.library.id"
-		badge={libraryIDSaved === '' && data.plex.signedIn === true}
-		title="Plex Library"
-		update={plexIntegrationUpdate}
-		bind:value={library}
+	<Settings.Select {form} name="plex.library.id" badge={libraryIDSaved === '' && data.plex.signedIn === true} title="Plex Library" update={plexIntegrationUpdate} bind:value={library}
 		disabled={data.plex.signedIn === false}
 		hoverTitle={data.plex.signedIn === false
 			? 'Disabled because Plex is not signed in.'

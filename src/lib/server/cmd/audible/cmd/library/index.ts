@@ -278,6 +278,7 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
 			purchase_date: purchase_date,
 			downloaded: false,
 			processed: false,
+			date_added: Math.floor(new Date().getTime() / 1000),
 			cover: {
 				create: {
 					url_50: cover_url_50,

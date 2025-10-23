@@ -421,7 +421,8 @@ export const download = async (
 		await prisma.book.update({
 			where: { asin: book.asin },
 			data: {
-				downloaded: true
+				downloaded: true,
+				date_added: Math.floor(new Date().getTime() / 1000),
 			}
 		});
 	} else {

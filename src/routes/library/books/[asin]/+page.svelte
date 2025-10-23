@@ -705,9 +705,7 @@
 		</div>
 	{/if}
 
-	<div
-		class="flex items-center justify-end gap-x-6 border-t bg-white border-gray-900/10 px-4 py-4 sm:px-8"
-	>
+	<div class="flex items-center justify-end gap-x-6 border-t bg-white border-gray-900/10 px-4 py-4 sm:px-8">
 		<!-- <form method="POST" action="?/download" class="flex items-center justify-end gap-x-6" use:enhance>
       <button class="text-sm font-semibold leading-6 text-gray-900">Download</button>
     </form> -->
@@ -747,18 +745,9 @@
 			<input type="hidden" name="subtitle" value={values.subtitle} />
 			<input type="hidden" name="description" value={values.description} />
 			<input type="hidden" name="isbn" value={values.isbn} />
-			<button
-				type="button"
-				on:click={discardChanges}
-				class="text-sm font-semibold leading-6 text-gray-900">Discard Changes</button
-			>
+			<button type="button" on:click={discardChanges} class="text-sm font-semibold leading-6 text-gray-900">Discard Changes</button>
 			<!-- <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Save</button> -->
-			<Submit
-				submitting={updatesSubmitting}
-				disabled={!hasEdits}
-				actionText={'Update'}
-				actionTextInProgress={'Updating'}
-			/>
+			<Submit submitting={updatesSubmitting} disabled={!hasEdits} actionText={'Update'} actionTextInProgress={'Updating'} />
 		</form>
 	</div>
 </White>

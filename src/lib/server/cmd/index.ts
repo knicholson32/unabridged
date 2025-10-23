@@ -658,6 +658,9 @@ export namespace LibraryManager {
 	 * Start the LibraryManager event loop
 	 */
 	export const start = async () => {
+		// Skip if this is during the Docker build process
+		if (process.env.STAGE === 'BUILD') return;
+		
 		console.log('start event loop');
 
 		await prisma.processQueue.updateMany({
