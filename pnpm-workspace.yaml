@@ -3,6 +3,5 @@ onlyBuiltDependencies:
   - '@prisma/engines'
   - '@sveltejs/kit'
   - esbuild
-  - prisma
   - sharp
   - svelte-preprocess
