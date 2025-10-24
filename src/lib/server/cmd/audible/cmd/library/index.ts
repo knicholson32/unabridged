@@ -162,7 +162,7 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
 	const genres = unfilteredGenres.filter((elem, pos) => unfilteredGenres.indexOf(elem) == pos);
 	const runtime_length_min = book.runtime_length_min;
 	const rating = parseFloat(book.rating);
-	const num_ratings = book.num_ratings;
+	const num_ratings = book.num_ratings ?? 0;
 	const release_date = Math.floor(new Date(book.release_date).getTime() / 1000);
 	let cover_url_50: string;
 	let cover_url_100: string;
@@ -260,52 +260,58 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
 		console.log('Error processing colors: ', error);
 	}
 
-	// Step 3: Add the book
-	await prisma.book.create({
-		data: {
-			asin: asin,
-			title: title,
-			subtitle: subtitle,
-			sources: { connect: { id } },
-			authors: {
-				connect: authors.map((a) => {
-					return { name: a };
-				})
-			},
-			narrators: {
-				connect: narrators?.map((a) => {
-					return { name: a };
-				})
-			},
-			series: seriesConnect,
-			series_sequence: isNaN(series_sequence) ? undefined : series_sequence,
-			genres: genresConnect,
-			runtime_length_min: runtime_length_min,
-			rating: rating,
-			num_ratings: num_ratings,
-			release_date: release_date,
-			purchase_date: purchase_date,
-			downloaded: false,
-			processed: false,
-			date_added: Math.floor(new Date().getTime() / 1000),
-			cover: {
-				create: {
-					url_50: cover_url_50,
-					url_100: cover_url_100,
-					url_500: cover_url_500,
-					url_1000: cover_url_1000,
-					hex_dom: colorDom,
-					hex_dom_bright: brightDom,
-					hex_sim: colorSqrt,
-					hex_sim_bright: brightSqrt,
-					hex_sqr: colorSimple,
-					hex_sqr_bright: brightSimple
+	try {
+		// Step 3: Add the book
+		await prisma.book.create({
+			data: {
+				asin: asin,
+				title: title,
+				subtitle: subtitle,
+				sources: { connect: { id } },
+				authors: {
+					connect: authors.map((a) => {
+						return { name: a };
+					})
+				},
+				narrators: {
+					connect: narrators?.map((a) => {
+						return { name: a };
+					})
+				},
+				series: seriesConnect,
+				series_sequence: isNaN(series_sequence) ? undefined : series_sequence,
+				genres: genresConnect,
+				runtime_length_min: runtime_length_min,
+				rating: rating,
+				num_ratings: num_ratings,
+				release_date: release_date,
+				purchase_date: purchase_date,
+				downloaded: false,
+				processed: false,
+				date_added: Math.floor(new Date().getTime() / 1000),
+				cover: {
+					create: {
+						url_50: cover_url_50,
+						url_100: cover_url_100,
+						url_500: cover_url_500,
+						url_1000: cover_url_1000,
+						hex_dom: colorDom,
+						hex_dom_bright: brightDom,
+						hex_sim: colorSqrt,
+						hex_sim_bright: brightSqrt,
+						hex_sqr: colorSimple,
+						hex_sqr_bright: brightSimple
+					}
 				}
 			}
-		}
-	});
+		});
 
-	await saveGoogleAPIDetails(asin, title, authors);
+		await saveGoogleAPIDetails(asin, title, authors);
+
+	} catch (e) {
+		console.log('ERROR Creating book:', e);
+		return false;
+	}
 
 	return true;
 };
