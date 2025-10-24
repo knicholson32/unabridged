@@ -161,7 +161,7 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
 		.map((s) => s.trim());
 	const genres = unfilteredGenres.filter((elem, pos) => unfilteredGenres.indexOf(elem) == pos);
 	const runtime_length_min = book.runtime_length_min;
-	const rating = parseFloat(book.rating);
+	const rating = parseFloat(book.rating) ?? 0;
 	const num_ratings = book.num_ratings ?? 0;
 	const release_date = Math.floor(new Date(book.release_date).getTime() / 1000);
 	let cover_url_50: string;
@@ -310,6 +310,7 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
 
 	} catch (e) {
 		console.log('ERROR Creating book:', e);
+		console.log(book);
 		return false;
 	}
 
