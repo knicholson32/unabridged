@@ -295,6 +295,10 @@ export namespace LibraryManager {
 							// The book could not be found. We can just delete this entry
 							await processFailed(queueEntry.id, type, ProcessError.BOOK_NOT_FOUND, 0, 0);
 							break;
+						case BookDownloadError.NOT_DOWNLOADABLE:
+							// The book could not be downloaded. We can just delete this entry
+							await processFailed(queueEntry.id, type, ProcessError.NOT_DOWNLOADABLE, 0, 0);
+							break;
 						case BookDownloadError.CANCELED:
 							// The user has canceled. We can just delete this entry
 							await processFailed(queueEntry.id, type, ProcessError.CANCELED, 0, 0);

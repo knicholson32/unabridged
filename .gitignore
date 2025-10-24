@@ -6,3 +6,4 @@
 /package
 /library
 vite.config.js.timestamp-*
+/.pnpm-store

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import * as helpers from '$lib/helpers';
 import * as serverHelpers from '$lib/server/helpers';
 import * as fs from 'node:fs';
+import * as settings from '$lib/server/settings';
 import * as path from 'node:path';
 import * as tools from '$lib/server/cmd/tools';
 import { ProfileCreationError } from '../../types';
@@ -619,6 +620,8 @@ export const remove = async (
 	// Check that the ID was actually submitted
 	if (override_use_cli_id === null && (id === null || id === undefined)) return false;
 
+	const debug = await settings.get('system.debug');
+
 	// Get the profile from the database
 	const source = await prisma.source.findUnique({
 		where: {
@@ -629,14 +632,10 @@ export const remove = async (
 		include: { audible: true }
 	});
 
-	console.log('source', source);
+	if(debug) console.log('source', source);
 
 	// Return if the profile was not found
-	if (
-		(override_use_cli_id === null &&
-			(source === null || source === undefined || source.audible === null)) ||
-		isLocked()
-	)
+	if ((override_use_cli_id === null && (source === null || source === undefined || source.audible === null)) || isLocked())
 		return false;
 
 	// TODO: Await audible-cli unlock
@@ -652,9 +651,12 @@ export const remove = async (
 		env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER }
 	});
 
+	if(debug) console.log(AUDIBLE_FOLDER);
+
 	// Attach to the exit event
 	audible?.on('exit', async () => {
 		// Write the config file from the DB
+		console.log('Exit!!');
 		await writeConfigFile();
 	});
 
@@ -678,6 +680,8 @@ export const remove = async (
 			// Convert the buffer data to a string
 			const data = d.toString();
 
+			if (debug > 1) console.log(data)
+
 			// Add the data from the audible-cli to the running audibleData string
 			audibleData += data;
 
@@ -689,6 +693,8 @@ export const remove = async (
 			switch (state) {
 				case RemoveState.ENTER_AUTH:
 					if (audibleData.indexOf('Please enter name for the auth file: ') !== -1) {
+						console.log('enter auth');
+						console.log(cli_id + '.json');
 						audible?.stdin.write(cli_id + '.json' + ENTER);
 						state = RemoveState.FINISHED;
 					}
@@ -696,8 +702,10 @@ export const remove = async (
 				case RemoveState.FINISHED:
 					if (
 						audibleData.indexOf('deregistered') !== -1 ||
-						audibleData.indexOf("error: The file doesn't") !== -1
+						audibleData.indexOf("error: The file doesn't") !== -1 ||
+						audibleData.indexOf("400 Bad Request") !== -1
 					) {
+						console.log('finished');
 						// We have the URL in the buffer and the audible-cli is ready for us to enter the resulting
 						// login URL. Start by clearing the watchdog.
 						clearTimeout(watchdog);
@@ -707,6 +715,7 @@ export const remove = async (
 						state = RemoveState.PARK;
 						resolve(true);
 					} else if (audibleData.indexOf('Aborted!') !== -1) {
+						console.log('aborted');
 						// Start by clearing the watchdog
 						clearTimeout(watchdog);
 						audible.kill();

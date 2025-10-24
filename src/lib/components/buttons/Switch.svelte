@@ -1,6 +1,7 @@
 <script lang="ts">
 	export let value: boolean;
 	export let valueName = 'value';
+	export let id: string | undefined = undefined;
 	export let type: 'button' | 'submit' | 'reset' | null | undefined = 'button';
 	export let title = '';
 	export let hoverTitle: string | undefined = undefined;
@@ -28,6 +29,7 @@
 	{/if}
 	<button
 		{disabled}
+		{id}
 		on:click={click}
 		{type}
 		title={hoverTitle}

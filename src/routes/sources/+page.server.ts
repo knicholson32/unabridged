@@ -1,7 +1,7 @@
 import type * as Types from '@prisma/client';
 import prisma from '$lib/server/prisma';
 import * as audible from '$lib/server/cmd/audible';
-import type { SideMenu, LinkMenuItem } from '$lib/types/';
+import crypto from 'node:crypto';
 import * as helpers from '$lib/helpers';
 import { redirect } from '@sveltejs/kit';
 import { ProfileCreationError, profileCreationErrorToMessage } from '$lib/server/cmd/audible/types';
@@ -34,6 +34,10 @@ export async function load({}) {
 			if (book.downloaded) {
 				sources[i].num_downloaded += 1;
 			}
+		}
+		if (sources[i].profile_image_url === null && sources[i].type === 'audible') {
+			const hash = crypto.createHash('md5').update(sources[i].id.substring(8).trim().toLocaleLowerCase()).digest('hex');
+			sources[i].profile_image_url = `https://www.gravatar.com/avatar/${hash}?s=300&d=identicon&sx=`
 		}
 		if (sources[i].type === 'audible') sources[i].authenticated = checkAuthenticated(sources[i].id);
 	}

@@ -227,6 +227,7 @@ export enum ProcessError {
 	CONVERSION_ERROR = 'CONVERSION_ERROR',
 	COULD_NOT_SAVE = 'COULD_NOT_SAVE',
 	NOT_AUTHORIZED = 'NOT_AUTHORIZED',
+	NOT_DOWNLOADABLE = 'NOT_DOWNLOADABLE',
 }
 
 export const processErrorToStringShort = (p: ProcessError) => {
@@ -257,6 +258,8 @@ export const processErrorToStringShort = (p: ProcessError) => {
 			return 'Save Error';
 		case ProcessError.NOT_AUTHORIZED:
 			return 'Not Authorized';
+		case ProcessError.NOT_DOWNLOADABLE:
+			return 'Not Downloadable';
 		default:
 			return 'Unknown error';
 	}
@@ -290,6 +293,8 @@ export const processErrorToStringLong = (p: ProcessError) => {
 			return "Something went wrong while copying this book's audio file to storage.";
 		case ProcessError.NOT_AUTHORIZED:
 			return "This account source is not authorized. Please sign-in again.";
+		case ProcessError.NOT_DOWNLOADABLE:
+			return "This book was not downloadable by the Audible CLI.";
 		default:
 			return 'An unknown and unexpected error has occurred.';
 	}

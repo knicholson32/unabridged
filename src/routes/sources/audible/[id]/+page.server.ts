@@ -1,5 +1,6 @@
 import * as audible from '$lib/server/cmd/audible';
 import prisma from '$lib/server/prisma';
+import crypto from 'node:crypto';
 import { error, redirect } from '@sveltejs/kit';
 import type { Decimal } from '@prisma/client/runtime/library.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -43,6 +44,11 @@ export const load = async ({ params, fetch }) => {
 
 	// Protect against Decimal JSON conversion issues by making it a number
 	for (const book of source.books) book.rating = book.rating.toNumber() as unknown as Decimal;
+
+	if (source.profile_image_url === null) {
+		const hash = crypto.createHash('md5').update(id.substring(8).trim().toLocaleLowerCase()).digest('hex');
+		source.profile_image_url = `https://www.gravatar.com/avatar/${hash}?s=300&d=identicon&sx=`
+	}
 
 	return {
 		source,
@@ -121,13 +127,19 @@ export const actions = {
 		// Check that the ID was actually submitted
 		if (id === null || id === undefined) throw error(404, 'Not found');
 
+		const debug = await settings.get('system.debug');
+
 		// Get the profile from the database
 		const source = await prisma.source.findUnique({ where: { id } });
 
 		// Return if the profile was not found
 		if (source === null || source === undefined) throw error(404, 'Not found');
 
+		if (debug) console.log('Getting library');
+
 		const results = await audible.cmd.library.get(id);
+
+		if (debug) console.log(results);
 
 		// const notification: Notification = {
 		// 	id: uuidv4(),

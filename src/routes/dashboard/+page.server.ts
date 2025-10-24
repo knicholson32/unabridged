@@ -18,7 +18,8 @@ export const load = (async () => {
 		genreCount,
 		sourceCount,
 		booksAddedLast30Days,
-		recentBooksRaw
+		recentBooksRaw,
+		recentBooksNotAddedRaw
 	] = await Promise.all([
 		prisma.book.count(),
 		prisma.book.count({ where: { processed: true } }),
@@ -40,6 +41,41 @@ export const load = (async () => {
 				title: true,
 				subtitle: true,
 				purchase_date: true,
+				date_added: true,
+				runtime_length_min: true,
+				processed: true,
+				downloaded: true,
+				cover: {
+					select: {
+						url_100: true,
+						url_500: true
+					}
+				},
+				authors: {
+					select: {
+						name: true
+					}
+				},
+				sources: {
+					select: {
+						id: true,
+						name: true,
+						type: true,
+						profile_image_url: true
+					}
+				}
+			}
+		}),
+		prisma.book.findMany({
+			where: { OR: [{processed: false }, {downloaded: false}] },
+			orderBy: { date_added: 'desc' },
+			take: RECENT_BOOK_LIMIT,
+			select: {
+				asin: true,
+				title: true,
+				subtitle: true,
+				purchase_date: true,
+				date_added: true,
 				runtime_length_min: true,
 				processed: true,
 				downloaded: true,
@@ -74,7 +110,32 @@ export const load = (async () => {
 		title: book.title,
 		subtitle: book.subtitle,
 		runtimeMinutes: book.runtime_length_min ?? null,
-		purchaseDateMs: Number(book.purchase_date) * 1000,
+		purchaseDate: Number(book.purchase_date),
+		addedDate: Number(book.date_added),
+		processed: book.processed,
+		downloaded: book.downloaded,
+		authors: book.authors.map((author) => author.name),
+		cover: book.cover
+			? {
+					url100: book.cover.url_100,
+					url500: book.cover.url_500
+				}
+			: null,
+		sources: book.sources.map((source) => ({
+			id: source.id,
+			name: source.name,
+			type: source.type,
+			profileImageUrl: source.profile_image_url
+		}))
+	}));
+
+	const recentBooksNotAdded = recentBooksNotAddedRaw.map((book) => ({
+		asin: book.asin,
+		title: book.title,
+		subtitle: book.subtitle,
+		runtimeMinutes: book.runtime_length_min ?? null,
+		purchaseDate: Number(book.purchase_date),
+		addedDate: Number(book.date_added),
 		processed: book.processed,
 		downloaded: book.downloaded,
 		authors: book.authors.map((author) => author.name),
@@ -106,6 +167,7 @@ export const load = (async () => {
 			genreCount,
 			sourceCount
 		},
-		recentBooks
+		recentBooks,
+		recentBooksNotAdded
 	};
 }) satisfies PageServerLoad;

@@ -167,7 +167,8 @@ export enum BookDownloadError {
 	CANCELED = 'CANCELED',
 	NETWORK_ERROR = 'NETWORK_ERROR',
 	NOT_AUTHORIZED = 'NOT_AUTHORIZED',
-	NO_PROFILE = 'NO_PROFILE'
+	NO_PROFILE = 'NO_PROFILE',
+	NOT_DOWNLOADABLE = 'NOT_DOWNLOADABLE',
 }
 
 export const bookDownloadErrorToString = (e: BookDownloadError): string => {
@@ -188,6 +189,8 @@ export const bookDownloadErrorToString = (e: BookDownloadError): string => {
 			return 'This account is not authorized by Audible';
 		case BookDownloadError.NO_PROFILE:
 			return 'No profile exists to download this book';
+		case BookDownloadError.NOT_DOWNLOADABLE:
+			return 'This book is not downloadable';
 		default:
 			return 'An unknown error occurred';
 	}

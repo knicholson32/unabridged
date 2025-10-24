@@ -2,6 +2,7 @@
 	import { RunTime, basicPlural, joinWithLimit } from '$lib/helpers';
 	import { Gray } from '$lib/components/frames';
 	import { formatDistanceToNow, format } from 'date-fns';
+	import { Switch } from '$lib/components/buttons';
 
 	export let data: import('./$types').PageData;
 
@@ -18,6 +19,10 @@
 			short: runtime.toDirectFormatFull()
 		};
 	};
+
+	let showAddedBooks = true;
+	$: bookList = (showAddedBooks ? data.recentBooks : data.recentBooksNotAdded);
+	
 
 	const totalRuntime = formatRuntime(data.summary.totalRuntimeMinutes);
 	// const downloadedRuntime = formatRuntime(data.summary.downloadedRuntimeMinutes);
@@ -44,7 +49,7 @@
 </script>
 
 <Gray class="px-4 py-6">
-	<div class="mx-auto flex w-full max-w-7xl flex-col gap-8">
+	<div class="mx-auto flex w-full max-w-4xl flex-col gap-4">
 		<section class="flex flex-col gap-2">
 			<h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-50">Library Dashboard</h1>
 			<p class="max-w-2xl text-sm text-gray-600 dark:text-gray-300">
@@ -52,7 +57,7 @@
 			</p>
 		</section>
 
-		<section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+		<section class="grid gap-4 md:grid-cols-3">
 			<div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
 				<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Books</p>
 				<p class="mt-2 text-3xl font-semibold text-gray-900 dark:text-gray-50">
@@ -164,26 +169,38 @@
 		</section>
 
 		<section class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-			<header class="mb-4 flex items-center justify-between">
+			<header class="mb-4 flex gap-4 items-center justify-between">
 				<div>
 					<h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Additions</h2>
-					<p class="text-sm text-gray-500 dark:text-gray-400">
+					<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
 						Latest books added to connected libraries
 					</p>
 				</div>
-				<a
-					class="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-					href="/library"
-					>View library</a
-				>
+				<div class="inline-flex gap-2 items-center w-full justify-end">
+					<label for="showAddedBooks" class="hidden sm:block text-xs text-gray-400 dark:text-gray-500">Show Added Books</label>
+					<Switch
+						type="button"
+						forceHiddenInput={true}
+						hoverTitle={'Include books already in Unabridged'}
+						bind:value={showAddedBooks}
+						id="showAddedBooks"
+						changed={(b) => {
+							showAddedBooks = showAddedBooks
+						}}
+					/>
+				</div>
+				<div class="border-l border-gray-300 dark:border-gray-500 h-6 w-[1px] shrink-0"></div>
+				<a class="text-sm whitespace-nowrap font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300" href="/library">
+					View library
+				</a>
 			</header>
 
 			{#if data.recentBooks.length === 0}
 				<p class="text-sm text-gray-500 dark:text-gray-400">No books available yet.</p>
 			{:else}
 				<ul class="space-y-4">
-					{#each data.recentBooks as book (book.asin)}
-						<li class="flex gap-4 rounded-lg border border-transparent p-3 transition-colors hover:border-blue-100 hover:bg-blue-50/60 dark:hover:border-blue-900 dark:hover:bg-blue-900/10">
+					{#each bookList as book (book.asin)}
+						<a href={`/library/books/${book.asin}`} class="flex gap-4 rounded-lg border border-transparent p-3 transition-colors hover:border-blue-100 hover:bg-blue-50/60 dark:hover:border-blue-900 dark:hover:bg-blue-900/10">
 							{#if book.cover}
 								<img
 									src={book.cover.url100}
@@ -203,12 +220,11 @@
 
 							<div class="flex min-w-0 flex-1 flex-col gap-1">
 								<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-									<a
-										href={`/library/books/${book.asin}`}
-										class="truncate text-base font-semibold text-gray-900 transition-colors hover:text-blue-600 dark:text-gray-50 dark:hover:text-blue-300"
+									<div
+										class="truncate text-base font-semibold text-gray-900 dark:text-gray-50"
 									>
 										{book.title}
-									</a>
+									</div>
 									{#if book.subtitle}
 										<span class="truncate text-sm text-gray-500 dark:text-gray-400">— {book.subtitle}</span>
 									{/if}
@@ -221,14 +237,25 @@
 								{/if}
 
 								<div class="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-									<span>
-										Added {formatDistanceToNow(book.purchaseDateMs, { addSuffix: true })}
-										<span
-											class="ml-1 text-gray-400 dark:text-gray-500"
-											title={format(book.purchaseDateMs, 'PPpp')}
-											>(on {format(book.purchaseDateMs, 'PP')})</span
-										>
-									</span>
+									{#if book.processed || book.downloaded}
+										<span>
+											Added {formatDistanceToNow(book.addedDate * 1000, { addSuffix: true })}
+											<span
+												class="ml-1 text-gray-400 dark:text-gray-500"
+												title={format(book.addedDate * 1000, 'PPpp')}
+												>(on {format(book.addedDate * 1000, 'PP')})</span
+											>
+										</span>
+									{:else}
+										<span>
+											Purchased {formatDistanceToNow(book.purchaseDate * 1000, { addSuffix: true })}
+											<span
+												class="ml-1 text-gray-400 dark:text-gray-500"
+												title={format(book.purchaseDate * 1000, 'PPpp')}
+												>(on {format(book.purchaseDate * 1000, 'PP')})</span
+											>
+										</span>
+									{/if}
 									{#if book.runtimeMinutes}
 										<span>
 											Runtime {new RunTime({ min: book.runtimeMinutes }).toFormat()}
@@ -251,7 +278,7 @@
 									{/if}
 								</div>
 							</div>
-						</li>
+						</a>
 					{/each}
 				</ul>
 			{/if}

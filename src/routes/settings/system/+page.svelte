@@ -176,9 +176,9 @@
     disabled={debugEnabled === false}
     hoverTitle={'Whether or not to enable general debugging features and logs'} /> -->
 
-  <Settings.Switch name="system.debug.migrateDB" form={form} title="Perform Migration" update={debugUpdate} value={false} 
+  <!-- <Settings.Switch name="system.debug.migrateDB" form={form} title="Perform Migration" update={debugUpdate} value={false} 
     disabled={debugEnabled === false}
-    hoverTitle={'If true and saved, Unabridged will perform pending database migrations.'} />
+    hoverTitle={'If true and saved, Unabridged will perform pending database migrations.'} /> -->
 
 	<Settings.Select
 		{form}

@@ -5,6 +5,7 @@ import { type Library, type BookFromCLI, type BookDownloadError, CLIError } from
 import { Event, SourceType } from '$lib/types';
 import { isLocked } from '../../';
 import prisma from '$lib/server/prisma';
+import * as settings from '$lib/server/settings';
 import { writeConfigFile } from '$lib/server/cmd/audible/cmd/profile';
 import { saveGoogleAPIDetails } from '$lib/server/lookup';
 import * as events from '$lib/server/events';
@@ -223,7 +224,15 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
 		seriesConnect = { connect: { id: seriesId } };
 	}
 
-	const cover = helpers.toBuffer(await (await fetch(cover_url_500)).arrayBuffer());
+	let cover: Buffer;
+	try {
+		cover = helpers.toBuffer(await (await fetch(cover_url_500, { signal: AbortSignal.timeout(10000), redirect: 'follow' })).arrayBuffer());
+	} catch (e) {
+		const err = e as TypeError;
+		console.log('ERROR Fetching cover!', cover_url_500, e);
+		console.log(err.cause, err.message, err.name, err.stack);
+		return false;
+	}
 	let colorDom: string | undefined = undefined;
 	let brightDom: boolean | undefined = undefined;
 	let colorSqrt: string | undefined = undefined;
@@ -361,6 +370,8 @@ export const get = async (
 	// Check that the ID was actually submitted
 	if (id === null || id === undefined) return { err: CLIError.NO_ID };
 
+	const debug = await settings.get('system.debug');
+
 	// Get the profile from the database
 	const source = await prisma.source.findUnique({
 		where: {
@@ -373,6 +384,8 @@ export const get = async (
 
 	// Return if the profile was not found
 	if (source === null || source === undefined || source.audible === null || isLocked()) return { err: CLIError.NO_SOURCE };
+
+	if(debug) console.log(source);
 
 	// Create a temp directory for this library
 	if (!fs.existsSync(`/tmp`)) fs.mkdirSync(`/tmp`);
@@ -389,8 +402,10 @@ export const get = async (
 
 		try {
 			await new Promise<void>((resolve, reject) => {
+				const cmd = `${AUDIBLE_CMD} -P ${cli_id} library export --format json -o /tmp/${cli_id}.library.json`;
+				if(debug > 1) console.log(`AUDIBLE_CONFIG_DIR=${AUDIBLE_FOLDER} ${cmd}`);
 				child_process.exec(
-					`${AUDIBLE_CMD} -P ${cli_id} library export --format json -o /tmp/${cli_id}.library.json`,
+					cmd,
 					{ env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } },
 					(err, stdout) => {
 						if (err !== null) reject(stdout);
@@ -399,8 +414,10 @@ export const get = async (
 				);
 			});
 			await new Promise<void>((resolve, reject) => {
+				const cmd = `${AUDIBLE_CMD} -P ${cli_id} library export --format tsv -o /db/audible/${cli_id}.library.tsv`;
+				if(debug > 1) console.log(`AUDIBLE_CONFIG_DIR=${AUDIBLE_FOLDER} ${cmd}`);
 				child_process.exec(
-					`${AUDIBLE_CMD} -P ${cli_id} library export --format tsv -o /db/audible/${cli_id}.library.tsv`,
+					cmd,
 					{ env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } },
 					(err, stdout) => {
 						if (err !== null) reject(stdout);

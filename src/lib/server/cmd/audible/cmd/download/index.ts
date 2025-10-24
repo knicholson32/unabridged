@@ -120,24 +120,12 @@ export const download = async (
 
 	// Create the audible child_process
 	// audible -P 175aaff6-4f92-4a2c-b592-6758e1b54e5f download -o /app/db/download/skunk -a B011LR4PW4 --aaxc --pdf --cover --cover-size 1215 --chapter --annotation
+	const cmdParams = ['-P', cli_id, 'download', '-o', tmpDir, '-a', asin, '--aaxc', '--pdf', '--cover', '--cover-size', '1215', '--chapter', '--annotation'];
+
+	if (debug) console.log(`AUDIBLE_CONFIG_DIR="${AUDIBLE_FOLDER}" ${AUDIBLE_CMD} ${cmdParams.join(' ')}`);
 	const audible = child_process.spawn(
 		AUDIBLE_CMD,
-		[
-			'-P',
-			cli_id,
-			'download',
-			'-o',
-			tmpDir,
-			'-a',
-			asin,
-			'--aaxc',
-			'--pdf',
-			'--cover',
-			'--cover-size',
-			'1215',
-			'--chapter',
-			'--annotation'
-		],
+		cmdParams,
 		{ env: { AUDIBLE_CONFIG_DIR: AUDIBLE_FOLDER } }
 	);
 
@@ -165,6 +153,9 @@ export const download = async (
 				audible.kill();
 			} else if (data.indexOf('audible.exceptions.Unauthorized: Forbidden (403)') !== -1) {
 				global.audible.cancelMap[asin].error = BookDownloadError.NOT_AUTHORIZED;
+				audible.kill();
+			} else if (data.indexOf('is not downloadable.') !== -1) {
+				global.audible.cancelMap[asin].error = BookDownloadError.NOT_DOWNLOADABLE;
 				audible.kill();
 			}
 		};
