@@ -8,6 +8,7 @@ import prisma from '$lib/server/prisma';
 import * as settings from '$lib/server/settings';
 import { writeConfigFile } from '$lib/server/cmd/audible/cmd/profile';
 import { saveGoogleAPIDetails } from '$lib/server/lookup';
+import * as metadata from '$lib/server/metadata';
 import * as events from '$lib/server/events';
 import * as helpers from '$lib/helpers';
 import { getAverageColor } from 'fast-average-color-node';
@@ -154,14 +155,18 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
 		.split(',')
 		?.map((s) => s.trim());
 	const series_title = book.series_title;
-	const series_sequence = book.series_sequence === undefined ? NaN : parseInt(book.series_sequence);
+	const series_sequence = helpers.normalizeSeriesSequence(book.series_sequence);
 	const unfilteredGenres = book.genres
 		.trim()
 		.split(/[&,]+/)
 		.map((s) => s.trim());
 	const genres = unfilteredGenres.filter((elem, pos) => unfilteredGenres.indexOf(elem) == pos);
 	const runtime_length_min = book.runtime_length_min;
-	const rating = parseFloat(book.rating) ?? 0;
+	// Unrated books (often new releases) have no rating. parseFloat gives NaN, which `??` does not
+	// catch, and Prisma rejects NaN for the Decimal column (reported misleadingly as an unknown
+	// `series` argument).
+	const parsedRating = parseFloat(book.rating);
+	const rating = Number.isFinite(parsedRating) ? parsedRating : 0;
 	const num_ratings = book.num_ratings ?? 0;
 	const release_date = Math.floor(new Date(book.release_date).getTime() / 1000);
 	let cover_url_50: string;
@@ -197,6 +202,16 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
 			});
 		} catch (e) {
 			// The account was already there. Nothing to do.
+		}
+		// Correct the series sequence if it changed. Books synced before sequences were stored as
+		// text had decimals and ranges truncated (e.g. "1.5" and "1-3" saved as 1).
+		if (series_sequence !== null && existingBook.series_sequence !== series_sequence) {
+			try {
+				await prisma.book.update({ where: { asin }, data: { series_sequence } });
+				if (existingBook.processed) await metadata.writeSidecar(asin);
+			} catch (e) {
+				console.log('Could not update series sequence', asin, e);
+			}
 		}
 		return false;
 	}
@@ -279,7 +294,7 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
 					})
 				},
 				series: seriesConnect,
-				series_sequence: isNaN(series_sequence) ? undefined : series_sequence,
+				series_sequence,
 				genres: genresConnect,
 				runtime_length_min: runtime_length_min,
 				rating: rating,

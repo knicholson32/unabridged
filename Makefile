@@ -1,4 +1,4 @@
-.PHONY: all test clean
+.PHONY: all test clean dev dev-build dev-up dev-down dev-logs dev-shell check preview local create-local create-all
 
 # create:
 # 	docker build --file ./docker/Dockerfile --build-arg GIT_COMMIT=$(shell git rev-parse HEAD) --target prod -t keenanrnicholson/unabridged:latest .
@@ -10,6 +10,21 @@ create-all:
 dev:
 	docker build --build-arg GIT_COMMIT=$(shell git rev-parse HEAD) --file ./docker/Dockerfile --target dev -t unabridged-dev .
 	docker compose -f ./docker/docker-compose.dev.yml -p unabridged up --remove-orphans
+
+# Run the dev environment (Unabridged + Audiobookshelf) in the background
+dev-build:
+	docker build --build-arg GIT_COMMIT=$(shell git rev-parse HEAD) --file ./docker/Dockerfile --target dev -t unabridged-dev .
+dev-up:
+	docker compose -f ./docker/docker-compose.dev.yml -p unabridged up -d --remove-orphans
+dev-down:
+	docker compose -f ./docker/docker-compose.dev.yml -p unabridged down
+dev-logs:
+	docker compose -f ./docker/docker-compose.dev.yml -p unabridged logs -f --tail=100
+dev-shell:
+	docker exec -it unabridged-dev sh
+# Type-check inside the dev container (node_modules is built for Linux)
+check:
+	docker exec unabridged-dev sh -c "pnpm exec svelte-kit sync && pnpm exec svelte-check --tsconfig ./jsconfig.json"
 preview:
 	rm -rf ./node_modules
 	docker build --build-arg GIT_COMMIT=$(shell git rev-parse HEAD) --file ./docker/Dockerfile --target dev -t unabridged-dev .

@@ -8,8 +8,20 @@ import * as settings from '$lib/server/settings';
 import { icons } from '$lib/components';
 import * as serverHelpers from '$lib/server/helpers';
 import * as events from '$lib/server/events';
-import { SourceType, type Issuer, type ModalTheme, type Notification } from '$lib/types';
-import { CLIError, cliErrorToString } from '$lib/server/cmd/audible/types/index.js';
+import {
+	SourceType,
+	type CountryCode,
+	type Issuer,
+	type ModalTheme,
+	type Notification
+} from '$lib/types';
+import {
+	CLIError,
+	cliErrorToString,
+	ProfileCreationError,
+	profileCreationErrorToMessage
+} from '$lib/server/cmd/audible/types/index.js';
+import * as helpers from '$lib/helpers';
 import { checkAuthenticated } from '$lib/server/cmd/audible/cmd/library';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -60,6 +72,51 @@ export const load = async ({ params, fetch }) => {
 };
 
 export const actions = {
+	// Refresh login: sign this account in again as a new device, keeping the source and its books
+	refresh: async ({ params }) => {
+		const id = params.id;
+		if (id === null || id === undefined) throw error(404, 'Not found');
+		const source = await prisma.source.findUnique({ where: { id }, include: { audible: true } });
+		if (source === null || source.audible === null) throw error(404, 'Not found');
+		try {
+			const url = await audible.cmd.profile.add(source.audible.locale_code as CountryCode, id);
+			return { url, success: true, response: 'refresh' };
+		} catch (e) {
+			return {
+				success: false,
+				response: 'refresh',
+				message: profileCreationErrorToMessage(e as ProfileCreationError)
+			};
+		}
+	},
+	refreshurl: async ({ request }) => {
+		const data = await request.formData();
+		const url = data.get('url') as string;
+		const urlresponse = data.get('urlresponse') as string;
+		if (urlresponse === null || !helpers.validateURL(urlresponse))
+			return { success: false, response: 'refreshurl', url, message: 'Invalid URL' };
+		try {
+			const results = await audible.cmd.profile.submitURL(urlresponse);
+			if (results.e === ProfileCreationError.NO_ERROR) return { success: true, response: 'refreshurl' };
+			return {
+				success: false,
+				response: 'refreshurl',
+				fatal: true,
+				message: profileCreationErrorToMessage(results.e)
+			};
+		} catch (e) {
+			return {
+				success: false,
+				response: 'refreshurl',
+				fatal: true,
+				message: profileCreationErrorToMessage(e as ProfileCreationError)
+			};
+		}
+	},
+	refreshcancel: async () => {
+		await audible.cmd.profile.cancelAdd();
+		return { success: true, response: 'refreshcancel' };
+	},
 	deregister: async ({ request, fetch }) => {
 		const data = await request.formData();
 		const debug = await settings.get('system.debug');

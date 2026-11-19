@@ -111,7 +111,7 @@ model Book {
   plexKey            String?
   narrators          Narrator[]
   series             Series?    @relation(fields: [seriesId], references: [id])
-  series_sequence    Int?
+  series_sequence    String? // As given by the source: "2", "1.5", or a range like "1-3"
   genres             Genre[]
   runtime_length_min Int?
   rating             Decimal

@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 import * as fs from 'node:fs/promises';
 import * as helpers from '$lib/server/helpers';
 import * as settings from '$lib/server/settings';
+import * as metadata from '$lib/server/metadata';
 import { CollectionBy } from '$lib/types';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -54,6 +55,19 @@ export const actions = {
 		const startPaused = (data.get('progress.startPaused') ?? undefined) as undefined | string;
 		if (startPaused !== undefined)
 			await settings.set('progress.startPaused', startPaused === 'true');
+	},
+	writeMetadataFiles: async () => {
+		const { written, failed } = await metadata.writeAllSidecars();
+		if (failed.length > 0) console.log('Metadata: could not write sidecars for', failed);
+		return {
+			action: '?/writeMetadataFiles',
+			name: 'metadata.files',
+			success: failed.length === 0,
+			message:
+				failed.length === 0
+					? `Wrote metadata for ${written} book${written === 1 ? '' : 's'}.`
+					: `Wrote metadata for ${written} book${written === 1 ? '' : 's'}; ${failed.length} failed (see logs).`
+		};
 	},
 	updateAutoSync: async ({ request }) => {
 		const data = await request.formData();

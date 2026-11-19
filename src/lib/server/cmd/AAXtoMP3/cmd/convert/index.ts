@@ -4,6 +4,7 @@ import * as settings from '$lib/server/settings';
 import prisma from '$lib/server/prisma';
 import * as events from '$lib/server/events';
 import * as media from '$lib/server/media';
+import * as metadata from '$lib/server/metadata';
 import { AAXtoMP3_COMMAND } from '$lib/server/env';
 import { ConversionError } from '../../types';
 import { sanitizeFile } from '$lib/server/helpers';
@@ -298,6 +299,10 @@ export const exec = async (
 					date_added: Math.floor(new Date().getTime() / 1000),
 				}
 			});
+
+			// Write the Audiobookshelf metadata sidecar. Best-effort: a failure is logged but does not
+			// fail the conversion, and the file can be regenerated from Settings → Library.
+			await metadata.writeSidecar(book.asin);
 		} catch (e) {
 			console.log('Conversion error', e);
 			return ConversionError.COULD_NOT_SAVE;
@@ -314,7 +319,7 @@ export const exec = async (
 	const debug = await settings.get('system.debug');
 	if (debug === 0) {
 		try {
-			fs.rmSync('tmpDir');
+			fs.rmSync(tmpDir, { recursive: true, force: true });
 		} catch (e) {
 			// Nothing to do
 		}

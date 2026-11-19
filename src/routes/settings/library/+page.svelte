@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { beforeNavigate } from '$app/navigation';
-	import { Switch } from '$lib/components/buttons';
+	import { enhance } from '$app/forms';
+	import { Submit, Switch } from '$lib/components/buttons';
 	import * as Settings from '$lib/components/routeSpecific/settings';
 	import { CollectionBy } from '$lib/types';
 
@@ -21,6 +22,13 @@
 	let autoSyncUpdate: () => {};
 	let autoSyncUnsavedChanges = false;
 	let autoSyncAudible = data.settingValues['general.autoSync'];
+
+	// Metadata files
+	let writingMetadata = false;
+	$: metadataResult =
+		form !== null && 'action' in form && form.action === '?/writeMetadataFiles'
+			? (form as { success: boolean; message: string })
+			: null;
 
 	// Utilities
 	beforeNavigate(({ cancel }) => {
@@ -61,6 +69,52 @@
 		hoverTitle="Library location"
 	/>
 </Settings.List>
+
+<!-- Metadata Files -->
+<form
+	method="POST"
+	action="?/writeMetadataFiles"
+	use:enhance={() => {
+		writingMetadata = true;
+		return async ({ update }) => {
+			writingMetadata = false;
+			update({ reset: false });
+		};
+	}}
+>
+	<div class="border-b pb-6">
+		<div class="flex items-center gap-x-2">
+			<div class="max-w-md">
+				<h2 class="text-lg font-semibold leading-7 text-gray-900">Metadata Files</h2>
+				<p class="mt-1 text-sm leading-6 text-gray-500">
+					Unabridged writes a <code>metadata.json</code> next to each book so Audiobookshelf picks up
+					series, narrators and ASIN. Regenerate them for every downloaded book.
+				</p>
+				{#if metadataResult !== null}
+					<p
+						class="mt-1 text-sm leading-6 {metadataResult.success
+							? 'text-green-600'
+							: 'text-red-600'}"
+					>
+						{metadataResult.message}
+					</p>
+				{/if}
+			</div>
+			<div class="flex-grow" />
+			<div class="sm:mr-3 inline-flex gap-2 relative">
+				<Submit
+					class="w-full sm:w-auto"
+					theme={{ primary: 'white', done: 'white', fail: 'white' }}
+					actionText="Regenerate"
+					actionTextInProgress="Writing"
+					doneText="Done"
+					submitting={writingMetadata}
+					failed={metadataResult?.success === false}
+				/>
+			</div>
+		</div>
+	</div>
+</form>
 
 <!-- Download Manager -->
 <Settings.List

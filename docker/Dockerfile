@@ -2,6 +2,14 @@
 # ARG AAXtoMP3_VERSION=1.3
 # ARG TONE_VERSION=0.1.5
 ARG NODE_VERSION=24.5.0
+# Keep in sync with "packageManager" in package.json. Unpinned, corepack fetches the newest pnpm,
+# which may not run on this Node version.
+ARG PNPM_VERSION=10.19.0
+# audible-cli releases after 0.3.2 require Python < 3.15; on a 3.15 base, pip silently falls back to
+# 0.3.2, whose license requests Audible now refuses ("License not granted"). 0.6.0 moves log output
+# to stderr and changes the progress bar, which the download parser relies on, so stay on 0.5.x.
+ARG PYTHON_VERSION=3.14
+ARG AUDIBLE_CLI_VERSION=0.5.1
 ARG USR_LOCAL_EXPORT=/export-usr-bin
 ARG ROOT_EXPORT=/export-root
 ARG WHEEL_EXPORT=/export-wheel
@@ -12,7 +20,8 @@ FROM node:${NODE_VERSION}-alpine3.22 AS node_install
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+ARG PNPM_VERSION
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 # Install pnpm
 RUN pnpm fetch --prod
@@ -81,10 +90,11 @@ RUN echo "---- REMOVE BUILD DEPENDENCIES (to keep image small) ----" \
    && rm -rf /root/.cache /tmp/*
 
 ######### Development Stage ########################################################################
-FROM python:3.15-rc-alpine3.22 AS dev
+FROM python:${PYTHON_VERSION}-alpine3.22 AS dev
 
 # Renew args from above
 ARG NODE_VERSION
+ARG AUDIBLE_CLI_VERSION
 ARG USR_LOCAL_EXPORT
 ARG WHEEL_EXPORT
 
@@ -116,7 +126,7 @@ COPY --from=node_install /pnpm /pnpm
 
 # Install the Audible-CLI python module and dependencies
 RUN echo "---- INSTALL AUDIBLE-CLI ----" \
-  && pip3 install audible-cli markdownify natsort
+  && pip3 install "audible-cli==${AUDIBLE_CLI_VERSION}" markdownify natsort
 
 ARG GIT_COMMIT
 ENV GIT_COMMIT=$GIT_COMMIT
@@ -124,7 +134,8 @@ ENV PROC_SHELL='/bin/sh'
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-RUN corepack enable
+ARG PNPM_VERSION
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 # Install pnpm
 RUN pnpm fetch --prod
@@ -141,7 +152,8 @@ WORKDIR /app
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+ARG PNPM_VERSION
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 # Install openssl
 RUN apk add --no-cache openssl
@@ -162,7 +174,7 @@ RUN echo "---- BUILD SERVER ----" \
 
 
 ######### Production Stage #########################################################################
-FROM python:3.15-rc-alpine3.22 AS prod
+FROM python:${PYTHON_VERSION}-alpine3.22 AS prod
 
 # Assign labels
 LABEL org.opencontainers.image.title="unabridged"
@@ -175,6 +187,7 @@ LABEL org.opencontainers.image.source="https://github.com/knicholson32/unabridge
 # ARG AAXtoMP3_VERSION
 # ARG TONE_VERSION
 ARG NODE_VERSION
+ARG AUDIBLE_CLI_VERSION
 ARG USR_LOCAL_EXPORT
 ARG ROOT_EXPORT
 ARG WHEEL_EXPORT
@@ -215,7 +228,7 @@ COPY --from=node_install /pnpm /pnpm
 
 # Install the Audible-CLI python module and dependencies
 RUN echo "---- INSTALL AUDIBLE-CLI ----" \
-  && pip3 install audible-cli markdownify natsort
+  && pip3 install "audible-cli==${AUDIBLE_CLI_VERSION}" markdownify natsort
 
 # Copy artifacts from the previous stage (base & node)
 COPY --from=dependencies "${USR_LOCAL_EXPORT}/" "/usr/local/"

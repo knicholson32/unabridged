@@ -1,4 +1,5 @@
 import prisma from '$lib/server/prisma';
+import { compareSeriesSequence } from '$lib/helpers';
 import type { SideMenu, LinkMenuItem } from '$lib/types/';
 import { icons } from '$lib/components';
 import { error } from '@sveltejs/kit';
@@ -41,13 +42,10 @@ export async function load({ params }) {
 
 	if (book.series === null) return;
 
-	book.series.books.sort((a, b) => {
-		if (a.series_sequence !== null && b.series_sequence !== null)
-			return a.series_sequence > b.series_sequence ? 1 : -1;
-		if (a.series_sequence !== null && b.series_sequence === null) return -1;
-		if (a.series_sequence === null && b.series_sequence !== null) return 1;
-		return a.title.localeCompare(b.title);
-	});
+	book.series.books.sort(
+		(a, b) =>
+			compareSeriesSequence(a.series_sequence, b.series_sequence) || a.title.localeCompare(b.title)
+	);
 
 	const elements: LinkMenuItem[] = [];
 

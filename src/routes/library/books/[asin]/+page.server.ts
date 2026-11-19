@@ -1,4 +1,5 @@
 import prisma from '$lib/server/prisma';
+import * as metadata from '$lib/server/metadata';
 import { error } from '@sveltejs/kit';
 import type { Decimal } from '@prisma/client/runtime/library.js';
 
@@ -84,6 +85,8 @@ export const actions = {
 					isbn
 				}
 			});
+			// Keep the Audiobookshelf sidecar in sync with the edit
+			await metadata.writeSidecar(asin);
 			return { success: true, response: 'update' };
 		} catch (e) {
 			return { success: false, response: 'update' };

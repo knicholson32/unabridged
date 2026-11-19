@@ -21,3 +21,17 @@ services:
       - 5173:5173
     tty: true
     stdin_open: true
+
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:2.37.2
+    container_name: unabridged-dev-abs
+    restart: unless-stopped
+    environment:
+      TZ: 'America/New_York'
+    volumes:
+      # Same files Unabridged writes to /library, seen by ABS as /audiobooks
+      - ../library/files:/audiobooks
+      - ../library/abs/config:/config
+      - ../library/abs/metadata:/metadata
+    ports:
+      - 13378:80

@@ -140,6 +140,26 @@ export const download = async (
 
 	// Wrap this in a promise so we can respond from this function
 	const promise = new Promise<BookDownloadError>((resolve, reject) => {
+		// Look for known audible-cli errors. Checked on both stdout and stderr: newer audible-cli
+		// versions (0.6+) write log and error messages to stderr.
+		const checkForErrors = (data: string) => {
+			if (data.indexOf('audible.exceptions.NetworkError') !== -1) {
+				global.audible.cancelMap[asin].error = BookDownloadError.NETWORK_ERROR;
+				audible.kill();
+			} else if (data.indexOf('audible.exceptions.Unauthorized: Forbidden (403)') !== -1) {
+				global.audible.cancelMap[asin].error = BookDownloadError.NOT_AUTHORIZED;
+				audible.kill();
+			} else if (
+				data.indexOf('is not downloadable.') !== -1 ||
+				// Audible refused the license: the account no longer has rights to the book (e.g. a title
+				// removed from Audible Plus), or audible-cli is too old for Audible's license API
+				data.indexOf('License not granted') !== -1
+			) {
+				global.audible.cancelMap[asin].error = BookDownloadError.NOT_DOWNLOADABLE;
+				audible.kill();
+			}
+		};
+
 		// Create the function for handling data
 		const dataProcessorFiles = (d: Buffer) => {
 			// Convert the buffer data to a string
@@ -147,23 +167,15 @@ export const download = async (
 
 			console.log(data.replaceAll('\n', '\\n\n').replaceAll('\r', '\\r\n'));
 
-			// Check for a network error
-			if (data.indexOf('audible.exceptions.NetworkError') !== -1) {
-				global.audible.cancelMap[asin].error = BookDownloadError.NETWORK_ERROR;
-				audible.kill();
-			} else if (data.indexOf('audible.exceptions.Unauthorized: Forbidden (403)') !== -1) {
-				global.audible.cancelMap[asin].error = BookDownloadError.NOT_AUTHORIZED;
-				audible.kill();
-			} else if (data.indexOf('is not downloadable.') !== -1) {
-				global.audible.cancelMap[asin].error = BookDownloadError.NOT_DOWNLOADABLE;
-				audible.kill();
-			}
+			checkForErrors(data);
 		};
 
 		// Create the function for handling data
 		const dataProcessorLoading = async (d: Buffer) => {
 			// Convert the buffer data to a string
 			const data = d.toString();
+
+			checkForErrors(data);
 
 			const regex =
 				/(?<percent>[0-9]+)%\|[█▉▊▋▌▍▎▏\s]+\| (?<downloaded>[0-9.]+)(?<downloadUnit>[MG])\/(?<total>[0-9.]+)(?<totalUnit>[MG]) \[.+ (?<speed>[0-9.]+)[a-zA-Z]+\/s]/;
@@ -244,7 +256,20 @@ export const download = async (
 	});
 
 	// // Wait for the download to finish
-	const results = await promise;
+	let results = await promise;
+
+	// audible-cli can exit cleanly without downloading the audio (it reports some errors and still
+	// saves the cover, chapters, etc). Without this check the empty download is treated as a success,
+	// the book's existing media records are cleared below, and conversion fails later.
+	if (results === BookDownloadError.NO_ERROR) {
+		const hasAudio = fs
+			.readdirSync(tmpDir)
+			.some((file: string) => ['.aax', '.aaxc'].includes(path.extname(file)));
+		if (!hasAudio) {
+			console.log(`Download of ${asin} finished without an audio file; marking as not downloadable`);
+			results = BookDownloadError.NOT_DOWNLOADABLE;
+		}
+	}
 
 	// Check that there were no errors
 	if (results === BookDownloadError.NO_ERROR) {

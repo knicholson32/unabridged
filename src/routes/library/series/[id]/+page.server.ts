@@ -1,4 +1,5 @@
 import prisma from '$lib/server/prisma';
+import { compareSeriesSequence } from '$lib/helpers';
 import { error, redirect } from '@sveltejs/kit';
 import type { Decimal } from '@prisma/client/runtime/library.js';
 import * as Plex from '$lib/server/plex';
@@ -30,13 +31,10 @@ export const load = async ({ params }) => {
 	if (series === null || series === undefined) throw error(404, 'Not found');
 	for (const book of series.books) book.rating = book.rating.toNumber() as unknown as Decimal;
 
-	series.books.sort((a, b) => {
-		if (a.series_sequence !== null && b.series_sequence !== null)
-			return a.series_sequence > b.series_sequence ? 1 : -1;
-		if (a.series_sequence !== null && b.series_sequence === null) return -1;
-		if (a.series_sequence === null && b.series_sequence !== null) return 1;
-		return a.title.localeCompare(b.title);
-	});
+	series.books.sort(
+		(a, b) =>
+			compareSeriesSequence(a.series_sequence, b.series_sequence) || a.title.localeCompare(b.title)
+	);
 
 	let authors: string[] = [];
 	let narrators: string[] = [];

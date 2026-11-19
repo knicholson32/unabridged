@@ -39,6 +39,8 @@ export enum ProfileCreationError {
 	URL_DID_NOT_WORK = 'URL_DID_NOT_WORK',
 	PROCESS_NOT_STARTED = 'PROCESS_NOT_STARTED',
 	ACCOUNT_ALREADY_EXISTS = 'ACCOUNT_ALREADY_EXISTS',
+	REFRESH_WRONG_ACCOUNT = 'REFRESH_WRONG_ACCOUNT',
+	REFRESH_SOURCE_NOT_FOUND = 'REFRESH_SOURCE_NOT_FOUND',
 	UNKNOWN_STATE = 'UNKNOWN_STATE'
 }
 
@@ -57,7 +59,11 @@ export const profileCreationErrorToMessage = (e: ProfileCreationError): string =
 		case ProfileCreationError.PROCESS_NOT_STARTED:
 			return 'The sign-in process was never started';
 		case ProfileCreationError.ACCOUNT_ALREADY_EXISTS:
-			return 'The account already exists';
+			return "The account already exists. Use 'Refresh Login' on the account's page to sign in again.";
+		case ProfileCreationError.REFRESH_WRONG_ACCOUNT:
+			return 'You signed in to a different Audible account. Sign in to the account being refreshed.';
+		case ProfileCreationError.REFRESH_SOURCE_NOT_FOUND:
+			return 'The account being refreshed no longer exists';
 		default:
 			return 'An unknown error occurred';
 	}

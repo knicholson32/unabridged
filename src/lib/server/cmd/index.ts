@@ -269,8 +269,9 @@ export namespace LibraryManager {
 					// We are ready to download the book since the queue entry is locked as ours
 					// Create a temporary directory
 					tmpDir = tools.createTempDir(queueEntry.book.book.asin);
-					// Delete present files relating to this book if they exist, but don't delete the book in the DB
-					await tools.cleanBook(queueEntry.book.book.asin);
+					// Existing files for this book are NOT cleaned here. A successful download replaces the
+					// book's media records, and conversion replaces its library folder, so a failed
+					// re-download leaves the book that is already on disk untouched.
 					// 2. Download the book, updating the book progress as required
 					const { e: bookDownload, sourceId: sourceId } = await audible.cmd.download.download(
 						queueEntry.book.book.asin,

@@ -359,3 +359,41 @@ export const numBytesToString = (bytes: bigint | number): string => {
 		return sizeGB.toPrecision(3) + ' GB';
 	}
 };
+
+/**
+ * Normalize a series sequence from a source. Sequences are kept as text because sources use
+ * decimals ("1.5") and ranges ("1-3") as well as whole numbers.
+ * @param sequence the raw sequence
+ * @returns the trimmed sequence, or null if there is none
+ */
+export const normalizeSeriesSequence = (sequence: string | null | undefined): string | null => {
+	if (sequence === null || sequence === undefined) return null;
+	const trimmed = sequence.trim();
+	return trimmed === '' ? null : trimmed;
+};
+
+/**
+ * Get the leading number of a series sequence, e.g. 1.5 for "1.5" and 1 for "1-3"
+ * @param sequence the sequence
+ * @returns the number, or NaN if the sequence does not start with one
+ */
+export const seriesSequenceNumber = (sequence: string): number => {
+	const match = sequence.trim().match(/^\d+(\.\d+)?/);
+	return match === null ? NaN : parseFloat(match[0]);
+};
+
+/**
+ * Compare two series sequences for sorting. Orders by leading number ("0.5" < "1" < "1-3" < "1.5"
+ * < "2" < "10"), then by text. Missing sequences sort last.
+ * @returns negative if a comes first, positive if b comes first, 0 if equal
+ */
+export const compareSeriesSequence = (a: string | null, b: string | null): number => {
+	if (a === null && b === null) return 0;
+	if (a === null) return 1;
+	if (b === null) return -1;
+	const numA = seriesSequenceNumber(a);
+	const numB = seriesSequenceNumber(b);
+	if (isNaN(numA) !== isNaN(numB)) return isNaN(numA) ? 1 : -1;
+	if (!isNaN(numA) && numA !== numB) return numA < numB ? -1 : 1;
+	return a.localeCompare(b, undefined, { numeric: true });
+};

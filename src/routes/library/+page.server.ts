@@ -108,14 +108,8 @@ export async function load({ url, depends }) {
 			});
 		} else if (params.sortCategory === 'order') {
 			books.sort((a, b) => {
-				if (a.series_sequence !== null && b.series_sequence !== null) {
-					return (a.series_sequence > b.series_sequence ? 1 : -1) * rev;
-				} else if (a.series_sequence === null && b.series_sequence === null) {
-					return a.title.localeCompare(b.title) * rev;
-				} else {
-					if (a.series_sequence === null) return 1 * rev;
-					else return -1 * rev;
-				}
+				const bySequence = helpers.compareSeriesSequence(a.series_sequence, b.series_sequence);
+				return (bySequence !== 0 ? bySequence : a.title.localeCompare(b.title)) * rev;
 			});
 		}
 	};

@@ -280,15 +280,24 @@ let audibleData = '';
 let cli_id = '';
 let cc: CountryCode;
 let profileState = ProfileState.PROFILE_NAME;
+// When set, the login in progress refreshes this existing source instead of adding a new one
+let refreshSourceId: string | null = null;
 
 if (global.audible === undefined) global.audible = { instance: undefined, cancelMap: {} };
 
 /**
  * Get a login URL from the audible CLI
+ * @param countryCode the Audible marketplace to sign in to
+ * @param refreshSource the ID of an existing source whose login this refreshes, or null to add a
+ * new source. A refresh must sign in to the same account, and keeps the source and its books.
  * @returns the login URL
  * @rejects a ProfileCreationError if there was an error
  */
-export const add = async (countryCode: CountryCode = 'us'): Promise<string> => {
+export const add = async (
+	countryCode: CountryCode = 'us',
+	refreshSource: string | null = null
+): Promise<string> => {
+	refreshSourceId = refreshSource;
 	// Step 1: Lock out audible usage because we have to delete the config to allow quickstart usage for more than 1 account
 	lock();
 	try {
@@ -460,6 +469,7 @@ export const add = async (countryCode: CountryCode = 'us'): Promise<string> => {
  * Abort the profile add process and unlock the system
  */
 export const cancelAdd = async () => {
+	refreshSourceId = null;
 	if (audible === undefined || isLocked() === false) return;
 	audible.kill();
 	// Write the config file
@@ -523,8 +533,57 @@ export const submitURL = (
 
 						// Check that this ID does not already exist
 						const verifySource = await prisma.source.findUnique({ where: { id } });
-						if (verifySource !== null) {
-							// This account already exists
+						if (refreshSourceId !== null) {
+							// Refreshing the login of an existing source (the "Refresh Login" button)
+							const target = refreshSourceId;
+							refreshSourceId = null;
+							const existingAccount = await prisma.audibleAccount.findUnique({
+								where: { id: target }
+							});
+							if (existingAccount === null || email === undefined || id !== target) {
+								// The source is gone, or the user signed in to a different (or unidentifiable)
+								// account. Don't touch the source; deregister the device that was just registered.
+								await writeConfigFile();
+								unlock();
+								await remove('', cli_id);
+								reject(
+									existingAccount === null
+										? ProfileCreationError.REFRESH_SOURCE_NOT_FOUND
+										: ProfileCreationError.REFRESH_WRONG_ACCOUNT
+								);
+							} else {
+								// Move the source to the device that was just registered, keeping the source and its
+								// books. Needed when a registration stops working, e.g. Audible's November 2026
+								// change that throttles devices registered with older versions of the audible
+								// library ("License not granted ... CustomerThrottled").
+								const oldCliId = existingAccount.cli_id;
+								await prisma.audibleAccount.update({
+									where: { id: target },
+									data: { cli_id: cli_id, locale_code: cc }
+								});
+								await prisma.source.update({ where: { id: target }, data: { connected: true } });
+								// Conversions read the library export by profile name; carry it over until the next sync
+								try {
+									fs.renameSync(
+										path.join(AUDIBLE_FOLDER, `${oldCliId}.library.tsv`),
+										path.join(AUDIBLE_FOLDER, `${cli_id}.library.tsv`)
+									);
+								} catch (e) {
+									// No export yet; the next sync creates one
+								}
+								// Write the config file with the new profile
+								await writeConfigFile();
+								// Unlock the audible-cli interface
+								unlock();
+								// Deregister the old device. Passing no source ID keeps the source in the DB.
+								if (oldCliId !== cli_id) await remove('', oldCliId);
+								// Refresh the values stored from the auth file
+								await fetchMetadata(target);
+								console.log(`Refreshed login for ${target}: ${oldCliId} -> ${cli_id}`);
+								resolve({ e: ProfileCreationError.NO_ERROR, id: target });
+							}
+						} else if (verifySource !== null) {
+							// This account already exists. Its login is refreshed from its own page instead.
 							// Write the config file
 							await writeConfigFile();
 							// Unlock the audible-cli interface

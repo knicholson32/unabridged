@@ -18,18 +18,39 @@
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 	import LoadingCircle from '$lib/components/decorations/LoadingCircle.svelte';
+	import AudibleLoginDialog from '$lib/components/routeSpecific/sources/AudibleLoginDialog.svelte';
 
 	export let data: import('./$types').PageData;
 	export let form: import('./$types').ActionData;
 
 	let showAlert = getContext<GenerateAlert>('showAlert');
 
+	// Refresh login
+	let refreshDialogOpen = false;
+	let refreshStarting = false;
+
 	$: {
 		if (form !== undefined) {
 			if (form?.success === true) {
+				if (form?.response === 'refresh') {
+					refreshDialogOpen = true;
+				} else if (form?.response === 'refreshcancel') {
+					refreshDialogOpen = false;
+				} else if (form?.response === 'refreshurl') {
+					refreshDialogOpen = false;
+					showAlert('Login refreshed', {
+						subText: 'This account is signed in again as a new device.',
+						theme: 'ok'
+					});
+				}
 			} else {
 				console.log('Form failure!');
-				if (form?.response === 'sync') {
+				if (form?.response === 'refresh') {
+					showAlert('Login refresh error', { subText: form?.message, theme: 'error' });
+				} else if (form?.response === 'refreshurl' && form?.fatal === true) {
+					refreshDialogOpen = false;
+					showAlert('Login refresh error', { subText: form?.message, theme: 'error' });
+				} else if (form?.response === 'sync') {
 					// showAlert('Profile sync error', { subText: form?.message, theme: 'error' });
 				} else if (form?.response === 'deregister') {
 					showAlert('Source deletion error', { subText: form?.message, theme: 'error' });
@@ -412,8 +433,19 @@
 	{:then authenticated}
 		<div in:accordion={{ heightRem: 12, duration: 500 }} class="w-full bg-red-600 text-white overflow-hidden">
 			{#if authenticated === false}
-				<div class="h-12 flex justify-center items-center text-center">
-					Account is not logged in. Please log in again.
+				<div class="h-12 flex justify-center items-center text-center gap-3">
+					Account is not logged in.
+					<form method="POST" action="?/refresh" use:enhance={() => {
+						refreshStarting = true;
+						return async ({ update }) => {
+							refreshStarting = false;
+							update({ reset: false });
+						};
+					}}>
+						<button type="submit" disabled={refreshStarting}
+							class="rounded-md bg-white/20 px-2.5 py-1 text-sm font-semibold hover:bg-white/30 disabled:opacity-50"
+							>{refreshStarting ? 'Starting…' : 'Refresh Login'}</button>
+					</form>
 				</div>
 			{/if}
 		</div>
@@ -473,6 +505,18 @@
 										}}
 									>
 										<Submit bind:this={profileSync} submitting={profileSyncing} progress={syncingProgress} failed={form?.success === false && form?.response === 'sync'} actionText={'Sync'} actionTextInProgress={'Syncing'} />
+									</form>
+									<form class="pl-3" method="POST" action="?/refresh"
+										title="Sign this account in again as a new device. Use this if downloads fail with 'License not granted'. Books are kept."
+										use:enhance={() => {
+											refreshStarting = true;
+											return async ({ update }) => {
+												refreshStarting = false;
+												update({ reset: false });
+											};
+										}}
+									>
+										<Submit submitting={refreshStarting} failed={form?.success === false && form?.response === 'refresh'} actionText={'Refresh Login'} actionTextInProgress={'Starting'} skipDoneMessage={true} />
 									</form>
 								</div>
 							</div>
@@ -797,6 +841,17 @@
 				</div>
 			</div>
 		</dialog>
+	{/if}
+
+	{#if refreshDialogOpen}
+		<AudibleLoginDialog
+			mode="refresh"
+			{form}
+			submitAction="?/refreshurl"
+			cancelAction="?/refreshcancel"
+			submitResponse="refreshurl"
+			accountLabel={data.source.audible?.email ?? data.source.name}
+		/>
 	{/if}
 </div>
 
