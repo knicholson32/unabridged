@@ -4,6 +4,8 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Decimal } from '@prisma/client/runtime/library.js';
 import * as Plex from '$lib/server/plex';
 import * as settings from '$lib/server/settings';
+import * as abs from '$lib/server/audiobookshelf';
+import { getLinkBase } from '$lib/server/audiobookshelf/settings';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params }) => {
@@ -60,11 +62,20 @@ export const load = async ({ params }) => {
 					series.plexKey,
 					await settings.get('plex.address')
 			  );
-	console.log(collectionURL);
+
+	// Link to the series in Audiobookshelf, once a scan has linked it
+	let absUrl: string | null = null;
+	if (series.absSeriesId !== null) {
+		const linkBase = await getLinkBase();
+		const libraryId = await settings.get('abs.library.id');
+		if (linkBase !== null && libraryId !== '')
+			absUrl = abs.seriesUrl(linkBase, libraryId, series.absSeriesId);
+	}
 
 	return {
 		series,
 		collectionURL,
+		absUrl,
 		authors,
 		narrators,
 		weightedAvgRating: {

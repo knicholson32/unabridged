@@ -42,6 +42,24 @@ export const TypeNames = {
 	'plex.library.autoScan.inProgress': false,
 	'plex.library.autoScan.progress': 0,
 	'plex.library.collection.progress': 0,
+	// Audiobookshelf ------------------------
+	'abs.enable': false,
+	'abs.address': '',
+	'abs.linkAddress': '', // URL browsers use to open ABS, if different from abs.address
+	'abs.apiKey': '', // Encrypted
+	'abs.apiTimeout': 5000,
+	'abs.serverVersion': '', // From the last successful connection test
+	'abs.username': '', // ABS user the API key belongs to
+	'abs.library.id': '',
+	'abs.library.name': '',
+	'abs.library.folderId': '', // Only needed for libraries with several folders; '' = first
+	// Audiobookshelf.Scan -------------------
+	'abs.scan.enable': true,
+	'abs.scan.delay': 15,
+	'abs.scan.timeout': 1200,
+	'abs.scan.scheduled': false,
+	'abs.scan.nextRun': -1,
+	'abs.scan.inProgress': false,
 	// Library -------------------------------
 	'library.location': '/library',
 	// General -------------------------------
@@ -116,6 +134,38 @@ export type ObjectType<T extends TypeName> = T extends 'progress.running'
 	? number // Float
 	: T extends 'plex.library.collection.progress'
 	? number // Float
+	: T extends 'abs.enable'
+	? boolean // Boolean
+	: T extends 'abs.address'
+	? string // String
+	: T extends 'abs.linkAddress'
+	? string // String
+	: T extends 'abs.apiKey'
+	? string // String (encrypted)
+	: T extends 'abs.apiTimeout'
+	? number // Integer
+	: T extends 'abs.serverVersion'
+	? string // String
+	: T extends 'abs.username'
+	? string // String
+	: T extends 'abs.library.id'
+	? string // String
+	: T extends 'abs.library.name'
+	? string // String
+	: T extends 'abs.library.folderId'
+	? string // String
+	: T extends 'abs.scan.enable'
+	? boolean // Boolean
+	: T extends 'abs.scan.delay'
+	? number // Integer
+	: T extends 'abs.scan.timeout'
+	? number // Integer
+	: T extends 'abs.scan.scheduled'
+	? boolean // Boolean
+	: T extends 'abs.scan.nextRun'
+	? number // Integer
+	: T extends 'abs.scan.inProgress'
+	? boolean // Boolean
 	: T extends 'library.location'
 	? string // String
 	: T extends 'general.autoSync'
@@ -169,6 +219,10 @@ export const get = async <T extends TypeName>(
 			case 'plex.library.autoScan.enable':
 			case 'plex.library.autoScan.scheduled':
 			case 'plex.library.autoScan.inProgress':
+			case 'abs.enable':
+			case 'abs.scan.enable':
+			case 'abs.scan.scheduled':
+			case 'abs.scan.inProgress':
 				return (settingVal.value === 'true' ? true : false) as ObjectType<T>;
 
 			// Integer Conversion ------------------------------------------------------------------------
@@ -180,6 +234,10 @@ export const get = async <T extends TypeName>(
 			case 'plex.library.autoScan.timeout':
 			case 'plex.library.autoScan.delay':
 			case 'plex.library.autoScan.nextRun':
+			case 'abs.apiTimeout':
+			case 'abs.scan.delay':
+			case 'abs.scan.timeout':
+			case 'abs.scan.nextRun':
 				return parseInt(settingVal.value) as ObjectType<T>;
 
 			// Float Conversion --------------------------------------------------------------------------
@@ -200,10 +258,18 @@ export const get = async <T extends TypeName>(
 			case 'plex.library.name':
 			case 'plex.collections.singlesKey':
 			case 'library.location':
+			case 'abs.address':
+			case 'abs.linkAddress':
+			case 'abs.serverVersion':
+			case 'abs.username':
+			case 'abs.library.id':
+			case 'abs.library.name':
+			case 'abs.library.folderId':
 				return settingVal.value as ObjectType<T>;
 
 			// Encrypted Strings -------------------------------------------------------------------------
 			case 'plex.token':
+			case 'abs.apiKey':
 				return (await helpers.decrypt(settingVal.value)) as ObjectType<T>;
 
 			// Enum Conversion ---------------------------------------------------------------------------
@@ -330,7 +396,7 @@ export const set = async <T extends TypeName>(setting: T, value: ObjectType<T>) 
 	// Make sure the setting can exist
 	if (!(setting in TypeNames)) throw Error(`Unknown setting: ${setting}`);
 
-	if (setting === 'plex.token') {
+	if (setting === 'plex.token' || setting === 'abs.apiKey') {
 		value = (await helpers.encrypt(value as string)) as ObjectType<T>;
 	}
 

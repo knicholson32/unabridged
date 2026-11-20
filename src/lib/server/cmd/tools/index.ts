@@ -5,6 +5,7 @@ import * as media from '$lib/server/media';
 import * as settings from '$lib/server/settings';
 import sanitize from 'sanitize-filename';
 import { sanitizeFile } from '$lib/server/helpers';
+import * as AbsSync from '$lib/server/audiobookshelf/sync';
 
 /**
  * Create a temporary directory based on an asin
@@ -50,6 +51,8 @@ export const clearDir = (dir: string) => {
 export const cleanBook = async (asin: string) => {
 	const book = await prisma.book.findUnique({ where: { asin }, include: { authors: true } });
 	if (book === null || book === undefined) return;
+	// Remove it from Audiobookshelf first, while its ABS ID and paths are still known
+	await AbsSync.removeBook(asin);
 	// Delete all the physical files that are associated with books that just got deleted
 	const debug = (await settings.get('system.debug')) > 0;
 	const LIBRARY_FOLDER = await settings.get('library.location');
@@ -114,6 +117,8 @@ export const cleanSeries = async (id: string) => {
 export const deleteBook = async (asin: string) => {
 	const book = await prisma.book.findUnique({ where: { asin }, include: { authors: true } });
 	if (book === null || book === undefined) return;
+	// Remove it from Audiobookshelf first, while its ABS ID and paths are still known
+	await AbsSync.removeBook(asin);
 	try {
 		await prisma.book.delete({ where: { asin: book.asin } });
 	} catch (e) {

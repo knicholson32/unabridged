@@ -148,6 +148,12 @@
 			<DataEntry title={'Books Added'} data={records.booksAdded.toLocaleString()} />
 			<DataEntry title={'Books Updated'} data={records.booksUpdated.toLocaleString()} />
 			<DataEntry title={'Plex Collection Update'} data={records.scanLibrary.message} />
+			{#if records.absTest !== undefined}
+				<DataEntry title={'Audiobookshelf Connection'} data={records.absTest.message} />
+			{/if}
+			{#if records.absScan !== undefined}
+				<DataEntry title={'Audiobookshelf Scan'} data={records.absScan.message} />
+			{/if}
 		</DataContainer>
 	{/if}
 </Settings.List>

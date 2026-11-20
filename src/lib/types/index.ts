@@ -110,7 +110,12 @@ export type NotificationSettings = {
 
 export type GenerateAlert = (text: string, settings?: AlertSettings) => void;
 
-export type Issuer = 'general' | 'audible.download' | 'plex.scan.result' | 'account.sync';
+export type Issuer =
+	| 'general'
+	| 'audible.download'
+	| 'plex.scan.result'
+	| 'abs.scan.result'
+	| 'account.sync';
 
 export type Notification = Prisma.NotificationGetPayload<{}> & {
 	theme: ModalTheme; // This is a string in the DB, so we overwrite it here so it is strongly typed
@@ -448,6 +453,8 @@ export namespace Cron {
 		endTime: number; // When the cron finished
 		plexTest: ConnectionTestResult; // Results of the Plex cron test
 		scanLibrary: ScanAndGenerateResult; // Results of the library scan and collection generate
+		absTest?: ConnectionTestResult; // Results of the Audiobookshelf connection test (absent in older records)
+		absScan?: { success: boolean; message: string }; // Results of the Audiobookshelf scan and link
 	};
 }
 

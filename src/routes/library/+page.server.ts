@@ -204,6 +204,7 @@ export async function load({ url, depends }) {
 			runTimeMinutes: 0,
 			numBooks: singleBooks.length,
 			plexKey: null,
+			absSeriesId: null,
 			books: []
 		};
 

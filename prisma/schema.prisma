@@ -93,10 +93,12 @@ model Genre {
 }
 
 model Series {
-  id      String  @id
-  title   String
-  plexKey String?
-  books   Book[]
+  id          String  @id
+  title       String
+  plexKey     String?
+  // Audiobookshelf series ID, for links. Cache only: rematched when it goes stale.
+  absSeriesId String?
+  books       Book[]
 
   @@map("series")
 }
@@ -109,6 +111,9 @@ model Book {
   subtitle           String?
   authors            Author[]
   plexKey            String?
+  // Audiobookshelf item ID. Cache only: ABS changes it if the item is removed and re-added, so it
+  // is rematched by ASIN or folder path when it goes stale.
+  absItemId          String?
   narrators          Narrator[]
   series             Series?    @relation(fields: [seriesId], references: [id])
   series_sequence    String? // As given by the source: "2", "1.5", or a range like "1-3"
@@ -123,7 +128,7 @@ model Book {
   purchase_date      BigInt
   seriesId           String?
 
-  date_added         Int @default(0)
+  date_added Int @default(0)
 
   downloaded   Boolean
   processed    Boolean

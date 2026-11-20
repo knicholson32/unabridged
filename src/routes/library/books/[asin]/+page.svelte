@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { Submit } from '$lib/components/buttons';
+	import { icons } from '$lib/components';
 	import Rating from '$lib/components/decorations/Rating.svelte';
 	import * as helpers from '$lib/helpers';
 	import type { GenerateAlert, PageNeedsProgress, SourceType } from '$lib/types';
@@ -240,6 +241,26 @@
 					</svg>
 				</span>
 			</a>
+			{#if data.absUrl !== null}
+				<a href={data.absUrl} target="_blank" title="Open in Audiobookshelf" class="group">
+					<span
+						class="inline-flex h-8 w-8 items-center justify-center align-bottom rounded-full bg-gray-800 text-white ring-1 ring-white/20 transition-colors group-hover:bg-gray-700"
+					>
+						<svg
+							class="h-5 w-5"
+							xmlns="http://www.w3.org/2000/svg"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke-width="1.5"
+							stroke="currentColor"
+							aria-hidden="true"
+						>
+							{@html icons.book}
+						</svg>
+						<span class="sr-only">Open in Audiobookshelf</span>
+					</span>
+				</a>
+			{/if}
 			{#if voucherURL !== undefined}
 				<a href={voucherURL} title="Download voucher" class="group">
 					<span

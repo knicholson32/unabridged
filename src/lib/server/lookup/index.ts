@@ -1,5 +1,6 @@
 import prisma from '$lib/server/prisma';
 import * as metadata from '$lib/server/metadata';
+import * as AbsSync from '$lib/server/audiobookshelf/sync';
 
 // 20230822130738
 // https://www.googleapis.com/books/v1/volumes?q=intitle:%22Columbus%20Day%22+inauthor:%22Craig%22
@@ -127,7 +128,7 @@ export const saveGoogleAPIDetails = async (asin: string, title: string, authors:
 				}
 			});
 			// Description and ISBN may have changed. No-op unless the book is already on disk.
-			await metadata.writeSidecar(asin);
+			if (await metadata.writeSidecar(asin)) void AbsSync.refreshBook(asin);
 		} catch (e) {
 			console.log(e);
 		}

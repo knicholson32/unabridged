@@ -9,6 +9,7 @@ import * as settings from '$lib/server/settings';
 import { writeConfigFile } from '$lib/server/cmd/audible/cmd/profile';
 import { saveGoogleAPIDetails } from '$lib/server/lookup';
 import * as metadata from '$lib/server/metadata';
+import * as AbsSync from '$lib/server/audiobookshelf/sync';
 import * as events from '$lib/server/events';
 import * as helpers from '$lib/helpers';
 import { getAverageColor } from 'fast-average-color-node';
@@ -208,7 +209,8 @@ const processBook = async (book: BookFromCLI, id: string): Promise<boolean> => {
 		if (series_sequence !== null && existingBook.series_sequence !== series_sequence) {
 			try {
 				await prisma.book.update({ where: { asin }, data: { series_sequence } });
-				if (existingBook.processed) await metadata.writeSidecar(asin);
+				if (existingBook.processed && (await metadata.writeSidecar(asin)))
+					void AbsSync.refreshBook(asin);
 			} catch (e) {
 				console.log('Could not update series sequence', asin, e);
 			}

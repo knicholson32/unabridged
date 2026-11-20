@@ -1,5 +1,8 @@
 import prisma from '$lib/server/prisma';
 import * as metadata from '$lib/server/metadata';
+import * as AbsSync from '$lib/server/audiobookshelf/sync';
+import * as abs from '$lib/server/audiobookshelf';
+import { getLinkBase } from '$lib/server/audiobookshelf/settings';
 import { error } from '@sveltejs/kit';
 import type { Decimal } from '@prisma/client/runtime/library.js';
 
@@ -43,8 +46,14 @@ export const load = async ({ params }) => {
 
 	book.rating = book.rating.toNumber() as unknown as Decimal;
 
+	// Link to the book in Audiobookshelf, once a scan has linked it
+	const absLinkBase = book.absItemId === null ? null : await getLinkBase();
+	const absUrl =
+		absLinkBase === null || book.absItemId === null ? null : abs.itemUrl(absLinkBase, book.absItemId);
+
 	return {
-		book
+		book,
+		absUrl
 	};
 
 	// if (params.id === 'hello-world') {
@@ -87,6 +96,7 @@ export const actions = {
 			});
 			// Keep the Audiobookshelf sidecar in sync with the edit
 			await metadata.writeSidecar(asin);
+			void AbsSync.refreshBook(asin);
 			return { success: true, response: 'update' };
 		} catch (e) {
 			return { success: false, response: 'update' };

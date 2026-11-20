@@ -11,6 +11,8 @@ import type { Issuer, ModalTheme } from '$lib/types';
 import { ConversionError } from './AAXtoMP3/types';
 import { ProcessError } from '$lib/types';
 import * as Plex from '$lib/server/plex';
+import * as AbsSync from '$lib/server/audiobookshelf/sync';
+import * as AbsSettings from '$lib/server/audiobookshelf/settings';
 import * as validators from '$lib/types/prisma';
 import * as events from '$lib/server/events';
 import cron from 'node-cron';
@@ -646,6 +648,8 @@ export namespace LibraryManager {
 								plexSettings['plex.library.autoScan.scheduled'] == false
 							)
 								Plex.triggerAutoScan();
+							// Audiobookshelf: one scan for the batch, after the configured delay
+							AbsSync.scanAfterProcessing(getNoneWorking);
 						}
 						libraryScanShouldBeIssued = false;
 					}
@@ -674,6 +678,7 @@ export namespace LibraryManager {
 		});
 
 		await Plex.reset();
+		await AbsSettings.reset();
 
 		console.log(await prisma.processQueue.findMany());
 
@@ -978,6 +983,14 @@ export namespace Cron {
 				cronRecord.scanLibrary.messageVerbose = types.scanAndGenerateToStringLong(results);
 
 				if (debug) console.log('Library Auto Scan Complete');
+			}
+
+			// Audiobookshelf: test the connection, then scan and link -------------------------------------
+			const absResults = await AbsSync.scheduledRun();
+			if (absResults !== null) {
+				cronRecord.absTest = absResults.test;
+				if (absResults.scan !== null) cronRecord.absScan = absResults.scan;
+				if (debug) console.log('Audiobookshelf', absResults);
 			}
 
 			// Check to see if the cron should exit yet

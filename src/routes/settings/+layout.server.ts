@@ -18,6 +18,12 @@ export async function load({ params }) {
 		},
 		{
 			type: 'link',
+			title: 'Audiobookshelf',
+			iconSVG: icons.book,
+			href: '/settings/audiobookshelf'
+		},
+		{
+			type: 'link',
 			title: 'System',
 			iconSVG: icons.cube,
 			href: '/settings/system'

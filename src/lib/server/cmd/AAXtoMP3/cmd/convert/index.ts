@@ -5,6 +5,7 @@ import prisma from '$lib/server/prisma';
 import * as events from '$lib/server/events';
 import * as media from '$lib/server/media';
 import * as metadata from '$lib/server/metadata';
+import * as AbsSync from '$lib/server/audiobookshelf/sync';
 import { AAXtoMP3_COMMAND } from '$lib/server/env';
 import { ConversionError } from '../../types';
 import { sanitizeFile } from '$lib/server/helpers';
@@ -303,6 +304,8 @@ export const exec = async (
 			// Write the Audiobookshelf metadata sidecar. Best-effort: a failure is logged but does not
 			// fail the conversion, and the file can be regenerated from Settings → Library.
 			await metadata.writeSidecar(book.asin);
+			// Have Audiobookshelf pick the book up now rather than at the next scan (not awaited)
+			void AbsSync.notifyBookAdded(book.asin);
 		} catch (e) {
 			console.log('Conversion error', e);
 			return ConversionError.COULD_NOT_SAVE;
