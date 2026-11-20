@@ -3,7 +3,6 @@
 	import { enhance } from '$app/forms';
 	import { Submit, Switch } from '$lib/components/buttons';
 	import * as Settings from '$lib/components/routeSpecific/settings';
-	import { CollectionBy } from '$lib/types';
 
 	export let data: import('./$types').PageData;
 	export let form: import('./$types').ActionData;
@@ -55,8 +54,8 @@
 >
 	<span slot="title">Library Location</span>
 	<span slot="description"
-		>Specify where Unabridged should save audiobooks. If you intend to use plex, this should be a
-		folder accessible by plex.</span
+		>Specify where Unabridged should save audiobooks. If you use Audiobookshelf, this should be a
+		folder in your Audiobookshelf library.</span
 	>
 
 	<Settings.Input

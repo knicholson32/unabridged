@@ -71,9 +71,8 @@ model ProfileImage {
 }
 
 model Author {
-  name    String  @id
-  plexKey String?
-  books   Book[]
+  name  String @id
+  books Book[]
 
   @@map("authors")
 }
@@ -95,7 +94,6 @@ model Genre {
 model Series {
   id          String  @id
   title       String
-  plexKey     String?
   // Audiobookshelf series ID, for links. Cache only: rematched when it goes stale.
   absSeriesId String?
   books       Book[]
@@ -110,7 +108,6 @@ model Book {
   title              String
   subtitle           String?
   authors            Author[]
-  plexKey            String?
   // Audiobookshelf item ID. Cache only: ABS changes it if the item is removed and re-added, so it
   // is rematched by ASIN or folder path when it goes stale.
   absItemId          String?

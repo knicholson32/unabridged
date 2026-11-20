@@ -12,12 +12,6 @@ export async function load({ params }) {
 		},
 		{
 			type: 'link',
-			title: 'Plex',
-			iconSVG: icons.chevronRight,
-			href: '/settings/plex'
-		},
-		{
-			type: 'link',
 			title: 'Audiobookshelf',
 			iconSVG: icons.book,
 			href: '/settings/audiobookshelf'

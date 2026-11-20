@@ -1,4 +1,3 @@
-import * as types from '$lib/types';
 import prisma from '$lib/server/prisma';
 import * as crypto from 'node:crypto';
 import * as helpers from '$lib/server/helpers';
@@ -19,29 +18,6 @@ export const TypeNames = {
 	'system.cron.maxRun': 7200,
 	'system.cron.record': '',
 	'system.cron': '0 4 * * *',
-	// Plex ----------------------------------
-	'plex.enable': false,
-	'plex.apiTimeout': 3000,
-	'plex.address': '',
-	'plex.token': '',
-	'plex.friendlyName': '',
-	'plex.machineId': '',
-	'plex.collections.enable': false,
-	'plex.collections.by': types.CollectionBy.series,
-	'plex.collections.groupSingles': true,
-	'plex.collections.singlesKey': '',
-	'plex.library.id': '',
-	'plex.library.key': '',
-	'plex.library.name': '',
-	// Plex.AutoScan -------------------------
-	'plex.library.autoScan.enable': true,
-	'plex.library.autoScan.timeout': 1200,
-	'plex.library.autoScan.delay': 15,
-	'plex.library.autoScan.scheduled': false,
-	'plex.library.autoScan.nextRun': -1,
-	'plex.library.autoScan.inProgress': false,
-	'plex.library.autoScan.progress': 0,
-	'plex.library.collection.progress': 0,
 	// Audiobookshelf ------------------------
 	'abs.enable': false,
 	'abs.address': '',
@@ -92,48 +68,6 @@ export type ObjectType<T extends TypeName> = T extends 'progress.running'
 	? string // String
 	: T extends 'system.cron'
 	? string // String
-	: T extends 'plex.enable'
-	? boolean // Boolean
-	: T extends 'plex.apiTimeout'
-	? number // Integer
-	: T extends 'plex.address'
-	? string // String
-	: T extends 'plex.token'
-	? string // String
-	: T extends 'plex.library.id'
-	? string // String
-	: T extends 'plex.library.key'
-	? string // String
-	: T extends 'plex.library.name'
-	? string // String
-	: T extends 'plex.friendlyName'
-	? string // String
-	: T extends 'plex.machineId'
-	? string // String
-	: T extends 'plex.collections.enable'
-	? boolean // Boolean
-	: T extends 'plex.collections.by'
-	? types.CollectionBy // Enum
-	: T extends 'plex.collections.groupSingles'
-	? boolean // Boolean
-	: T extends 'plex.collections.singlesKey'
-	? string // String
-	: T extends 'plex.library.autoScan.enable'
-	? boolean // Boolean
-	: T extends 'plex.library.autoScan.timeout'
-	? number // Integer
-	: T extends 'plex.library.autoScan.delay'
-	? number // Integer
-	: T extends 'plex.library.autoScan.scheduled'
-	? boolean // Boolean
-	: T extends 'plex.library.autoScan.nextRun'
-	? number // Integer
-	: T extends 'plex.library.autoScan.inProgress'
-	? boolean // Boolean
-	: T extends 'plex.library.autoScan.progress'
-	? number // Float
-	: T extends 'plex.library.collection.progress'
-	? number // Float
 	: T extends 'abs.enable'
 	? boolean // Boolean
 	: T extends 'abs.address'
@@ -213,12 +147,6 @@ export const get = async <T extends TypeName>(
 			case 'search.autoSubmit':
 			case 'general.autoSync':
 			case 'system.cron.enable':
-			case 'plex.enable':
-			case 'plex.collections.enable':
-			case 'plex.collections.groupSingles':
-			case 'plex.library.autoScan.enable':
-			case 'plex.library.autoScan.scheduled':
-			case 'plex.library.autoScan.inProgress':
 			case 'abs.enable':
 			case 'abs.scan.enable':
 			case 'abs.scan.scheduled':
@@ -230,33 +158,17 @@ export const get = async <T extends TypeName>(
 			case 'progress.endTime':
 			case 'system.cron.maxRun':
 			case 'system.debug':
-			case 'plex.apiTimeout':
-			case 'plex.library.autoScan.timeout':
-			case 'plex.library.autoScan.delay':
-			case 'plex.library.autoScan.nextRun':
 			case 'abs.apiTimeout':
 			case 'abs.scan.delay':
 			case 'abs.scan.timeout':
 			case 'abs.scan.nextRun':
 				return parseInt(settingVal.value) as ObjectType<T>;
 
-			// Float Conversion --------------------------------------------------------------------------
-			case 'plex.library.autoScan.progress':
-			case 'plex.library.collection.progress':
-				return parseFloat(settingVal.value) as ObjectType<T>;
-
 			// String Conversion -------------------------------------------------------------------------
 			case 'system.cron':
 			case 'system.cron.record':
-			case 'plex.address':
-			case 'plex.friendlyName':
-			case 'plex.machineId':
 			case 'general.encKey':
 			case 'general.timezone':
-			case 'plex.library.id':
-			case 'plex.library.key':
-			case 'plex.library.name':
-			case 'plex.collections.singlesKey':
 			case 'library.location':
 			case 'abs.address':
 			case 'abs.linkAddress':
@@ -268,13 +180,8 @@ export const get = async <T extends TypeName>(
 				return settingVal.value as ObjectType<T>;
 
 			// Encrypted Strings -------------------------------------------------------------------------
-			case 'plex.token':
 			case 'abs.apiKey':
 				return (await helpers.decrypt(settingVal.value)) as ObjectType<T>;
-
-			// Enum Conversion ---------------------------------------------------------------------------
-			case 'plex.collections.by':
-				return settingVal.value as ObjectType<T>;
 
 			// Unknown -----------------------------------------------------------------------------------
 			default:
@@ -396,7 +303,7 @@ export const set = async <T extends TypeName>(setting: T, value: ObjectType<T>) 
 	// Make sure the setting can exist
 	if (!(setting in TypeNames)) throw Error(`Unknown setting: ${setting}`);
 
-	if (setting === 'plex.token' || setting === 'abs.apiKey') {
+	if (setting === 'abs.apiKey') {
 		value = (await helpers.encrypt(value as string)) as ObjectType<T>;
 	}
 

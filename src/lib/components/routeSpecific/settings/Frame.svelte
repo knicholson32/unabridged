@@ -52,7 +52,7 @@
 				{#if badge !== null && badge === true}
 					<span
 						class="absolute flex h-3 w-3 -right-4 sm:right-auto sm:-left-4"
-						title="No Plex Library is selected. See 'Plex Integration' settings above."
+						title="This needs to be set."
 					>
 						<span
 							class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"

@@ -28,7 +28,6 @@
 	import FinishedBook from '$lib/components/routeSpecific/layout/FinishedBook.svelte';
 	import * as events from '$lib/events';
 	import StatusBarEmpty from '$lib/components/routeSpecific/layout/StatusBarEmpty.svelte';
-	import CollectionProgress from '$lib/components/routeSpecific/layout/CollectionProgress.svelte';
 	import AbsScanProgress from '$lib/components/routeSpecific/layout/AbsScanProgress.svelte';
 	export let data;
 
@@ -223,7 +222,6 @@
 	let startTime = -1;
 	let staticTime = 0;
 	let elapsedTime = '00:00:00';
-	let collectionScheduledTime = -1;
 	let absScanScheduledTime = -1;
 	let calculateTimeInterval: number;
 	const displayElapsedTime = () => {
@@ -316,11 +314,6 @@
 
 		// processor.invalidate -----------------------------------------------------------
 		removalFunctions.push(events.on('processor.invalidate', processorInvalidated));
-
-		// collection.scheduled -----------------------------------------------------------
-		removalFunctions.push(
-			events.on('collection.scheduled', (time) => (collectionScheduledTime = time))
-		);
 
 		// abs.scan.scheduled -------------------------------------------------------------
 		removalFunctions.push(events.on('abs.scan.scheduled', (time) => (absScanScheduledTime = time)));
@@ -986,7 +979,6 @@
 								class=" antialiase"
 							>
 								<div class="absolute right-2 top-2 flex gap-1">
-									<CollectionProgress bind:scheduled={collectionScheduledTime} />
 									<AbsScanProgress scheduled={absScanScheduledTime} />
 									<button on:click={togglePause} type="button" class="px-1 py-1 text-gray-500 transition-colors duration-200 rounded-lg dark:text-gray-300 hover:bg-gray-100" >
 										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">

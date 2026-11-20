@@ -7,7 +7,7 @@
 
 # Introduction
 
-Unabridged is a `docker` container that downloads and manages audio-books from Audible (and other sources in the future), and saves them to a folder that can be served by a local instance of [Plex](https://www.plex.tv/). Using an app like [Prologue](https://prologue.audio/) lets you then listen to your Plex-hosted, Unabridged-managed audio-books from anywhere.
+Unabridged is a `docker` container that downloads and manages audio-books from Audible (and other sources in the future), and saves them to a folder served by [Audiobookshelf](https://www.audiobookshelf.org/). Using an app that supports Audiobookshelf, such as [Prologue](https://prologue.audio/), lets you then listen to your Unabridged-managed audio-books from anywhere.
 
 ### **Notice**: Unabridged is in development, and is not currently stable.
 
@@ -15,7 +15,9 @@ Unabridged is a `docker` container that downloads and manages audio-books from A
 
 - Easy to use GUI
 - Multiple account sources
-- Automatic Plex collection management
+- Audiobookshelf integration: new books are scanned in automatically, with series, book number,
+  narrators and ASIN filled in from a `metadata.json` written next to each book
+- "Open in Audiobookshelf" links from book and series pages
 - Sorting of books by name, series order, and more
 - Ability to modify book parameters
 
@@ -43,22 +45,45 @@ services:
       # Location of books. May be hundreds of GB depending on library size.
       - /my/local/storage/library:/library
 
-  plex:
-    image: 'lscr.io/linuxserver/plex:latest'
-    container_name: plex
+  audiobookshelf:
+    image: 'ghcr.io/advplyr/audiobookshelf:2.37.2'
+    container_name: audiobookshelf
     restart: unless-stopped
     environment:
-      PUID: 1000
-      PGID: 1000
-      VERSION: docker
-      TZ: America/New_York
+      TZ: 'America/New_York'
     ports:
-      - '32400:32400'
+      - '13378:80'
     volumes:
-      - /my/local/storage/library/plex:/config
-      # The same library folder from Unabridged should be served to Plex
-      - /my/local/storage/library:/library:/audiobooks
+      # The same library folder from Unabridged, served to Audiobookshelf
+      - /my/local/storage/library:/audiobooks
+      - /my/local/storage/audiobookshelf/config:/config
+      - /my/local/storage/audiobookshelf/metadata:/metadata
 ```
+
+## Connecting Audiobookshelf
+
+1. In Audiobookshelf, create a **Book** library whose folder is the one Unabridged saves to (`/audiobooks` in the example above).
+2. In Audiobookshelf, go to **Settings → API Keys** and create a key for an **admin** user. Admin rights are needed to scan libraries.
+3. In Unabridged, go to **Settings → Audiobookshelf**:
+   - **Server URL**: how Unabridged reaches Audiobookshelf. In the example above that is `http://audiobookshelf:80`.
+   - **Link URL**: how your browser reaches Audiobookshelf, for the "Open in Audiobookshelf" links (e.g. `http://192.168.1.100:13378`). Leave it blank if it is the same as the Server URL.
+   - **API Key**: the key from step 2.
+   - Turn on **Enable Audiobookshelf** and save. Unabridged tests the connection before saving.
+   - Choose the **Library** from step 1 and save again.
+4. Books that are already downloaded need a `metadata.json` so Audiobookshelf sees their series: use **Settings → Library → Metadata Files → Regenerate** once.
+
+Unabridged and Audiobookshelf may mount the library folder at different paths (`/library` and `/audiobooks` above); books are matched by their path inside the library folder and by ASIN, so that is fine.
+
+After books finish processing, Unabridged asks Audiobookshelf to scan (after the delay set under **Library Scanning**), then links each book and series to its Audiobookshelf page. The scheduled run under **Settings → System** also checks the connection and scans.
+
+## Upgrading from a Plex setup
+
+Plex support has been removed. When upgrading:
+
+- Database migrations run automatically on start. They remove Unabridged's Plex settings and the Plex IDs it stored; Plex itself and its collections are not touched.
+- Follow [Connecting Audiobookshelf](#connecting-audiobookshelf), including regenerating the metadata files.
+- Audible changed its licensing in November 2026. If downloads fail with "License not granted", open each Audible account under **Sources** and use **Refresh Login**. The account and its books are kept.
+- Re-downloaded books may be larger than before, as newer versions of the Audible tools download higher-quality audio.
 
 Unabridged is _not_ designed to be accessible to the public internet. A reverse proxy such as [traefik](https://traefik.io/traefik/) or [Nginx Proxy Manager](https://nginxproxymanager.com/) should be used if `https` is required. Access to Unabridged should be confined to your local network or intelligently managed.
 
@@ -82,8 +107,35 @@ npx prisma db push
 Create the dev image and start a local development session:
 
 ```shell
-# Start dev environment
+# Start dev environment (in the foreground)
 make dev
+```
+
+Or run it in the background, alongside an Audiobookshelf server at [`http://localhost:13378/`](http://localhost:13378/) that serves the same `./library/files` folder:
+
+```shell
+make dev-build   # Build the dev image (first time, or after Dockerfile changes)
+make dev-up      # Start Unabridged and Audiobookshelf
+make dev-logs    # Follow the logs
+make dev-shell   # Open a shell in the Unabridged container
+make dev-down    # Stop both
+```
+
+In the dev Audiobookshelf, Unabridged's Server URL is `http://audiobookshelf:80` and its Link URL is `http://localhost:13378`.
+
+## Checks and tests
+
+`node_modules` is built for Linux inside the dev container, so run checks there (with `make dev-up` running):
+
+```shell
+make check   # Type check (svelte-check)
+make test    # Unit tests (vitest)
+```
+
+Some tests talk to a real Audiobookshelf server and are skipped unless one is configured. With `make dev-up` running, create an admin API key in the dev Audiobookshelf, then:
+
+```shell
+ABS_TEST_URL=http://audiobookshelf:80 ABS_TEST_KEY=<api key> ABS_TEST_LIBRARY=<library id> make test
 ```
 
 Build the project and serve it locally without creating the full Docker image:
@@ -151,7 +203,8 @@ src
  │  │  ├─helpers      S         # Server-side helper functions
  │  │  ├─lookup       S         # Type definitions  for some public APIs
  │  │  ├─media        S         # Media management functions
- │  │  ├─plex         S         # Plex integration functions
+ │  │  ├─audiobookshelf S       # Audiobookshelf client, settings glue and sync
+ │  │  ├─metadata     S         # metadata.json sidecars for Audiobookshelf
  │  │  ├─prisma       S         # Prisma instance
  │  │  └─settings     S         # Settings sub-system
  │  ├─table           C         # Table library for /library endpoint

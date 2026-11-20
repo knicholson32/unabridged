@@ -4,7 +4,6 @@ import * as fs from 'node:fs/promises';
 import * as helpers from '$lib/server/helpers';
 import * as settings from '$lib/server/settings';
 import * as metadata from '$lib/server/metadata';
-import { CollectionBy } from '$lib/types';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params }) => {

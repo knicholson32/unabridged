@@ -17,7 +17,8 @@ export const load = async ({ params }) => {
 			// Attempt to parse the records
 			recordParsed = JSON.parse(record) as types.Cron.Record;
 			// Check that the records are the correct version
-			if (recordParsed.version !== 'v2') {
+			// v2 records (before Plex was removed) still display: the fields shown are in both
+			if (recordParsed.version !== 'v2' && recordParsed.version !== 'v3') {
 				// They are not. Reset them.
 				recordParsed = undefined;
 				await settings.set('system.cron.record', '');

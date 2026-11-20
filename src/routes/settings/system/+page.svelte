@@ -102,7 +102,7 @@
 		title="Enable Scheduled Processing"
 		update={cronUpdate}
 		bind:value={cronEnable}
-		hoverTitle={'Whether or not to allow Unabridged to do certain tasks on a schedule (like sync library data or trigger Plex events).'}
+		hoverTitle={'Whether or not to allow Unabridged to do certain tasks on a schedule (like syncing library data and scanning Audiobookshelf).'}
 	/>
 
 	<Settings.Input
@@ -124,7 +124,7 @@
 	/>
 
 	<Settings.NumericalInput
-		name="plex.library.autoScanDelay"
+		name="system.cron.maxRun"
 		title="Alloted Run Time"
 		update={cronUpdate}
 		bind:value={maxRun}
@@ -147,7 +147,6 @@
 			<DataEntry title={'Libraries Synced'} data={records.libSync.toLocaleString()} />
 			<DataEntry title={'Books Added'} data={records.booksAdded.toLocaleString()} />
 			<DataEntry title={'Books Updated'} data={records.booksUpdated.toLocaleString()} />
-			<DataEntry title={'Plex Collection Update'} data={records.scanLibrary.message} />
 			{#if records.absTest !== undefined}
 				<DataEntry title={'Audiobookshelf Connection'} data={records.absTest.message} />
 			{/if}

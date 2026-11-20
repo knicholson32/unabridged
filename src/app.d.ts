@@ -14,9 +14,6 @@ declare global {
 		interface BigInt {
 			toJSON(): string | number;
 		}
-		declare namespace plex {
-			let generalTimeout: NodeJS.Timeout | undefined;
-		}
 		declare namespace manager {
 			let interval: NodeJS.Interval | undefined;
 			let cronTask: cron.ScheduledTask | undefined;

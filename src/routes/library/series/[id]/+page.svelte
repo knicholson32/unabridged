@@ -188,17 +188,6 @@
 											Remove All
 										</button>
 									{/if}
-									{#if data.collectionURL !== null}
-										<a
-											href={data.collectionURL}
-											target="_blank"
-											class="unstyled whitespace-nowrap text-left font-medium w-full hover:bg-gray-100 hover:text-gray-900 text-gray-700 block px-4 py-2 text-sm !no-underline"
-											role="menuitem"
-											tabindex="-1"
-										>
-											View Plex Collection
-										</a>
-									{/if}
 									{#if data.absUrl !== null}
 										<a
 											href={data.absUrl}

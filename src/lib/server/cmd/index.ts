@@ -10,7 +10,6 @@ import { BookDownloadError, CLIError, cliErrorToString } from './audible/types';
 import type { Issuer, ModalTheme } from '$lib/types';
 import { ConversionError } from './AAXtoMP3/types';
 import { ProcessError } from '$lib/types';
-import * as Plex from '$lib/server/plex';
 import * as AbsSync from '$lib/server/audiobookshelf/sync';
 import * as AbsSettings from '$lib/server/audiobookshelf/settings';
 import * as validators from '$lib/types/prisma';
@@ -634,20 +633,6 @@ export namespace LibraryManager {
 
 						// Trigger a library scan if it should be issued (IE. we have added at least one book)
 						if (libraryScanShouldBeIssued) {
-							const plexSettings = await settings.getMany(
-								'plex.enable',
-								'plex.collections.enable',
-								'plex.library.autoScan.enable',
-								'plex.library.autoScan.scheduled'
-							);
-							console.log(plexSettings);
-							if (
-								plexSettings['plex.enable'] === true &&
-								plexSettings['plex.collections.enable'] === true &&
-								plexSettings['plex.library.autoScan.enable'] === true &&
-								plexSettings['plex.library.autoScan.scheduled'] == false
-							)
-								Plex.triggerAutoScan();
 							// Audiobookshelf: one scan for the batch, after the configured delay
 							AbsSync.scanAfterProcessing(getNoneWorking);
 						}
@@ -677,7 +662,6 @@ export namespace LibraryManager {
 			data: { in_progress: false }
 		});
 
-		await Plex.reset();
 		await AbsSettings.reset();
 
 		console.log(await prisma.processQueue.findMany());
@@ -881,38 +865,15 @@ export namespace Cron {
 			lastCronStartTime = Math.floor(Date.now() / 1000);
 			// Reset the cron records
 			cronRecord = {
-				version: 'v2',
+				version: 'v3',
 				libSync: 0,
 				booksAdded: 0,
 				booksUpdated: 0,
-				plexTest: {
-					success: false,
-					message: '',
-					source: ''
-				},
-				scanLibrary: {
-					success: false,
-					result: types.ScanAndGenerate.UNKNOWN_ERROR,
-					collectionsGenerated: false,
-					message: '',
-					messageVerbose: ''
-				},
 				startTime: lastCronStartTime,
 				endTime: lastCronStartTime
 			};
 			cronRunning = true;
 			if (debug) console.log('CRON PROCESS');
-
-			// Test Plex Integration -----------------------------------------------------------------------------
-			if ((await settings.get('plex.enable')) === true) {
-				if (debug) console.log('Test Plex Integration');
-				const results = await Plex.testPlexConnection(
-					await settings.get('plex.address'),
-					await settings.get('plex.token')
-				);
-				if (debug > 1) console.log(results);
-				cronRecord.plexTest = results;
-			}
 
 			// Library Sync (Audible) ----------------------------------------------------------------------------
 			if ((await settings.get('general.autoSync')) === true) {
@@ -960,30 +921,6 @@ export namespace Cron {
 
 			// Check to see if the cron should exit yet
 			if (await checkCronTime(debug > 0)) throw Error('Cron time expired');
-
-			// Library Scan and Collection Generate
-			if (
-				(await settings.get('plex.library.autoScan.enable')) === true &&
-				(await settings.get('plex.enable')) === true &&
-				(await settings.get('plex.library.key')) !== ''
-			) {
-				if (debug) console.log('Library Auto Scan');
-
-				// Start a library scan, then generate if possible
-				const results = await Plex.scanAndGenerate();
-
-				if (debug) console.log(results);
-
-				cronRecord.scanLibrary.success =
-					results === types.ScanAndGenerate.NO_ERROR ||
-					results === types.ScanAndGenerate.NO_ERROR_COLLECTIONS_DISABLED;
-				cronRecord.scanLibrary.result = results;
-				cronRecord.scanLibrary.collectionsGenerated = results === types.ScanAndGenerate.NO_ERROR;
-				cronRecord.scanLibrary.message = types.scanAndGenerateToStringShort(results);
-				cronRecord.scanLibrary.messageVerbose = types.scanAndGenerateToStringLong(results);
-
-				if (debug) console.log('Library Auto Scan Complete');
-			}
 
 			// Audiobookshelf: test the connection, then scan and link -------------------------------------
 			const absResults = await AbsSync.scheduledRun();

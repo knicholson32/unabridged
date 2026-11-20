@@ -61,7 +61,7 @@ export const showNotifications = async (
 				break;
 			case 'account.sync':
 			case 'general':
-			case 'plex.scan.result':
+			case 'abs.scan.result':
 				alertsComponent.showNotification(notification.text, {
 					id: notification.id,
 					iconPath: notification.icon_path ?? undefined,

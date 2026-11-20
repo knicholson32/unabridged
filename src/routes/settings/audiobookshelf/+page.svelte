@@ -236,8 +236,7 @@
 >
 	<span slot="title">Library Scanning</span>
 	<span slot="description">
-		Have Audiobookshelf pick up books after Unabridged adds them. Audiobookshelf's folder watcher
-		often catches new books by itself; this makes sure.
+		Have Audiobookshelf pick up books after Unabridged adds them.
 	</span>
 
 	<Settings.Switch

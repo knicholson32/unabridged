@@ -25,6 +25,10 @@ dev-shell:
 # Type-check inside the dev container (node_modules is built for Linux)
 check:
 	docker exec unabridged-dev sh -c "pnpm exec svelte-kit sync && pnpm exec svelte-check --tsconfig ./jsconfig.json"
+# Unit tests inside the dev container. ABS_TEST_URL, ABS_TEST_KEY and ABS_TEST_LIBRARY, if set, also
+# run the tests against a real Audiobookshelf server.
+test:
+	docker exec -e ABS_TEST_URL -e ABS_TEST_KEY -e ABS_TEST_LIBRARY unabridged-dev pnpm exec vitest run
 preview:
 	rm -rf ./node_modules
 	docker build --build-arg GIT_COMMIT=$(shell git rev-parse HEAD) --file ./docker/Dockerfile --target dev -t unabridged-dev .
