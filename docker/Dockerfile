@@ -10,25 +10,7 @@ ARG PNPM_VERSION=10.19.0
 # to stderr and changes the progress bar, which the download parser relies on, so stay on 0.5.x.
 ARG PYTHON_VERSION=3.14
 ARG AUDIBLE_CLI_VERSION=0.5.1
-# sandreas/mp4v2 (for mp4art and mp4chaps, used by AAXtoMP3) is deprecated upstream. Pinned to a
-# commit so builds do not change when its master branch does.
-ARG MP4V2_COMMIT=148ed1474349d7bfa3dba13ef2da3f08a4a01327
 ARG SERVER_PORT=3000
-
-
-######### mp4v2 ####################################################################################
-# Compiled in its own stage; only the two tools AAXtoMP3 uses and their library are copied out.
-FROM alpine:3.22 AS mp4v2
-
-ARG MP4V2_COMMIT
-RUN apk add --no-cache build-base
-RUN cd /tmp \
-  && wget -q "https://github.com/sandreas/mp4v2/archive/${MP4V2_COMMIT}.zip" -O mp4v2.zip \
-  && unzip -q mp4v2.zip \
-  && cd "mp4v2-${MP4V2_COMMIT}" \
-  && ./configure --prefix=/export \
-  && make -j"$(nproc)" \
-  && make install
 
 
 ######### Node #####################################################################################
@@ -41,18 +23,14 @@ FROM python:${PYTHON_VERSION}-alpine3.22 AS runtime
 
 ARG AUDIBLE_CLI_VERSION
 
-# bash, grep, findutils: AAXtoMP3 needs the GNU versions; ffmpeg, mediainfo, jq: conversion;
-# openssl: Prisma; libstdc++: Node and mp4v2; tini: passes stop signals on to Node.
-# (ffmpeg brings the x264/x265 libraries it needs; AAXtoMP3's other tools come from BusyBox.)
-RUN apk add --no-cache bash grep findutils ffmpeg mediainfo jq openssl libstdc++ tini
+# ffmpeg: decrypts and converts the books; openssl: Prisma; libstdc++: Node;
+# tini: passes stop signals on to Node.
+RUN apk add --no-cache ffmpeg openssl libstdc++ tini
 
 # Pillow (an audible-cli dependency) installs from a prebuilt musllinux wheel, so no compiler is needed
 RUN pip3 install --no-cache-dir "audible-cli==${AUDIBLE_CLI_VERSION}" markdownify natsort
 
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
-COPY --from=mp4v2 /export/bin/mp4art /export/bin/mp4chaps /usr/local/bin/
-COPY --from=mp4v2 /export/lib/ /usr/local/lib/
-COPY ./bin/AAXtoMP3 /usr/local/bin/AAXtoMP3
 
 ENV PROC_SHELL='/bin/sh'
 

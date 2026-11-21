@@ -276,7 +276,7 @@ export const download = async (
 		// We need to register each artifact
 
 		// Before we get started, we need to see if a cover image was created. If not, we will copy in one we have.
-		// This is so the cover can be encoded in the file properly by AAXtoMP3
+		// This is so the cover can be embedded in the converted file
 		// Before we bother, check if we have a cover
 		if (book.cover !== null) {
 			// We have a cover. Get the files in the directory
@@ -307,7 +307,7 @@ export const download = async (
 				}
 				// Make sure the image is a jpg
 				cover = await sharp(cover).toFormat('jpeg').jpeg({ quality: 100, force: true }).toBuffer();
-				// We will name it starting with zzz so AAXtoMP3 picks another image if one exists
+				// Named starting with zzz so the converter prefers audible-cli's cover if one exists
 				const r = fs.writeFileSync(path.join(tmpDir, 'zzz_provided_cover_(500).jpg'), cover);
 				console.log(book.cover.url_500, cover, r);
 

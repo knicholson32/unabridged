@@ -1,5 +1,3 @@
-import type { Prisma } from '@prisma/client';
-
 export enum ConversionError {
 	NO_ERROR = 'NO_ERROR',
 	BOOK_NOT_FOUND = 'BOOK_NOT_FOUND',

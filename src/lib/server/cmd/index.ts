@@ -1,6 +1,6 @@
 '@hmr:reset';
 import * as audible from './audible';
-import * as AAXtoMP3 from './AAXtoMP3';
+import * as convert from './convert';
 import prisma from '$lib/server/prisma';
 import * as tools from './tools';
 import * as settings from '$lib/server/settings';
@@ -8,7 +8,7 @@ import * as types from '$lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { BookDownloadError, CLIError, cliErrorToString } from './audible/types';
 import type { Issuer, ModalTheme } from '$lib/types';
-import { ConversionError } from './AAXtoMP3/types';
+import { ConversionError } from './convert/types';
 import { ProcessError } from '$lib/types';
 import * as AbsSync from '$lib/server/audiobookshelf/sync';
 import * as AbsSettings from '$lib/server/audiobookshelf/settings';
@@ -392,7 +392,7 @@ export namespace LibraryManager {
 							data: { result: null, book: { update: { download_progress: 1 } } }
 						});
 						// 3. Process the book, updating the book progress as required
-						const bookProcess = await AAXtoMP3.cmd.convert.exec(
+						const bookProcess = await convert.exec(
 							queueEntry.book.book.asin,
 							sourceId,
 							queueEntry.id,
@@ -718,7 +718,7 @@ export namespace LibraryManager {
 	 */
 	export const cancelBook = async (asin: string) => {
 		const canceledAudible = audible.cmd.download.cancel(asin);
-		const canceledConversion = AAXtoMP3.cmd.convert.cancel(asin);
+		const canceledConversion = convert.cancel(asin);
 		await removeBook(asin, ProcessError.CANCELED, !canceledAudible && !canceledConversion);
 	};
 

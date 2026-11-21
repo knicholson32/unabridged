@@ -197,7 +197,7 @@ src
  │  ├─events          C         # Client-side event library
  │  ├─helpers        S/C        # Client-side and server-side helpers
  │  ├─server          S         # Primary server code
- │  │  ├─cmd          S         # Location of command functions (audible-cli, AAXtoMP3)
+ │  │  ├─cmd          S         # Location of command functions (audible-cli, ffmpeg)
  │  │  ├─env          S         # Server environmental variables (static)
  │  │  ├─events       S         # Server-side event library
  │  │  ├─helpers      S         # Server-side helper functions

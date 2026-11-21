@@ -25,7 +25,7 @@ export async function load({ fetch }) {
  * [X] Make a progress event for account sync
  * [ ] Delete the progress table from the DB and see what else used to use it
  * [ ] Consider if we even need the ProcessQueue to have progress info (leaning towards no)
- * [ ] If no to above, remove updates to ProcessQueue DB entry in AAXtoMP3 and Audible CLI
+ * [ ] If no to above, remove updates to ProcessQueue DB entry in the converter and Audible CLI
  *
  * [X] Make two endpoints for events- one for required events (like notifications), another for
  *     only when rapid-progress is required. The primary socket can be used to notify the client
