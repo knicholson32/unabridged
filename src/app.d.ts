@@ -14,6 +14,8 @@ declare global {
 		interface BigInt {
 			toJSON(): string | number;
 		}
+		// eslint-disable-next-line no-var
+		var shutdownHandlersRegistered: boolean | undefined;
 		declare namespace manager {
 			let interval: NodeJS.Interval | undefined;
 			let cronTask: cron.ScheduledTask | undefined;

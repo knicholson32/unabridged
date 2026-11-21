@@ -824,9 +824,21 @@ export namespace LibraryManager {
 	};
 }
 
-process.on('SIGINT', LibraryManager.stop);
-process.on('SIGTERM', LibraryManager.stop);
-process.on('exit', LibraryManager.stop);
+// Stop cleanly on `docker stop` (SIGTERM) or Ctrl-C. A handler replaces Node's default "exit on
+// signal", so it has to exit itself; without that, the web server kept Node alive until Docker
+// force-killed it. Downloads and conversions in progress are retried on the next start (start()
+// resets in-progress queue entries). The global guard stops hot reloads in dev adding handlers.
+const shutdown = (signal: string) => {
+	console.log(`${signal} received, shutting down`);
+	LibraryManager.stop();
+	prisma.$disconnect().finally(() => process.exit(0));
+};
+if (global.shutdownHandlersRegistered !== true) {
+	global.shutdownHandlersRegistered = true;
+	process.once('SIGINT', () => shutdown('SIGINT'));
+	process.once('SIGTERM', () => shutdown('SIGTERM'));
+	process.on('exit', LibraryManager.stop);
+}
 
 // ---------------------------------------------------------------------------------------------
 // Cron

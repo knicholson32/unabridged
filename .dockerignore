@@ -10,3 +10,5 @@
 /.svelte-kit
 Makefile
 **/*.bak
+# Dev data (database and audiobooks), can be many GB
+/library
