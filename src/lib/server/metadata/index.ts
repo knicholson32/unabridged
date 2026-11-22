@@ -45,19 +45,141 @@ const bookInclude = {
 type BookWithRelations = Prisma.BookGetPayload<{ include: typeof bookInclude }>;
 
 /**
- * Find the folder a book's audio lives in. Prefers the path recorded when the book was converted,
- * since `library.location` may have changed since then.
- * @returns the folder, or null if it cannot be determined
+ * Reduce a folder name to letters and digits, lower-cased, so small differences in spacing and
+ * punctuation still match ("James S.A. Corey" and "James S. A. Corey" → "jamessacorey").
  */
-export const getBookFolder = async (book: BookWithRelations): Promise<string | null> => {
-	const audio = book.media.find((m) => m.is_file && m.path !== null && m.extension === 'm4b');
-	if (audio?.path) return path.dirname(audio.path);
+export const folderKey = (name: string): string =>
+	sanitizeFile(name)
+		.normalize('NFKD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.toLowerCase()
+		.replace(/[^a-z0-9]/g, '');
 
-	// Fall back to the naming scheme used by the converter
-	if (book.authors.length === 0) return null;
-	const libraryFolder = await settings.get('library.location');
-	return `${libraryFolder}/${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}`;
+const listDirs = async (folder: string): Promise<string[]> => {
+	try {
+		return (await fs.readdir(folder, { withFileTypes: true }))
+			.filter((e) => e.isDirectory())
+			.map((e) => e.name);
+	} catch (e) {
+		return [];
+	}
 };
+
+const exists = async (p: string): Promise<boolean> => {
+	try {
+		await fs.access(p);
+		return true;
+	} catch (e) {
+		return false;
+	}
+};
+
+/** Whether a folder holds an .m4b, i.e. is really a converted book */
+const hasAudio = async (folder: string): Promise<boolean> => {
+	try {
+		return (await fs.readdir(folder)).some((f) => f.toLowerCase().endsWith('.m4b'));
+	} catch (e) {
+		return false;
+	}
+};
+
+/** Whether a folder already has this book's metadata.json */
+const hasSidecarFor = async (folder: string, asin: string): Promise<boolean> => {
+	try {
+		const json = JSON.parse(await fs.readFile(path.join(folder, FILE_NAME), 'utf-8'));
+		return json?.asin === asin;
+	} catch (e) {
+		return false;
+	}
+};
+
+/**
+ * Find the folder a book's audio lives in. Tries, in order:
+ * 1. the folder of the .m4b recorded when the book was converted
+ * 2. the converter's naming scheme, `<library>/<first author>/<title>`
+ * 3. a search of `<library>/*\/*` for a folder holding this book's metadata.json, or whose author
+ *    and title match once spacing, punctuation and case are ignored (for books whose title or
+ *    author changed after conversion)
+ * Only folders that contain an .m4b count, so metadata is never written into an unrelated folder.
+ * @returns the folder (null if not found) and a description of each place that was tried
+ */
+export const locateBookFolder = async (
+	book: BookWithRelations
+): Promise<{ folder: string | null; tried: string[] }> => {
+	const tried: string[] = [];
+	const check = async (folder: string, why: string): Promise<boolean> => {
+		if (await hasAudio(folder)) return true;
+		tried.push(
+			`${why}: ${folder} (${(await exists(folder)) ? 'exists but has no .m4b' : 'does not exist'})`
+		);
+		return false;
+	};
+
+	// 1. Where the converter put it
+	const audio = book.media.find((m) => m.is_file && m.path !== null && m.extension === 'm4b');
+	if (audio?.path) {
+		const folder = path.dirname(audio.path);
+		if (await check(folder, 'recorded .m4b')) return { folder, tried };
+	} else tried.push('recorded .m4b: none (the book has no .m4b media record)');
+
+	const libraryFolder = await settings.get('library.location');
+	if (book.authors.length === 0) {
+		tried.push('naming scheme: the book has no author');
+		return { folder: null, tried };
+	}
+
+	// 2. Where the converter would put it now
+	const expected = path.join(
+		libraryFolder,
+		sanitizeFile(book.authors[0].name),
+		sanitizeFile(book.title)
+	);
+	if (await check(expected, 'naming scheme')) return { folder: expected, tried };
+
+	// 3. Search two levels deep
+	const authorKeys = new Set(book.authors.map((a) => folderKey(a.name)));
+	const titleKey = folderKey(book.title);
+	let nameMatch: string | null = null;
+	for (const authorDir of await listDirs(libraryFolder)) {
+		const authorMatches = authorKeys.has(folderKey(authorDir));
+		for (const titleDir of await listDirs(path.join(libraryFolder, authorDir))) {
+			const folder = path.join(libraryFolder, authorDir, titleDir);
+			// A metadata.json with this ASIN is certain; take it straight away
+			if ((await hasSidecarFor(folder, book.asin)) && (await hasAudio(folder))) {
+				tried.push(`search: found by metadata.json at ${folder}`);
+				return { folder, tried };
+			}
+			if (
+				nameMatch === null &&
+				authorMatches &&
+				folderKey(titleDir) === titleKey &&
+				(await hasAudio(folder))
+			)
+				nameMatch = folder;
+		}
+	}
+	if (nameMatch !== null) {
+		tried.push(`search: found by author and title at ${nameMatch}`);
+		return { folder: nameMatch, tried };
+	}
+
+	// Not found: list what the author's folder does hold, to help work out where the book went
+	const authorDir = path.join(libraryFolder, sanitizeFile(book.authors[0].name));
+	const contents = await listDirs(authorDir);
+	tried.push(
+		contents.length > 0
+			? `search: no match; ${authorDir} contains: ${contents.map((c) => `'${c}'`).join(', ')}`
+			: `search: no matching folder anywhere in ${libraryFolder}`
+	);
+	return { folder: null, tried };
+};
+
+/**
+ * Find the folder a book's audio lives in
+ * @returns the folder, or null if it cannot be found
+ */
+export const getBookFolder = async (book: BookWithRelations): Promise<string | null> =>
+	(await locateBookFolder(book)).folder;
 
 /**
  * Build the ABS metadata for a book
@@ -108,18 +230,16 @@ export const writeSidecar = async (asin: string): Promise<boolean> => {
 		// Only processed books have a folder on disk
 		if (book === null || book.processed !== true) return false;
 
-		const folder = await getBookFolder(book);
+		const { folder, tried } = await locateBookFolder(book);
 		if (folder === null) {
-			console.log(`Metadata: could not determine folder for ${asin}`);
+			console.log(
+				`Metadata: cannot find the audio for ${asin} ('${book.title}'), which is marked as processed. ` +
+					`If it was moved or deleted, download it again. Looked in:\n  - ${tried.join('\n  - ')}`
+			);
 			return false;
 		}
-
-		try {
-			await fs.access(folder);
-		} catch (e) {
-			console.log(`Metadata: folder does not exist for ${asin}: ${folder}`);
-			return false;
-		}
+		// Found somewhere other than the recorded location: say where, in case it is unexpected
+		if (tried.length > 0) console.log(`Metadata: ${asin} found after: ${tried.join('; ')}`);
 
 		// Write to a temp file and rename, so the ABS watcher never reads a half-written file
 		const target = path.join(folder, FILE_NAME);
