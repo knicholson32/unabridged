@@ -13,8 +13,45 @@ const actionName = (search: string): string | null => {
 	return null;
 };
 
+/** The debug level, re-read at most every few seconds so logging adds no database read per request */
+let debugLevel = 0;
+let debugReadAt = 0;
+const getDebug = async (): Promise<number> => {
+	if (Date.now() - debugReadAt > 5000) {
+		debugReadAt = Date.now();
+		try {
+			debugLevel = await settings.get('system.debug');
+		} catch (e) {
+			// Settings unavailable (e.g. during a migration); keep the last value
+		}
+	}
+	return debugLevel;
+};
+
+/** How a request reached the server, for the request log: useful when a proxy or tunnel is in between */
+const describeRequest = (event: Parameters<Handle>[0]['event']): string => {
+	const h = event.request.headers;
+	let client = 'unknown';
+	try {
+		client = event.getClientAddress();
+	} catch (e) {
+		// Not available in every environment
+	}
+	const parts = [`from ${h.get('x-forwarded-for') ?? client}`, `host=${h.get('host') ?? '-'}`];
+	for (const name of ['x-forwarded-host', 'x-forwarded-proto', 'origin', 'cf-ray'])
+		if (h.get(name)) parts.push(`${name}=${h.get(name)}`);
+	return parts.join(' ');
+};
+
 export const handle: Handle = async ({ event, resolve }) => {
 	const { request, url } = event;
+	const debug = await getDebug();
+	const started = Date.now();
+
+	// Verbose: log every request that reaches the app, so a request that never arrives (a proxy or
+	// tunnel problem) can be told apart from one the app fails
+	if (debug > 1)
+		console.log(`Request ${request.method} ${url.pathname}${url.search} ${describeRequest(event)}`);
 
 	// Cross-site form protection. Replaces SvelteKit's own check (disabled in svelte.config.js),
 	// which rejects every form when the instance is opened at an address other than ORIGIN.
@@ -37,16 +74,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// Log form actions in debug mode
 	const action = request.method === 'POST' ? actionName(url.search) : null;
-	if (action === null) return resolve(event);
-
-	let debug = 0;
-	try {
-		debug = await settings.get('system.debug');
-	} catch (e) {
-		// Settings unavailable (e.g. during a migration); carry on without logging
+	if (action === null) {
+		const response = await resolve(event);
+		if (debug > 1 || response.status >= 500)
+			console.log(
+				`Request ${request.method} ${url.pathname}: HTTP ${response.status} in ${
+					Date.now() - started
+				} ms`
+			);
+		return response;
 	}
 
-	const started = Date.now();
 	if (debug > 0) console.log(`Action ${url.pathname} ?/${action}: started`);
 	try {
 		const response = await resolve(event);
