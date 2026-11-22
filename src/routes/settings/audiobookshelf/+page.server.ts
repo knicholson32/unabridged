@@ -31,6 +31,30 @@ const clearCachedIds = async () => {
 	});
 };
 
+type ActionResult = { success?: boolean; message?: string; name?: string } | void;
+
+/**
+ * Log an action's outcome. Saving these settings is rare and the result is what matters when it
+ * goes wrong, so this is logged whatever the debug level.
+ */
+const logged =
+	<A extends unknown[], R extends ActionResult>(name: string, action: (...args: A) => Promise<R>) =>
+	async (...args: A): Promise<R> => {
+		try {
+			const result = await action(...args);
+			if (result && result.success === false)
+				console.log(`Audiobookshelf settings: ${name} failed (${result.name}): ${result.message}`);
+			else
+				console.log(
+					`Audiobookshelf settings: ${name} done${result?.message ? `: ${result.message}` : ''}`
+				);
+			return result;
+		} catch (e) {
+			console.error(`Audiobookshelf settings: ${name} threw`, e);
+			throw e;
+		}
+	};
+
 /** @type {import('./$types').PageServerLoad} */
 export const load = async () => {
 	const settingValues = await settings.getSet('abs');
@@ -64,7 +88,11 @@ export const load = async () => {
 						if (library.mediaType === 'book')
 							libraries.push({ value: library.id, title: library.name });
 						else
-							libraries.push({ value: library.id, title: `${library.name} (Podcasts)`, unset: true });
+							libraries.push({
+								value: library.id,
+								title: `${library.name} (Podcasts)`,
+								unset: true
+							});
 					}
 					const selected = result.value.find((l) => l.id === settingValues['abs.library.id']);
 					if (selected === undefined) {
@@ -85,7 +113,11 @@ export const load = async () => {
 			libraries.push(
 				settingValues['abs.library.id'] === ''
 					? { value: '', title: 'Unset', unset: true }
-					: { value: settingValues['abs.library.id'], title: settingValues['abs.library.name'], unset: true }
+					: {
+							value: settingValues['abs.library.id'],
+							title: settingValues['abs.library.name'],
+							unset: true
+					  }
 			);
 		}
 
@@ -96,7 +128,7 @@ export const load = async () => {
 };
 
 export const actions = {
-	updateIntegration: async ({ request }) => {
+	updateIntegration: logged('save', async ({ request }: { request: Request }) => {
 		const data = await request.formData();
 		const enableRaw = data.get('abs.enable') as string | null;
 		const addressRaw = data.get('abs.address') as string | null;
@@ -109,6 +141,13 @@ export const actions = {
 		const enable = enableRaw === null ? saved['abs.enable'] : enableRaw === 'true';
 		const address = addressRaw === null ? saved['abs.address'] : addressRaw.trim();
 		const apiKey = apiKeyRaw === null ? saved['abs.apiKey'] : apiKeyRaw.trim();
+		console.log(
+			`Audiobookshelf settings: saving enabled=${enable}, address='${address}', ` +
+				`API key ${
+					apiKey === '' ? 'empty' : apiKey === saved['abs.apiKey'] ? 'unchanged' : 'changed'
+				}, ` +
+				`library=${libraryId === null ? '(not sent)' : `'${libraryId}'`}`
+		);
 
 		// Normalize the address (drop trailing slashes) unless it is being cleared
 		let normalized = '';
@@ -212,8 +251,8 @@ export const actions = {
 			success: true,
 			message: `Connected to Audiobookshelf ${test.value.serverVersion} as '${test.value.username}'.`
 		};
-	},
-	testIntegration: async () => {
+	}),
+	testIntegration: logged('test', async () => {
 		const s = await settings.getSet('abs');
 		const conn: Connection = {
 			address: s['abs.address'],
@@ -247,8 +286,8 @@ export const actions = {
 			success: true,
 			message: `Connected to Audiobookshelf ${test.value.serverVersion} as '${test.value.username}'.`
 		};
-	},
-	clearIntegration: async () => {
+	}),
+	clearIntegration: logged('clear', async () => {
 		await settings.set('abs.enable', false);
 		await settings.set('abs.address', '');
 		await settings.set('abs.linkAddress', '');
@@ -265,8 +304,8 @@ export const actions = {
 			success: true,
 			message: 'Cleared Integration'
 		};
-	},
-	updateScan: async ({ request }) => {
+	}),
+	updateScan: logged('scan settings', async ({ request }: { request: Request }) => {
 		const data = await request.formData();
 		const enable = data.get('abs.scan.enable') as string | null;
 		if (enable !== null) await settings.set('abs.scan.enable', enable === 'true');
@@ -284,8 +323,8 @@ export const actions = {
 				};
 			await settings.set('abs.scan.delay', value);
 		}
-	},
-	updateAPI: async ({ request }) => {
+	}),
+	updateAPI: logged('API settings', async ({ request }: { request: Request }) => {
 		const data = await request.formData();
 		const apiTimeout = data.get('abs.apiTimeout') as string | null;
 		if (apiTimeout !== null) {
@@ -311,5 +350,5 @@ export const actions = {
 				};
 			await settings.set('abs.scan.timeout', value);
 		}
-	}
+	})
 };

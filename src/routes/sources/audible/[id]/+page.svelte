@@ -13,6 +13,7 @@
 	import { invalidate } from '$app/navigation';
 	import icons from '$lib/components/icons';
 	import { type GenerateAlert, Event } from '$lib/types';
+	import { reportFormError } from '$lib/helpers/forms';
 	import * as helpers from '$lib/helpers';
 	import * as events from '$lib/events';
 	import { page } from '$app/stores';
@@ -437,8 +438,9 @@
 					Account is not logged in.
 					<form method="POST" action="?/refresh" use:enhance={() => {
 						refreshStarting = true;
-						return async ({ update }) => {
+						return async ({ result, update }) => {
 							refreshStarting = false;
+							if (reportFormError(result, showAlert, 'Refresh Login')) return;
 							update({ reset: false });
 						};
 					}}>
@@ -510,8 +512,9 @@
 										title="Sign this account in again as a new device. Use this if downloads fail with 'License not granted'. Books are kept."
 										use:enhance={() => {
 											refreshStarting = true;
-											return async ({ update }) => {
+											return async ({ result, update }) => {
 												refreshStarting = false;
+												if (reportFormError(result, showAlert, 'Refresh Login')) return;
 												update({ reset: false });
 											};
 										}}

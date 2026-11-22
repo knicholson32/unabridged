@@ -2,6 +2,11 @@
 	import { enhance } from '$app/forms';
 	import { beforeNavigate } from '$app/navigation';
 	import { Submit } from '$lib/components/buttons';
+	import { getContext } from 'svelte';
+	import type { GenerateAlert } from '$lib/types';
+	import { reportFormError } from '$lib/helpers/forms';
+
+	const showAlert = getContext<GenerateAlert | undefined>('showAlert');
 
 	let classExport: string = '';
 
@@ -44,8 +49,10 @@
 			}
 		}
 		submitting = true;
-		return async ({ update }) => {
+		return async ({ result, update }) => {
 			submitting = false;
+			// Keep the changes marked as unsaved if the server never handled them
+			if (reportFormError(result, showAlert, 'Saving')) return;
 			clearChangesFlag();
 			update({
 				reset: false

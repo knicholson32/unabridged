@@ -2,6 +2,11 @@
 	// Sign-in dialog for Audible accounts. Used to add an account (sources page) and to refresh the
 	// login of an existing one (account page). Mount it inside an {#if}, so its state resets on open.
 	import { enhance } from '$app/forms';
+	import { getContext } from 'svelte';
+	import type { GenerateAlert } from '$lib/types';
+	import { reportFormError } from '$lib/helpers/forms';
+
+	const showAlert = getContext<GenerateAlert | undefined>('showAlert');
 	import { fade } from 'svelte/transition';
 	import { cubicInOut } from 'svelte/easing';
 	import { Submit } from '$lib/components/buttons';
@@ -102,9 +107,10 @@
 					action={submitAction}
 					use:enhance={() => {
 						profileAdding = true;
-						return async ({ update }) => {
-							update();
+						return async ({ result, update }) => {
 							profileAdding = false;
+							if (reportFormError(result, showAlert, 'Sign-in')) return;
+							update();
 						};
 					}}
 				>
@@ -339,8 +345,9 @@
 							action={cancelAction}
 							use:enhance={() => {
 								profileAddCanceling = true;
-								return async ({ update }) => {
+								return async ({ result, update }) => {
 									profileAddCanceling = false;
+									if (reportFormError(result, showAlert, 'Cancel')) return;
 									update();
 								};
 							}}

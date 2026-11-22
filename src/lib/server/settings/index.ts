@@ -200,7 +200,6 @@ export const get = async <T extends TypeName>(
 		if (setting === 'general.encKey') {
 			// It is. Generate the default
 			const defaultVal = crypto.randomBytes(32).toString('hex') as ObjectType<T>;
-			console.log('def', setting, defaultVal);
 			await prisma.settings.create({ data: { setting, value: defaultVal.toString() } });
 			// Return the default value
 			return defaultVal;

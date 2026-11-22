@@ -1,11 +1,15 @@
 <script lang="ts">
 	import { beforeNavigate, invalidate } from '$app/navigation';
 	import { enhance } from '$app/forms';
+	import { getContext } from 'svelte';
+	import type { GenerateAlert } from '$lib/types';
+	import { reportFormError } from '$lib/helpers/forms';
 	import { icons } from '$lib/components';
 	import Submit from '$lib/components/buttons/Submit.svelte';
 	import * as Settings from '$lib/components/routeSpecific/settings';
 
 	export let data: import('./$types').PageData;
+	const showAlert = getContext<GenerateAlert | undefined>('showAlert');
 	export let form: import('./$types').ActionData;
 
 	// Integration
@@ -108,8 +112,9 @@
 			class="relative inline-flex items-center gap-2"
 			use:enhance={() => {
 				testing = true;
-				return async ({ update }) => {
+				return async ({ result, update }) => {
 					testing = false;
+					if (reportFormError(result, showAlert, 'Test')) return;
 					update({ reset: false });
 				};
 			}}

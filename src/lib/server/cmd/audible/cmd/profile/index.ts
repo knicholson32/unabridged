@@ -298,6 +298,10 @@ export const add = async (
 	refreshSource: string | null = null
 ): Promise<string> => {
 	refreshSourceId = refreshSource;
+	const debug = await settings.get('system.debug');
+	console.log(
+		`Audible sign-in: starting ${refreshSource !== null ? `login refresh for source ${refreshSource}` : 'new account'} (country '${countryCode}')`
+	);
 	// Step 1: Lock out audible usage because we have to delete the config to allow quickstart usage for more than 1 account
 	lock();
 	try {
@@ -319,10 +323,22 @@ export const add = async (
 	});
 	global.audible.instance = audible;
 
+	// audible-cli reports problems on stderr; without this they are lost
+	let stderr = '';
+	audible?.stderr.on('data', (d: Buffer) => {
+		stderr = (stderr + d.toString()).slice(-4000);
+		if (debug > 1) console.log(`Audible sign-in (audible-cli stderr): ${d.toString().trim()}`);
+	});
+	audible?.on('error', (err) => console.error('Audible sign-in: could not start audible-cli', err));
+
 	// Attach to the exit event
-	audible?.on('exit', async () => {
+	audible?.on('exit', async (code, signal) => {
 		// Write the config file from the DB
-		console.log('AUDIBLE EXIT');
+		console.log(
+			`Audible sign-in: audible-cli exited (code ${code}${signal ? `, signal ${signal}` : ''}) in step '${ProfileState[profileState]}'`
+		);
+		if (code !== 0 && code !== null && stderr.trim() !== '')
+			console.log(`Audible sign-in: audible-cli error output:\n${stderr.trim()}`);
 		await writeConfigFile();
 		// Unlock the audible-cli for use with other functions
 		unlock();
@@ -435,6 +451,7 @@ export const add = async (
 							// Remove this listener from the audible child process. Another data processor will be attached
 							// and will enter the resulting URL from the user in another function
 							audible?.stdout.removeListener('data', dataProcessor);
+							console.log('Audible sign-in: sign-in URL ready; waiting for the user to sign in');
 							// Resolve with the requested URL
 							resolve(url);
 						}
@@ -448,12 +465,20 @@ export const add = async (
 			}
 
 			// Check for state change and clear the data string if it has changed
-			if (lastState !== profileState) audibleData = '';
+			if (lastState !== profileState) {
+				if (debug > 1) console.log(`Audible sign-in: step '${ProfileState[lastState]}' → '${ProfileState[profileState]}'`);
+				audibleData = '';
+			}
 		};
 
 		// Start a watchdog timer that will make sure the command didn't get hung-up while creating the
 		// login URL.
 		watchdog = setTimeout(() => {
+			console.log(
+				`Audible sign-in: audible-cli did not produce a sign-in URL within 7.5 s (stuck in step '${ProfileState[profileState]}'). ` +
+					`Last output: ${JSON.stringify(audibleData.slice(-500))}` +
+					(stderr.trim() !== '' ? `; error output: ${JSON.stringify(stderr.slice(-500))}` : '')
+			);
 			audible?.kill();
 			reject(ProfileCreationError.CLI_TIMEOUT);
 		}, 7500);
@@ -487,10 +512,16 @@ export const submitURL = (
 	name?: string
 ): Promise<{ e: ProfileCreationError; id: string | null }> => {
 	// Check to make sure we are in a correct state to be running this function
-	if (audible === undefined || profileState !== ProfileState.ENTER_URL)
+	if (audible === undefined || profileState !== ProfileState.ENTER_URL) {
+		console.log(
+			`Audible sign-in: URL submitted but no sign-in is waiting for one ` +
+				`(${audible === undefined ? 'audible-cli is not running' : `step is '${ProfileState[profileState]}'`})`
+		);
 		return new Promise((resolve) =>
 			resolve({ e: ProfileCreationError.PROCESS_NOT_STARTED, id: null })
 		);
+	}
+	console.log('Audible sign-in: submitting the signed-in URL to audible-cli');
 
 	// Write the resulting URL to the audible-cli
 	audible.stdin.write(url + ENTER);

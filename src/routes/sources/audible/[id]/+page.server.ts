@@ -77,11 +77,20 @@ export const actions = {
 		const id = params.id;
 		if (id === null || id === undefined) throw error(404, 'Not found');
 		const source = await prisma.source.findUnique({ where: { id }, include: { audible: true } });
-		if (source === null || source.audible === null) throw error(404, 'Not found');
+		if (source === null || source.audible === null) {
+			console.log(`Refresh login: source ${id} not found, or it is not an Audible account`);
+			throw error(404, 'Not found');
+		}
+		console.log(`Refresh login: requested for source ${id} (profile ${source.audible.cli_id})`);
 		try {
 			const url = await audible.cmd.profile.add(source.audible.locale_code as CountryCode, id);
+			console.log('Refresh login: sign-in URL sent to the browser');
 			return { url, success: true, response: 'refresh' };
 		} catch (e) {
+			console.log(
+				`Refresh login: could not start: ${profileCreationErrorToMessage(e as ProfileCreationError)}`,
+				typeof e === 'number' || typeof e === 'string' ? '' : e
+			);
 			return {
 				success: false,
 				response: 'refresh',
@@ -93,11 +102,17 @@ export const actions = {
 		const data = await request.formData();
 		const url = data.get('url') as string;
 		const urlresponse = data.get('urlresponse') as string;
-		if (urlresponse === null || !helpers.validateURL(urlresponse))
+		if (urlresponse === null || !helpers.validateURL(urlresponse)) {
+			console.log('Refresh login: the pasted URL is not a valid URL');
 			return { success: false, response: 'refreshurl', url, message: 'Invalid URL' };
+		}
 		try {
 			const results = await audible.cmd.profile.submitURL(urlresponse);
-			if (results.e === ProfileCreationError.NO_ERROR) return { success: true, response: 'refreshurl' };
+			if (results.e === ProfileCreationError.NO_ERROR) {
+				console.log('Refresh login: done');
+				return { success: true, response: 'refreshurl' };
+			}
+			console.log(`Refresh login: failed: ${profileCreationErrorToMessage(results.e)}`);
 			return {
 				success: false,
 				response: 'refreshurl',
@@ -105,6 +120,7 @@ export const actions = {
 				message: profileCreationErrorToMessage(results.e)
 			};
 		} catch (e) {
+			console.log(`Refresh login: failed: ${profileCreationErrorToMessage(e as ProfileCreationError)}`);
 			return {
 				success: false,
 				response: 'refreshurl',
@@ -114,6 +130,7 @@ export const actions = {
 		}
 	},
 	refreshcancel: async () => {
+		console.log('Refresh login: canceled');
 		await audible.cmd.profile.cancelAdd();
 		return { success: true, response: 'refreshcancel' };
 	},
