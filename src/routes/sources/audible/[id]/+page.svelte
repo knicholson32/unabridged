@@ -497,6 +497,17 @@
 									>
 										<Switch title={'Auto Sync'} value={data.source.auto_sync} type={'submit'} valueName={'auto-sync'} />
 									</form>
+									<form class="m-auto pl-3" method="POST" action="?/auto_download"
+										title="Download books that a sync finds are new to Unabridged. Not on the account's first sync."
+										use:enhance={() => {
+											return async ({ result, update }) => {
+												if (reportFormError(result, showAlert, 'Auto Download')) return;
+												update();
+											};
+										}}
+									>
+										<Switch title={'Auto Download'} value={data.source.auto_download} type={'submit'} valueName={'auto-download'} />
+									</form>
 									<form class="pl-3" method="POST" action="?/sync"
 										use:enhance={() => {
 											profileSyncing = true;

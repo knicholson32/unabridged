@@ -783,6 +783,48 @@ export namespace LibraryManager {
 	};
 
 	/**
+	 * Queue the books a sync just added, if the account has Auto Download on. Nothing is queued on an
+	 * account's first sync, which would otherwise download its whole library.
+	 * @param sourceId the account that was synced
+	 * @param sync what the sync found
+	 * @returns how many books were queued
+	 */
+	export const queueNewBooks = async (
+		sourceId: string,
+		sync: { created: string[]; firstSync: boolean }
+	): Promise<number> => {
+		try {
+			if (sync.created.length === 0) return 0;
+			const source = await prisma.source.findUnique({
+				where: { id: sourceId },
+				select: { auto_download: true, name: true }
+			});
+			if (source === null || !source.auto_download) return 0;
+			if (sync.firstSync) {
+				console.log(
+					`Auto download: skipping ${sync.created.length} books from '${source.name}' because this was its first sync`
+				);
+				return 0;
+			}
+			// Only books that still need downloading (another account may have brought them in already)
+			const books = await prisma.book.findMany({
+				where: { asin: { in: sync.created }, downloaded: false, processed: false },
+				select: { asin: true, title: true }
+			});
+			if (books.length === 0) return 0;
+			console.log(
+				`Auto download: queueing ${books.length} new book${books.length === 1 ? '' : 's'} from '${source.name}': ` +
+					books.map((b) => b.title).join(', ')
+			);
+			await queueBooks(books.map((b) => b.asin));
+			return books.length;
+		} catch (e) {
+			console.log('Auto download: could not queue new books', e);
+			return 0;
+		}
+	};
+
+	/**
 	 * Remove a book from the download and process queue
 	 * @param asin the book to remove
 	 * @returns true if it was removed, false if it is already in progress
@@ -916,6 +958,7 @@ export namespace Cron {
 							cronRecord.libSync++;
 							cronRecord.booksAdded += results.results.numCreated;
 							cronRecord.booksUpdated += results.results.numUpdated;
+							await LibraryManager.queueNewBooks(source.id, results.results);
 						}
 
 						// Check if the sync worked

@@ -21,6 +21,8 @@
 	let autoSyncUpdate: () => {};
 	let autoSyncUnsavedChanges = false;
 	let autoSyncAudible = data.settingValues['general.autoSync'];
+	let autoDownloadUpdate: () => {};
+	let autoDownloadUnsavedChanges = false;
 
 	// Metadata files
 	let writingMetadata = false;
@@ -31,7 +33,12 @@
 
 	// Utilities
 	beforeNavigate(({ cancel }) => {
-		if (libraryLocationUnsavedChanges || downloadManagerUnsavedChanges || autoSyncUnsavedChanges) {
+		if (
+			libraryLocationUnsavedChanges ||
+			downloadManagerUnsavedChanges ||
+			autoSyncUnsavedChanges ||
+			autoDownloadUnsavedChanges
+		) {
 			if (
 				!confirm(
 					'Are you sure you want to leave this page? You have unsaved changes that will be lost.'
@@ -172,6 +179,34 @@
 			hoverTitle={autoSyncAudible === false
 				? 'Disabled because Auto Sync is disabled.'
 				: `Auto Sync '${source.name ?? 'Unknown'}'`}
+		/>
+	{/each}
+</Settings.List>
+
+<!-- Auto download -->
+<Settings.List
+	class=""
+	{form}
+	action="?/updateAutoDownload"
+	bind:unsavedChanges={autoDownloadUnsavedChanges}
+	bind:update={autoDownloadUpdate}
+>
+	<span slot="title">Auto Download</span>
+	<span slot="description">
+		Download and convert books that a sync finds are new, such as new purchases. Nothing is
+		downloaded on an account's first sync.
+	</span>
+
+	{#each data.sources as source}
+		<Settings.Switch
+			titleImg={source.profile_image_url}
+			titleLink={`/sources/${source.id}`}
+			name={`autoDownload.${source.id}`}
+			{form}
+			title={source.name ?? 'Unknown'}
+			update={autoDownloadUpdate}
+			bind:value={source.auto_download}
+			hoverTitle={`Download new books from '${source.name ?? 'Unknown'}'`}
 		/>
 	{/each}
 </Settings.List>

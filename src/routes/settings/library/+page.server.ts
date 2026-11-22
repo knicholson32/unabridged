@@ -10,6 +10,7 @@ export const load = async ({ params }) => {
 	const sources = await prisma.source.findMany({
 		select: {
 			auto_sync: true,
+			auto_download: true,
 			profile_image_url: true,
 			name: true,
 			id: true
@@ -67,6 +68,16 @@ export const actions = {
 					? `Wrote metadata for ${written} book${written === 1 ? '' : 's'}.`
 					: `Wrote metadata for ${written} book${written === 1 ? '' : 's'}; ${failed.length} failed (see logs).`
 		};
+	},
+	updateAutoDownload: async ({ request }) => {
+		const data = await request.formData();
+		const sources = await prisma.source.findMany({ select: { id: true, name: true } });
+		for (const source of sources) {
+			const d = data.get(`autoDownload.${source.id}`);
+			if (d === null) continue;
+			await prisma.source.update({ where: { id: source.id }, data: { auto_download: d === 'true' } });
+			console.log(`Auto download ${d === 'true' ? 'enabled' : 'disabled'} for '${source.name}'`);
+		}
 	},
 	updateAutoSync: async ({ request }) => {
 		const data = await request.formData();

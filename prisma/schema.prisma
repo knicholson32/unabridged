@@ -30,6 +30,8 @@ model Source {
   type        String  @default("audible")
 
   auto_sync  Boolean
+  // Queue books a sync finds that are new to Unabridged (never on the account's first sync)
+  auto_download Boolean @default(false)
   last_sync  Int?
   added_date Int
 

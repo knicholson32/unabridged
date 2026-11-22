@@ -1,4 +1,5 @@
 import * as audible from '$lib/server/cmd/audible';
+import { LibraryManager } from '$lib/server/cmd';
 import prisma from '$lib/server/prisma';
 import crypto from 'node:crypto';
 import { error, redirect } from '@sveltejs/kit';
@@ -215,6 +216,11 @@ export const actions = {
 
 		if (debug) console.log(results);
 
+		// Download what the sync found, if this account has Auto Download on (not awaited: queueing
+		// starts the download manager, which the sync response does not need to wait for)
+		if (results.err === CLIError.NO_ERROR && results.results !== undefined)
+			void LibraryManager.queueNewBooks(id, results.results);
+
 		// const notification: Notification = {
 		// 	id: uuidv4(),
 		// 	icon_color: null,
@@ -285,6 +291,19 @@ export const actions = {
 				return { response: 'sync', success: false, message: cliErrorToString(results.err) };
 			}
 		}
+	},
+	auto_download: async ({ request, params }) => {
+		const id = params.id;
+		if (id === null || id === undefined) throw error(404, 'Not found');
+		const source = await prisma.source.findUnique({ where: { id } });
+		if (source === null || source === undefined) throw error(404, 'Not found');
+
+		const data = await request.formData();
+		const auto_download = (data.get('auto-download') as string) === 'true';
+		await prisma.source.update({ where: { id }, data: { auto_download } });
+		console.log(`Auto download ${auto_download ? 'enabled' : 'disabled'} for '${source.name}'`);
+
+		return { response: 'auto_download', success: true, invalidate: true };
 	},
 	auto_sync: async ({ request, params }) => {
 		const id = params.id;

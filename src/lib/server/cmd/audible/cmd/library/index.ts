@@ -390,7 +390,17 @@ export const checkAuthenticated = async (id: string): Promise<boolean | null> =>
  */
 export const get = async (
 	id: string
-): Promise<{ err: CLIError, results?: { numCreated: number; numUpdated: number }}> => {
+): Promise<{
+	err: CLIError;
+	results?: {
+		numCreated: number;
+		numUpdated: number;
+		/** Books this sync added to Unabridged */
+		created: string[];
+		/** Whether this was the account's first sync, when every book in it is "new" */
+		firstSync: boolean;
+	};
+}> => {
 	// Check that the ID was actually submitted
 	if (id === null || id === undefined) return { err: CLIError.NO_ID };
 
@@ -467,12 +477,15 @@ export const get = async (
 		) as Library;
 		let numCreated = 0;
 		let numUpdated = 0;
+		const created: string[] = [];
 		const totalNumBooks = library.length;
 		let numProcessed = 0;
 		for (const book of library) {
 			const res = await processBook(book, id);
-			if (res) numCreated++;
-			else numUpdated++;
+			if (res) {
+				numCreated++;
+				created.push(book.asin);
+			} else numUpdated++;
 			numProcessed++;
 			events.emitProgress('basic.account.sync', id, {
 				t: Event.Progress.Basic.Stage.IN_PROGRESS,
@@ -497,7 +510,10 @@ export const get = async (
 			success: true
 		});
 
-		return { err: CLIError.NO_ERROR, results: { numCreated, numUpdated } };
+		return {
+			err: CLIError.NO_ERROR,
+			results: { numCreated, numUpdated, created, firstSync: source.last_sync === null }
+		};
 	} catch (e) {
 		// Didn't work
 		console.log('ERR', e);
