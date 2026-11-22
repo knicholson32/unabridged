@@ -47,7 +47,10 @@ const relPaths = (
 	}
 	// Fall back to the converter's naming scheme
 	if (book.authors.length === 0) return { folder: null, file: null };
-	return { folder: `${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}`, file: null };
+	return {
+		folder: `${sanitizeFile(book.authors[0].name)}/${sanitizeFile(book.title)}`,
+		file: null
+	};
 };
 
 // -------------------------------------------------------------------------------------------------
@@ -93,7 +96,10 @@ export const linkBooks = async (): Promise<
 		for (const s of absSeries.value) {
 			const existing = byName.get(s.name);
 			// Prefer a series that has books over one left empty by removed items
-			if (existing === undefined || ((existing.books?.length ?? 0) === 0 && (s.books?.length ?? 0) > 0))
+			if (
+				existing === undefined ||
+				((existing.books?.length ?? 0) === 0 && (s.books?.length ?? 0) > 0)
+			)
 				byName.set(s.name, s);
 		}
 		const series = await prisma.series.findMany({
@@ -114,6 +120,72 @@ export const linkBooks = async (): Promise<
 // Single books
 // -------------------------------------------------------------------------------------------------
 
+/** Authors Audible had nothing for, so a series of books by them doesn't repeat the lookup */
+const authorMisses = new Map<string, number>();
+const AUTHOR_RETRY_MS = 24 * 60 * 60 * 1000;
+
+/** The Audible region a book came from, used to search for its authors */
+const regionFor = async (asin: string): Promise<string> => {
+	const book = await prisma.book.findUnique({
+		where: { asin },
+		select: { sources: { select: { audible: { select: { locale_code: true } } } } }
+	});
+	const code = book?.sources.find((s) => s.audible !== null)?.audible?.locale_code;
+	return publicTypes.countryCodes.some((c) => c.code === code) ? (code as string) : 'us';
+};
+
+/**
+ * Fill in the image and description of a book's authors, the same as "Match" on an author's page
+ * in ABS. Authors that already have an image are left alone. Off when `abs.authors.match` is off.
+ * @param asin the book
+ * @param itemId the book's ABS item
+ */
+export const matchBookAuthors = async (asin: string, itemId: string): Promise<void> => {
+	try {
+		if (!(await settings.get('abs.authors.match'))) return;
+		const cfg = await getLibraryConfig();
+		if (cfg === null) return;
+
+		const item = await abs.getItem(cfg.conn, itemId);
+		if (!item.ok)
+			return console.log(
+				`Audiobookshelf: could not read ${asin} to match its authors:`,
+				item.message
+			);
+		const authors = item.value.media.metadata.authors ?? [];
+		if (authors.length === 0) return;
+		const region = await regionFor(asin);
+
+		for (const { id } of authors) {
+			const author = await abs.getAuthor(cfg.conn, id);
+			if (!author.ok) {
+				console.log(`Audiobookshelf: could not read author ${id}:`, author.message);
+				continue;
+			}
+			const { name, asin: authorAsin, imagePath } = author.value;
+			if (imagePath) continue;
+			const missedAt = authorMisses.get(id);
+			if (missedAt !== undefined && Date.now() - missedAt < AUTHOR_RETRY_MS) continue;
+
+			const result = await abs.matchAuthor(cfg.conn, id, { asin: authorAsin, name }, region);
+			if (result.ok) {
+				const found = result.value.author.imagePath !== null;
+				if (!found) authorMisses.set(id, Date.now());
+				else authorMisses.delete(id);
+				console.log(
+					`Audiobookshelf: matched author '${name}' (${region})` +
+						(found ? '; image added' : '; Audible has no image for them')
+				);
+			} else if (result.error === abs.types.AbsError.NOT_FOUND) {
+				authorMisses.set(id, Date.now());
+				console.log(`Audiobookshelf: author '${name}' was not found on Audible (${region})`);
+			} else console.log(`Audiobookshelf: could not match author '${name}':`, result.message);
+		}
+	} catch (e) {
+		console.log('Audiobookshelf: author match failed', e);
+	}
+};
+
 /**
  * Tell ABS a book was just converted so it picks it up within seconds, without a full scan
  */
@@ -131,8 +203,24 @@ export const notifyBookAdded = async (asin: string): Promise<void> => {
 		const library = await abs.getLibrary(cfg.conn, cfg.libraryId);
 		if (!library.ok) return console.log('Audiobookshelf: notify failed', library.message);
 		const result = await abs.notifyFileAdded(cfg.conn, library.value, file, cfg.folderId);
-		if (!result.ok) console.log('Audiobookshelf: notify failed', result.message);
-		else console.log(`Audiobookshelf: notified of ${asin} (${file})`);
+		if (!result.ok) return console.log('Audiobookshelf: notify failed', result.message);
+		console.log(`Audiobookshelf: notified of ${asin} (${file})`);
+
+		// Wait for ABS to add the item, then fill in its authors
+		if (!(await settings.get('abs.authors.match'))) return;
+		const folder = file.substring(0, file.lastIndexOf('/'));
+		const item = await abs.waitForItem(
+			cfg.conn,
+			cfg.libraryId,
+			(i) => i.media.metadata.asin === asin || i.relPath === folder
+		);
+		if (!item.ok)
+			return console.log(
+				`Audiobookshelf: ${asin} did not appear; authors not matched:`,
+				item.message
+			);
+		await prisma.book.update({ where: { asin }, data: { absItemId: item.value.id } });
+		await matchBookAuthors(asin, item.value.id);
 	} catch (e) {
 		console.log('Audiobookshelf: notify failed', e);
 	}
@@ -152,7 +240,10 @@ export const refreshBook = async (asin: string): Promise<void> => {
 			if (result.error === abs.types.AbsError.NOT_FOUND)
 				await prisma.book.update({ where: { asin }, data: { absItemId: null } });
 			else console.log('Audiobookshelf: refresh failed', result.message);
+			return;
 		}
+		// The book's authors may have changed
+		await matchBookAuthors(asin, book.absItemId);
 	} catch (e) {
 		console.log('Audiobookshelf: refresh failed', e);
 	}
@@ -174,8 +265,8 @@ export const removeBook = async (asin: string): Promise<void> => {
 			if (!items.ok) return console.log('Audiobookshelf: remove failed', items.message);
 			const { folder } = relPaths(book, await settings.get('library.location'));
 			itemId =
-				abs.linking.findItem(abs.linking.buildItemIndex(items.value), { asin, relPath: folder })?.id ??
-				null;
+				abs.linking.findItem(abs.linking.buildItemIndex(items.value), { asin, relPath: folder })
+					?.id ?? null;
 		}
 		if (itemId === null) return;
 		const result = await abs.deleteItem(cfg.conn, itemId);
@@ -318,7 +409,13 @@ export const scheduledRun = async (): Promise<{
 	test: publicTypes.ConnectionTestResult;
 	scan: SyncResult | null;
 } | null> => {
-	const s = await settings.getMany('abs.enable', 'abs.scan.enable', 'abs.address', 'abs.apiKey', 'abs.apiTimeout');
+	const s = await settings.getMany(
+		'abs.enable',
+		'abs.scan.enable',
+		'abs.address',
+		'abs.apiKey',
+		'abs.apiTimeout'
+	);
 	if (!s['abs.enable']) return null;
 
 	const test = await abs.testConnection({

@@ -42,7 +42,8 @@ beforeAll(async () => {
 		const p = url.pathname;
 		const key = (req.headers.authorization ?? '').replace('Bearer ', '');
 
-		if (p === '/status') return send(res, 200, { app: 'audiobookshelf', serverVersion: '2.37.2', isInit: true });
+		if (p === '/status')
+			return send(res, 200, { app: 'audiobookshelf', serverVersion: '2.37.2', isInit: true });
 		if (p.startsWith('/hang')) return; // never answers
 		if (p === '/not-json/status') {
 			res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -52,23 +53,44 @@ beforeAll(async () => {
 		const admin = key === ADMIN;
 
 		if (p === '/api/me')
-			return send(res, 200, { id: 'u', username: admin ? 'root' : 'reader', type: admin ? 'root' : 'user', isActive: true });
+			return send(res, 200, {
+				id: 'u',
+				username: admin ? 'root' : 'reader',
+				type: admin ? 'root' : 'user',
+				isActive: true
+			});
 		if (p === '/api/libraries')
 			return send(res, 200, {
 				libraries: [
-					{ id: LIBRARY, name: 'Audiobooks', mediaType: 'book', folders: [{ id: 'f1', fullPath: '/audiobooks' }] },
+					{
+						id: LIBRARY,
+						name: 'Audiobooks',
+						mediaType: 'book',
+						folders: [{ id: 'f1', fullPath: '/audiobooks' }]
+					},
 					{ id: 'pods', name: 'Podcasts', mediaType: 'podcast', folders: [] }
 				]
 			});
 		if (p === `/api/libraries/${LIBRARY}`)
-			return send(res, 200, { id: LIBRARY, name: 'Audiobooks', mediaType: 'book', folders: [{ id: 'f1', fullPath: '/audiobooks' }] });
-		if (p === '/api/libraries/pods') return send(res, 200, { id: 'pods', name: 'Podcasts', mediaType: 'podcast', folders: [] });
+			return send(res, 200, {
+				id: LIBRARY,
+				name: 'Audiobooks',
+				mediaType: 'book',
+				folders: [{ id: 'f1', fullPath: '/audiobooks' }]
+			});
+		if (p === '/api/libraries/pods')
+			return send(res, 200, { id: 'pods', name: 'Podcasts', mediaType: 'podcast', folders: [] });
 		if (p === `/api/libraries/${LIBRARY}/items`) {
 			const limit = Number(url.searchParams.get('limit'));
 			const page = Number(url.searchParams.get('page'));
 			const results = [];
 			for (let i = page * limit; i < Math.min(ITEM_COUNT, (page + 1) * limit); i++)
-				results.push({ id: `item${i}`, relPath: `Author/Book ${i}`, isMissing: false, media: { metadata: { asin: `ASIN${i}` } } });
+				results.push({
+					id: `item${i}`,
+					relPath: `Author/Book ${i}`,
+					isMissing: false,
+					media: { metadata: { asin: `ASIN${i}` } }
+				});
 			return send(res, 200, { results, total: ITEM_COUNT, limit, page });
 		}
 		if (p === `/api/libraries/${LIBRARY}/scan`) {
@@ -80,7 +102,17 @@ beforeAll(async () => {
 			const running = scanPollsRemaining > 0;
 			if (running) scanPollsRemaining--;
 			return send(res, 200, {
-				tasks: running ? [{ id: 't', action: 'library-scan', data: { libraryId: LIBRARY }, isFinished: false, isFailed: false }] : []
+				tasks: running
+					? [
+							{
+								id: 't',
+								action: 'library-scan',
+								data: { libraryId: LIBRARY },
+								isFinished: false,
+								isFailed: false
+							}
+					  ]
+					: []
 			});
 		}
 		if (p === '/api/watcher/update') {
@@ -89,7 +121,8 @@ beforeAll(async () => {
 			return send(res, 200);
 		}
 		const itemScan = p.match(/^\/api\/items\/([^/]+)\/scan$/);
-		if (itemScan) return itemScan[1] === 'item1' ? send(res, 200, { result: 'UPDATED' }) : send(res, 404);
+		if (itemScan)
+			return itemScan[1] === 'item1' ? send(res, 200, { result: 'UPDATED' }) : send(res, 404);
 		const item = p.match(/^\/api\/items\/([^/]+)$/);
 		if (item && req.method === 'DELETE') {
 			deleted.push(item[1] + (url.searchParams.has('hard') ? '?hard' : ''));
@@ -106,7 +139,11 @@ afterAll(() => {
 	server.close();
 });
 
-const conn = (overrides: Partial<Connection> = {}): Connection => ({ address: base, apiKey: ADMIN, ...overrides });
+const conn = (overrides: Partial<Connection> = {}): Connection => ({
+	address: base,
+	apiKey: ADMIN,
+	...overrides
+});
 const errorOf = (r: abs.types.Result<unknown>) => (r.ok ? null : r.error);
 
 describe('normalizeAddress', () => {
@@ -124,14 +161,25 @@ describe('normalizeAddress', () => {
 describe('testConnection', () => {
 	it('succeeds with an admin key', async () => {
 		const r = await abs.testConnection(conn({ address: base + '/' }));
-		expect(r).toEqual({ ok: true, value: { serverVersion: '2.37.2', username: 'root', userType: 'root' } });
+		expect(r).toEqual({
+			ok: true,
+			value: { serverVersion: '2.37.2', username: 'root', userType: 'root' }
+		});
 	});
 	it('explains each failure', async () => {
-		expect(errorOf(await abs.testConnection(conn({ address: 'nope' })))).toBe(AbsError.INVALID_ADDRESS);
+		expect(errorOf(await abs.testConnection(conn({ address: 'nope' })))).toBe(
+			AbsError.INVALID_ADDRESS
+		);
 		expect(errorOf(await abs.testConnection(conn({ apiKey: ' ' })))).toBe(AbsError.NO_API_KEY);
-		expect(errorOf(await abs.testConnection(conn({ address: 'http://127.0.0.1:1' })))).toBe(AbsError.UNREACHABLE);
-		expect(errorOf(await abs.testConnection(conn({ address: base + '/not-json' })))).toBe(AbsError.NOT_AUDIOBOOKSHELF);
-		expect(errorOf(await abs.testConnection(conn({ apiKey: 'wrong' })))).toBe(AbsError.UNAUTHORIZED);
+		expect(errorOf(await abs.testConnection(conn({ address: 'http://127.0.0.1:1' })))).toBe(
+			AbsError.UNREACHABLE
+		);
+		expect(errorOf(await abs.testConnection(conn({ address: base + '/not-json' })))).toBe(
+			AbsError.NOT_AUDIOBOOKSHELF
+		);
+		expect(errorOf(await abs.testConnection(conn({ apiKey: 'wrong' })))).toBe(
+			AbsError.UNAUTHORIZED
+		);
 		const reader = await abs.testConnection(conn({ apiKey: READER }));
 		expect(errorOf(reader)).toBe(AbsError.NOT_ADMIN);
 		expect(reader.ok ? '' : reader.message).toContain("'reader'");
@@ -177,7 +225,9 @@ describe('scanning', () => {
 		scanPollsRemaining = 0;
 	});
 	it('refuses a non-admin key', async () => {
-		expect(errorOf(await abs.startLibraryScan(conn({ apiKey: READER }), LIBRARY))).toBe(AbsError.NOT_ADMIN);
+		expect(errorOf(await abs.startLibraryScan(conn({ apiKey: READER }), LIBRARY))).toBe(
+			AbsError.NOT_ADMIN
+		);
 	});
 	it('rescans a single item', async () => {
 		const r = await abs.scanItem(conn(), 'item1');
@@ -187,7 +237,11 @@ describe('scanning', () => {
 	it("tells the watcher about a new file, at ABS's path", async () => {
 		const lib = await abs.getLibrary(conn(), LIBRARY);
 		if (!lib.ok) throw new Error(lib.message);
-		const r = await abs.notifyFileAdded(conn(), lib.value, 'Martha Wells/All Systems Red/All Systems Red.m4b');
+		const r = await abs.notifyFileAdded(
+			conn(),
+			lib.value,
+			'Martha Wells/All Systems Red/All Systems Red.m4b'
+		);
 		expect(r.ok).toBe(true);
 		expect(watcherUpdates.at(-1)).toEqual({
 			libraryId: LIBRARY,
@@ -196,9 +250,14 @@ describe('scanning', () => {
 		});
 	});
 	it('waits for an item to appear', async () => {
-		const r = await abs.waitForItem(conn(), LIBRARY, (i) => i.media.metadata.asin === 'ASIN449', { pollMs: 10 });
+		const r = await abs.waitForItem(conn(), LIBRARY, (i) => i.media.metadata.asin === 'ASIN449', {
+			pollMs: 10
+		});
 		expect(r.ok && r.value.id).toBe('item449');
-		const missing = await abs.waitForItem(conn(), LIBRARY, () => false, { pollMs: 10, timeoutMs: 50 });
+		const missing = await abs.waitForItem(conn(), LIBRARY, () => false, {
+			pollMs: 10,
+			timeoutMs: 50
+		});
 		expect(errorOf(missing)).toBe(AbsError.ITEM_TIMEOUT);
 	});
 });

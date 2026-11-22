@@ -30,6 +30,7 @@
 	let scanEnable = data.settingValues['abs.scan.enable'];
 	let scanScheduled = data.settingValues['abs.scan.scheduled'];
 	let scanDelay = data.settingValues['abs.scan.delay'];
+	let authorsMatch = data.settingValues['abs.authors.match'];
 
 	// API
 	let apiUpdate: () => {};
@@ -280,6 +281,15 @@
 			? 'Disabled because scans only run at the scheduled time'
 			: 'How long to wait after books finish processing before scanning'}
 		showWrapper={{ start: 'Delay', end: 'seconds' }}
+	/>
+
+	<Settings.Switch
+		name="abs.authors.match"
+		{form}
+		title="Match Authors"
+		update={scanUpdate}
+		bind:value={authorsMatch}
+		hoverTitle="When a book is added or changed, look its authors up on Audible so Audiobookshelf shows their image and description, like Match on an author's page. Authors that already have an image are left alone."
 	/>
 </Settings.List>
 

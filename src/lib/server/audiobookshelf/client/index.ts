@@ -92,6 +92,9 @@ export const request = async <T>(
 	try {
 		return ok((await response.json()) as T);
 	} catch (e) {
-		return fail(AbsError.UNEXPECTED_RESPONSE, 'Audiobookshelf returned a response that is not JSON.');
+		return fail(
+			AbsError.UNEXPECTED_RESPONSE,
+			'Audiobookshelf returned a response that is not JSON.'
+		);
 	}
 };

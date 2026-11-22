@@ -43,12 +43,16 @@ describe.skipIf(!configured)('against a real Audiobookshelf server', () => {
 		}
 	});
 
-	it('runs a library scan to completion', async () => {
-		const r = await abs.scanLibrary(conn, libraryId, { pollMs: 500, timeoutMs: 5 * 60 * 1000 });
-		expect(r.ok, r.ok ? '' : r.message).toBe(true);
-		const scanning = await abs.isLibraryScanning(conn, libraryId);
-		expect(scanning.ok && scanning.value).toBe(false);
-	}, 6 * 60 * 1000);
+	it(
+		'runs a library scan to completion',
+		async () => {
+			const r = await abs.scanLibrary(conn, libraryId, { pollMs: 500, timeoutMs: 5 * 60 * 1000 });
+			expect(r.ok, r.ok ? '' : r.message).toBe(true);
+			const scanning = await abs.isLibraryScanning(conn, libraryId);
+			expect(scanning.ok && scanning.value).toBe(false);
+		},
+		6 * 60 * 1000
+	);
 
 	it('rescans a single item', async () => {
 		const items = await abs.getLibraryItems(conn, libraryId);

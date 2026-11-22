@@ -309,6 +309,8 @@ export const actions = {
 		const data = await request.formData();
 		const enable = data.get('abs.scan.enable') as string | null;
 		if (enable !== null) await settings.set('abs.scan.enable', enable === 'true');
+		const authorsMatch = data.get('abs.authors.match') as string | null;
+		if (authorsMatch !== null) await settings.set('abs.authors.match', authorsMatch === 'true');
 		const scheduled = data.get('abs.scan.scheduled') as string | null;
 		if (scheduled !== null) await settings.set('abs.scan.scheduled', scheduled === 'true');
 		const delay = data.get('abs.scan.delay') as string | null;

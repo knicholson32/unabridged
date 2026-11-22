@@ -125,6 +125,8 @@ export type LibraryItem = {
 			seriesName: string | null;
 			asin: string | null;
 			isbn: string | null;
+			/** Only in full items (`GET /api/items/:id`), not in library item lists */
+			authors?: { id: string; name: string }[];
 		};
 	};
 };
@@ -144,6 +146,20 @@ export type Series = {
 	/** Present in list responses; empty for series left behind after their books were removed */
 	books?: unknown[];
 };
+
+/** `GET /api/authors/:id` */
+export type Author = {
+	id: string;
+	name: string;
+	/** Audible's author ASIN, once the author has been matched */
+	asin: string | null;
+	/** Set once ABS has an image for the author */
+	imagePath: string | null;
+	numBooks?: number;
+};
+
+/** `POST /api/authors/:id/match` */
+export type AuthorMatchResult = { updated: boolean; author: Author };
 
 /** `GET /api/tasks` → `tasks[]` */
 export type Task = {

@@ -36,6 +36,8 @@ export const TypeNames = {
 	'abs.scan.scheduled': false,
 	'abs.scan.nextRun': -1,
 	'abs.scan.inProgress': false,
+	// Audiobookshelf.Authors ----------------
+	'abs.authors.match': true, // Match authors without an image after books are added or changed
 	// Library -------------------------------
 	'library.location': '/library',
 	// Whether metadata.json has been written for existing books. False on new and upgraded
@@ -103,6 +105,8 @@ export type ObjectType<T extends TypeName> = T extends 'progress.running'
 	? number // Integer
 	: T extends 'abs.scan.inProgress'
 	? boolean // Boolean
+	: T extends 'abs.authors.match'
+	? boolean // Boolean
 	: T extends 'library.location'
 	? string // String
 	: T extends 'library.metadataFilesWritten'
@@ -156,6 +160,7 @@ export const get = async <T extends TypeName>(
 			case 'abs.scan.enable':
 			case 'abs.scan.scheduled':
 			case 'abs.scan.inProgress':
+			case 'abs.authors.match':
 			case 'library.metadataFilesWritten':
 				return (settingVal.value === 'true' ? true : false) as ObjectType<T>;
 

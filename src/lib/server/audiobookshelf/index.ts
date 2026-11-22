@@ -9,6 +9,8 @@ import {
 	AbsError,
 	fail,
 	ok,
+	type Author,
+	type AuthorMatchResult,
 	type Connection,
 	type ConnectionInfo,
 	type ItemScanResult,
@@ -49,7 +51,8 @@ export const testConnection = async (conn: Connection): Promise<Result<Connectio
 
 	const me = await request<User>(conn, '/api/me');
 	if (!me.ok) return me;
-	if (!me.value.isActive) return fail(AbsError.UNAUTHORIZED, `The ABS user '${me.value.username}' is disabled.`);
+	if (!me.value.isActive)
+		return fail(AbsError.UNAUTHORIZED, `The ABS user '${me.value.username}' is disabled.`);
 	if (me.value.type !== 'root' && me.value.type !== 'admin')
 		return fail(
 			AbsError.NOT_ADMIN,
@@ -234,7 +237,8 @@ export const notifyFileAdded = async (
 	folderId?: string | null
 ): Promise<Result<void>> => {
 	const folder = chooseFolder(library, folderId);
-	if (folder === null) return fail(AbsError.NOT_FOUND, 'The Audiobookshelf library has no folders.');
+	if (folder === null)
+		return fail(AbsError.NOT_FOUND, 'The Audiobookshelf library has no folders.');
 	return request<void>(conn, '/api/watcher/update', {
 		method: 'POST',
 		body: { libraryId: library.id, path: toAbsPath(relFilePath, folder), type: 'add' },
@@ -277,7 +281,41 @@ export const getItem = async (conn: Connection, itemId: string): Promise<Result<
  * those itself.
  */
 export const deleteItem = async (conn: Connection, itemId: string): Promise<Result<void>> =>
-	request<void>(conn, `/api/items/${encodeURIComponent(itemId)}`, { method: 'DELETE', json: false });
+	request<void>(conn, `/api/items/${encodeURIComponent(itemId)}`, {
+		method: 'DELETE',
+		json: false
+	});
+
+// -------------------------------------------------------------------------------------------------
+// Authors
+// -------------------------------------------------------------------------------------------------
+
+/**
+ * Get an author, including whether ABS has an image for them
+ */
+export const getAuthor = async (conn: Connection, authorId: string): Promise<Result<Author>> =>
+	request<Author>(conn, `/api/authors/${encodeURIComponent(authorId)}`);
+
+/**
+ * Have ABS look an author up on Audible (through Audnexus) and fill in their image, description
+ * and ASIN. Same as "Match" on the author's page. ABS only replaces an existing image when the
+ * match finds a different ASIN.
+ * @param lookup the author's ASIN if known (more accurate), else their name
+ * @param region the Audible region to search, e.g. `us` or `uk`
+ * @returns the updated author; fails with NOT_FOUND if Audible has no such author
+ */
+export const matchAuthor = async (
+	conn: Connection,
+	authorId: string,
+	lookup: { asin?: string | null; name: string },
+	region: string
+): Promise<Result<AuthorMatchResult>> =>
+	request<AuthorMatchResult>(conn, `/api/authors/${encodeURIComponent(authorId)}/match`, {
+		method: 'POST',
+		body: { q: lookup.name, ...(lookup.asin ? { asin: lookup.asin } : {}), region },
+		// The lookup goes out to Audnexus and can take several seconds
+		timeoutMs: Math.max(conn.timeoutMs ?? 0, 30000)
+	});
 
 // -------------------------------------------------------------------------------------------------
 // Links
@@ -298,4 +336,5 @@ export const seriesUrl = (address: string, libraryId: string, seriesId: string):
 };
 
 /** Path of an item's cover on the ABS API (needs the API key, so serve it through a proxy route) */
-export const coverPath = (itemId: string): string => `/api/items/${encodeURIComponent(itemId)}/cover`;
+export const coverPath = (itemId: string): string =>
+	`/api/items/${encodeURIComponent(itemId)}/cover`;

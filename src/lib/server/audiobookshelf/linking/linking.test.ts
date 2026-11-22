@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { buildItemIndex, chooseFolder, findItem, toAbsPath, toRelPath } from '.';
 import type { Library, LibraryItem } from '../types';
 
-const item = (id: string, relPath: string, asin: string | null, isMissing = false): LibraryItem => ({
+const item = (
+	id: string,
+	relPath: string,
+	asin: string | null,
+	isMissing = false
+): LibraryItem => ({
 	id,
 	libraryId: 'lib',
 	folderId: 'f1',
@@ -18,7 +23,9 @@ const item = (id: string, relPath: string, asin: string | null, isMissing = fals
 describe('toRelPath', () => {
 	it('gives the path inside the library folder', () => {
 		expect(toRelPath('/library/Author/Title', '/library')).toBe('Author/Title');
-		expect(toRelPath('/library/Author/Title/Title.m4b', '/library/')).toBe('Author/Title/Title.m4b');
+		expect(toRelPath('/library/Author/Title/Title.m4b', '/library/')).toBe(
+			'Author/Title/Title.m4b'
+		);
 	});
 	it('normalizes slashes and dots', () => {
 		expect(toRelPath('/library//Author/./Title/', '/library')).toBe('Author/Title');
@@ -65,7 +72,9 @@ describe('findItem', () => {
 		expect(findItem(index, { asin: 'b01n17theo' })?.id).toBe('a');
 	});
 	it('falls back to the folder path when ABS has no ASIN', () => {
-		expect(findItem(index, { asin: 'B076XSGP65', relPath: 'Martha Wells/All Systems Red' })?.id).toBe('b');
+		expect(
+			findItem(index, { asin: 'B076XSGP65', relPath: 'Martha Wells/All Systems Red' })?.id
+		).toBe('b');
 	});
 	it('prefers an item that is present over one marked missing', () => {
 		expect(findItem(index, { asin: 'B0DJCFZV5W' })?.id).toBe('new');
