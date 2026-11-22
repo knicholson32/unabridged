@@ -14,6 +14,7 @@ import * as AbsSync from '$lib/server/audiobookshelf/sync';
 import * as AbsSettings from '$lib/server/audiobookshelf/settings';
 import * as validators from '$lib/types/prisma';
 import * as events from '$lib/server/events';
+import * as metadata from '$lib/server/metadata';
 import cron from 'node-cron';
 
 enum ProcessState {
@@ -654,7 +655,7 @@ export namespace LibraryManager {
 	export const start = async () => {
 		// Skip if this is during the Docker build process
 		if (process.env.STAGE === 'BUILD') return;
-		
+
 		console.log('start event loop');
 
 		await prisma.processQueue.updateMany({
@@ -679,6 +680,10 @@ export namespace LibraryManager {
 
 		// Start the cron task
 		Cron.start();
+
+		// Write metadata.json for existing books if that has never been done (e.g. after upgrading).
+		// Not awaited; it does not need to hold up the start.
+		void metadata.writeAllSidecarsOnce();
 	};
 
 	/**

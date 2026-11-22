@@ -151,3 +151,30 @@ export const writeAllSidecars = async (): Promise<{ written: number; failed: str
 	}
 	return { written, failed };
 };
+
+/**
+ * Write sidecars for every processed book, once. Runs on start until it has succeeded, so
+ * upgraded libraries get their metadata.json files without anyone having to press
+ * Settings → Library → Write metadata files. Never throws.
+ *
+ * The setting is not set when there are processed books but none could be written: that usually
+ * means the library folder is not mounted yet, so it is tried again on the next start.
+ */
+export const writeAllSidecarsOnce = async (): Promise<void> => {
+	try {
+		if (await settings.get('library.metadataFilesWritten')) return;
+
+		console.log('Metadata: writing metadata.json for existing books');
+		const { written, failed } = await writeAllSidecars();
+		if (failed.length > 0) console.log('Metadata: could not write sidecars for', failed);
+
+		if (written === 0 && failed.length > 0) {
+			console.log('Metadata: no files could be written; will try again on the next start');
+			return;
+		}
+		await settings.set('library.metadataFilesWritten', true);
+		console.log(`Metadata: wrote metadata.json for ${written} book${written === 1 ? '' : 's'}`);
+	} catch (e) {
+		console.error('Metadata: automatic metadata.json write failed', e);
+	}
+};

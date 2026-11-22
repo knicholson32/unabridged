@@ -277,6 +277,8 @@ const convert = async (
 			const parser = new ffmpeg.ProgressParser();
 			let stderr = '';
 			let lastUpdate = 0;
+			// Updates run one after another, so a slow write never lands after a later one
+			let updates: Promise<void> = Promise.resolve();
 
 			proc.stdout.on('data', (d: Buffer) => {
 				for (const report of parser.push(d.toString())) {
@@ -286,15 +288,17 @@ const convert = async (
 					if (now - lastUpdate < 1000 && !report.done) continue;
 					lastUpdate = now;
 					const progress = Math.min(1, (report.seconds * 1000) / (source.durationMs ?? Infinity));
-					void setProgress(processID, progress, report.speed ?? undefined);
+					updates = updates.then(() => setProgress(processID, progress, report.speed ?? undefined));
 				}
 			});
 			proc.stderr.on('data', (d: Buffer) => {
 				// Keep the last 16 kB; ffmpeg's errors come at the end
 				stderr = (stderr + d.toString()).slice(-16384);
 			});
-			proc.on('error', (err) => resolve({ code: null, stderr, spawnError: err }));
-			proc.on('close', (code) => resolve({ code, stderr }));
+			proc.on('error', (err) =>
+				updates.then(() => resolve({ code: null, stderr, spawnError: err }))
+			);
+			proc.on('close', (code) => updates.then(() => resolve({ code, stderr })));
 		}
 	);
 

@@ -38,6 +38,9 @@ export const TypeNames = {
 	'abs.scan.inProgress': false,
 	// Library -------------------------------
 	'library.location': '/library',
+	// Whether metadata.json has been written for existing books. False on new and upgraded
+	// installs, so the files are written once on the next start (see metadata.writeAllSidecarsOnce).
+	'library.metadataFilesWritten': false,
 	// General -------------------------------
 	'general.autoSync': true,
 	'general.encKey': 'UNSET',
@@ -102,6 +105,8 @@ export type ObjectType<T extends TypeName> = T extends 'progress.running'
 	? boolean // Boolean
 	: T extends 'library.location'
 	? string // String
+	: T extends 'library.metadataFilesWritten'
+	? boolean // Boolean
 	: T extends 'general.autoSync'
 	? boolean // Boolean
 	: T extends 'general.encKey'
@@ -151,6 +156,7 @@ export const get = async <T extends TypeName>(
 			case 'abs.scan.enable':
 			case 'abs.scan.scheduled':
 			case 'abs.scan.inProgress':
+			case 'library.metadataFilesWritten':
 				return (settingVal.value === 'true' ? true : false) as ObjectType<T>;
 
 			// Integer Conversion ------------------------------------------------------------------------
