@@ -19,7 +19,7 @@
 
 <div class="flex items-center">
 	{#if title !== ''}
-		<span class="mr-2 text-sm" id="annual-billing-label">
+		<span class="mr-2 whitespace-nowrap text-sm" id="annual-billing-label">
 			<span class="text-gray-600">{title}</span>
 		</span>
 	{/if}

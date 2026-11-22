@@ -458,7 +458,7 @@
 			<div class="">
 				<h3 class="text-base font-semibold leading-6 text-gray-900">Account Tools</h3>
 				<dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
-					<div class="relative overflow-hidden rounded-lg bg-white px-4 pb-12 pt-5 shadow sm:px-6 sm:pt-6">
+					<div class="relative overflow-hidden rounded-lg bg-white px-4 pt-5 shadow sm:px-6 sm:pt-6">
 						<dt>
 							<div class="absolute rounded-md bg-indigo-500 p-3">
 								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6 text-white">
@@ -476,19 +476,20 @@
 								</span>
 							</p>
 						</dt>
-						<dd class="ml-16 flex items-baseline pb-6 sm:pb-7">
-							<p class="text-2xl font-semibold text-gray-900">
-								<Number value={data.source.books.length} /> Books
-							</p>
-							<p class="ml-2 flex items-baseline text-sm font-semibold text-gray-400">
-								<Number value={total.hours} />hr
-							</p>
-							<div class="absolute inset-x-0 bottom-0 bg-gray-50 px-4 py-4 sm:px-6">
-								<div class="text-sm inline m-auto">
-									<a href="#" class="font-medium text-indigo-600 hover:text-indigo-500">View all<span class="sr-only"> Total Subscribers stats</span></a>
-								</div>
-								<div class="text-sm flex space-x-3 divide-x divide-gray-900/10 absolute -translate-y-1/2 top-1/2 right-4">
-									<form class="m-auto" method="POST" action="?/auto_sync"
+						<dd class="ml-16">
+							<div class="flex items-baseline pb-6 sm:pb-7">
+								<p class="text-2xl font-semibold text-gray-900">
+									<Number value={data.source.books.length} /> Books
+								</p>
+								<p class="ml-2 flex items-baseline text-sm font-semibold text-gray-400">
+									<Number value={total.hours} />hr
+								</p>
+							</div>
+							<!-- In the card's flow (not pinned to its bottom) so the controls can wrap onto more lines
+							     when the card is narrow; the negative margins undo the card's padding and the dd's ml-16 -->
+							<div class="-ml-20 -mr-4 bg-gray-50 px-4 py-4 sm:-ml-[5.5rem] sm:-mr-6 sm:px-6">
+								<div class="text-sm flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+									<form method="POST" action="?/auto_sync"
 										use:enhance={() => {
 											return async ({ update }) => {
 												update();
@@ -497,7 +498,7 @@
 									>
 										<Switch title={'Auto Sync'} value={data.source.auto_sync} type={'submit'} valueName={'auto-sync'} />
 									</form>
-									<form class="m-auto pl-3" method="POST" action="?/auto_download"
+									<form method="POST" action="?/auto_download"
 										title="Download books that a sync finds are new to Unabridged. Not on the account's first sync."
 										use:enhance={() => {
 											return async ({ result, update }) => {
@@ -508,7 +509,7 @@
 									>
 										<Switch title={'Auto Download'} value={data.source.auto_download} type={'submit'} valueName={'auto-download'} />
 									</form>
-									<form class="pl-3" method="POST" action="?/sync"
+									<form method="POST" action="?/sync"
 										use:enhance={() => {
 											profileSyncing = true;
 											return async ({ update }) => {
@@ -519,7 +520,7 @@
 									>
 										<Submit bind:this={profileSync} submitting={profileSyncing} progress={syncingProgress} failed={form?.success === false && form?.response === 'sync'} actionText={'Sync'} actionTextInProgress={'Syncing'} />
 									</form>
-									<form class="pl-3" method="POST" action="?/refresh"
+									<form method="POST" action="?/refresh"
 										title="Sign this account in again as a new device. Use this if downloads fail with 'License not granted'. Books are kept."
 										use:enhance={() => {
 											refreshStarting = true;
@@ -557,11 +558,8 @@
 										: ((num_downloaded * 100) / data.source.books.length).toPrecision(1)}%
 								</span>
 							</p>
-							<div class="absolute inset-x-0 bottom-0 bg-gray-50 px-4 py-4 sm:px-6">
-								<div class="text-sm inline">
-									<a href="#" class="font-medium text-indigo-600 hover:text-indigo-500">View all<span class="sr-only"> Total Subscribers stats</span></a>
-								</div>
-							</div>
+							<!-- Empty bar to match the footer of the card beside it -->
+							<div class="absolute inset-x-0 bottom-0 h-12 bg-gray-50"></div>
 						</dd>
 					</div>
 				</dl>
