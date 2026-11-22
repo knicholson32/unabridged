@@ -21,7 +21,8 @@ export const GET = async ({ params }) => {
 	const books: string[] = [];
 	// Add the books that aren't downloaded or aren't processed
 	for (const book of series.books)
-		if (book.processed === false || book.downloaded === false) books.push(book.asin);
+		if ((book.processed === false || book.downloaded === false) && book.downloadable)
+			books.push(book.asin);
 
 	// Queue the book
 	await LibraryManager.queueBooks(books);

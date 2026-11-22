@@ -3,6 +3,7 @@
 	import * as helpers from '$lib/helpers';
 	import type { Prisma } from '@prisma/client';
 	import { getContext } from 'svelte';
+	import NotDownloadable from '$lib/components/badges/NotDownloadable.svelte';
 
 	const showDownloadManager: () => void = getContext('openManager');
 	const download = async () => {
@@ -164,6 +165,8 @@
 			>
 				{@html icons.ok}
 			</svg>
+		{:else if !book.downloadable}
+			<NotDownloadable short={true} />
 		{:else}
 			<button type="button" on:click={download}>
 				<svg

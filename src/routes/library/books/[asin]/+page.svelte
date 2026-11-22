@@ -6,6 +6,7 @@
 	import * as helpers from '$lib/helpers';
 	import type { GenerateAlert, PageNeedsProgress, SourceType } from '$lib/types';
 	import { getContext } from 'svelte';
+	import NotDownloadable from '$lib/components/badges/NotDownloadable.svelte';
 	import * as dateFns from 'date-fns';
 	import TextArea from '$lib/components/input/selectable/TextArea.svelte';
 	import TextInput from '$lib/components/input/selectable/TextInput.svelte';
@@ -315,6 +316,8 @@
 						/>
 					</svg>
 				</button>
+			{:else if !data.book.downloadable}
+				<span class="px-1 py-1"><NotDownloadable /></span>
 			{:else}
 				<button
 					on:click={download}
@@ -602,6 +605,12 @@
 					<tr class={rowClass}>
 						<td class="{dataTitleClass} whitespace-nowrap">Downloaded</td>
 						<td class={dataValueClass}>{data.book.downloaded ? 'Yes' : 'No'}</td>
+					</tr>
+					<tr class={rowClass}>
+						<td class="{dataTitleClass} whitespace-nowrap">Downloadable</td>
+						<td class={dataValueClass}
+							>{data.book.downloadable ? 'Yes' : 'No, Audible does not allow it'}</td
+						>
 					</tr>
 					<tr class={rowClass}>
 						<td class="{dataTitleClass} whitespace-nowrap">Processed</td>

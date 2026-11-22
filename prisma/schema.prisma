@@ -29,11 +29,11 @@ model Source {
   description String?
   type        String  @default("audible")
 
-  auto_sync  Boolean
+  auto_sync     Boolean
   // Queue books a sync finds that are new to Unabridged (never on the account's first sync)
   auto_download Boolean @default(false)
-  last_sync  Int?
-  added_date Int
+  last_sync     Int?
+  added_date    Int
 
   profile_image_url String?
   profileImage      ProfileImage?
@@ -42,6 +42,7 @@ model Source {
 
   audible AudibleAccount?
   Media   Media[]
+  rights  BookRights[]
 
   @@map("sources")
 }
@@ -131,6 +132,9 @@ model Book {
 
   downloaded   Boolean
   processed    Boolean
+  // Whether any account with this book may download it (see BookRights). Kept up to date by syncs.
+  downloadable Boolean      @default(true)
+  rights       BookRights[]
   cover        Cover?
   branding     Branding?
   chapters     Chapter[]
@@ -138,6 +142,24 @@ model Book {
   ProcessQueue ProcessBook?
 
   @@map("books")
+}
+
+// What Audible lets one account do with one of its books, from the library's customer_rights.
+// A book with no row for an account is treated as downloadable by it (rights not fetched yet).
+model BookRights {
+  book         Book    @relation(fields: [asin], references: [asin], onDelete: Cascade)
+  asin         String
+  source       Source  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceId     String
+  // customer_rights.is_consumable_offline
+  downloadable Boolean
+  // is_ayce: in the library through a catalog plan (e.g. Audible Plus), not bought
+  borrowed     Boolean
+  // When these rights were last fetched (Unix seconds)
+  checked      Int
+
+  @@id([asin, sourceId])
+  @@map("bookRights")
 }
 
 model Cover {

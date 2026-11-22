@@ -298,7 +298,7 @@ export const processErrorToStringLong = (p: ProcessError) => {
 		case ProcessError.NOT_AUTHORIZED:
 			return "This account source is not authorized. Please sign-in again.";
 		case ProcessError.NOT_DOWNLOADABLE:
-			return "This book was not downloadable by the Audible CLI.";
+			return "Audible does not let any account with this book download it, for example a catalog title (Audible Plus) whose access has ended. If you have since bought it, sync the account and try again.";
 		default:
 			return 'An unknown and unexpected error has occurred.';
 	}

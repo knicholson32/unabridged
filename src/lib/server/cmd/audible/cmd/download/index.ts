@@ -72,6 +72,7 @@ export const download = async (
 					audible: true
 				}
 			},
+			rights: true,
 			cover: true
 		}
 	});
@@ -80,21 +81,22 @@ export const download = async (
 	if (book === null) return { e: BookDownloadError.BOOK_NOT_FOUND };
 	if (book.sources.length === 0) return { e: BookDownloadError.NO_PROFILE };
 
-	let cli_id: string | undefined = undefined;
-	let sourceId: string | undefined = undefined;
-	for (const source of book.sources) {
-		if (source.type === SourceType.AUDIBLE && source.audible !== null) {
-			const audibleAccount = source.audible;
-			if (audibleAccount.activation_bytes !== null) {
-				cli_id = audibleAccount.cli_id;
-				sourceId = source.id;
-				break;
-			}
-		}
+	// Accounts that can decrypt books, preferring one that Audible lets download this book. An
+	// account whose rights have not been fetched yet is tried, as before rights were recorded.
+	const usable = book.sources.filter(
+		(s) => s.type === SourceType.AUDIBLE && s.audible !== null && s.audible.activation_bytes !== null
+	);
+	if (usable.length === 0) return { e: BookDownloadError.NO_PROFILE_WITH_AUTHCODE };
+	const allowed = usable.find(
+		(s) => book.rights.find((r) => r.sourceId === s.id)?.downloadable !== false
+	);
+	// Every account is known to lack the right: audible-cli would refuse too, so do not start it
+	if (allowed === undefined) {
+		console.log(`Download: no account may download ${asin} ('${book.title}') according to Audible`);
+		return { e: BookDownloadError.NOT_DOWNLOADABLE };
 	}
-
-	if (cli_id === undefined || sourceId === undefined)
-		return { e: BookDownloadError.NO_PROFILE_WITH_AUTHCODE };
+	const cli_id = allowed.audible!.cli_id;
+	const sourceId = allowed.id;
 
 	// Update process progress for download to 0
 	await prisma.processQueue.update({

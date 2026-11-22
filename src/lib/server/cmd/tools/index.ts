@@ -6,6 +6,7 @@ import * as settings from '$lib/server/settings';
 import sanitize from 'sanitize-filename';
 import { sanitizeFile } from '$lib/server/helpers';
 import * as AbsSync from '$lib/server/audiobookshelf/sync';
+import * as rights from '$lib/server/cmd/audible/cmd/library/rights';
 
 /**
  * Create a temporary directory based on an asin
@@ -141,6 +142,9 @@ export const deleteSource = async (id: string) => {
 	}
 	// Clean the rest of the DB / files
 	await cleanAll();
+	// A book shared with the deleted account may have lost (or been left with only) the account
+	// that could download it
+	await rights.updateDownloadable();
 };
 
 /**

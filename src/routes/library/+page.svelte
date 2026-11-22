@@ -371,7 +371,7 @@
 												</span>
 											</th>
 											<td class="{tableXPadding} py-2 text-sm whitespace-nowrap">
-												{#if series.books.every((b) => b.downloaded && b.processed)}
+												{#if series.books.every((b) => (b.downloaded && b.processed) || !b.downloadable)}
 													<svg
 														xmlns="http://www.w3.org/2000/svg"
 														fill="none"

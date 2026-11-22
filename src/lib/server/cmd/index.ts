@@ -879,6 +879,14 @@ export namespace LibraryManager {
 	export const queueBook = async (asin: string, run = true): Promise<boolean> => {
 		let created = false;
 		try {
+			const book = await prisma.book.findUnique({
+				where: { asin },
+				select: { title: true, downloadable: true }
+			});
+			if (book !== null && !book.downloadable) {
+				console.log(`Not queueing '${book.title}' (${asin}): Audible does not let any of its accounts download it`);
+				return false;
+			}
 			if (!(await getIsQueued(asin))) {
 				// Generate a unique ID that is only a couple characters long. Verify by checking in the DB, but only try this a couple times. Increase the ID size each time to make it
 				// more likely that we get a unique ID
@@ -946,7 +954,12 @@ export namespace LibraryManager {
 			}
 			// Only books that still need downloading (another account may have brought them in already)
 			const books = await prisma.book.findMany({
-				where: { asin: { in: sync.created }, downloaded: false, processed: false },
+				where: {
+					asin: { in: sync.created },
+					downloaded: false,
+					processed: false,
+					downloadable: true
+				},
 				select: { asin: true, title: true }
 			});
 			if (books.length === 0) return 0;

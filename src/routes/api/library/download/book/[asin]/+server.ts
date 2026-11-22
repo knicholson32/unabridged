@@ -18,6 +18,11 @@ export const GET = async ({ params }) => {
 	// Return if the profile was not found
 	if (book === null || book === undefined) return API.response._404();
 
+	if (!book.downloadable)
+		return API.response._400({
+			message: 'Audible does not let any account with this book download it'
+		});
+
 	// Check that the book isn't currently being downloaded
 	if (await LibraryManager.getIsQueued(book.asin))
 		return API.response._400({ message: 'Book is being downloaded already' });

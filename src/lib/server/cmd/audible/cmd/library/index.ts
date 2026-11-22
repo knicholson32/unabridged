@@ -14,10 +14,39 @@ import * as events from '$lib/server/events';
 import * as helpers from '$lib/helpers';
 import { getAverageColor } from 'fast-average-color-node';
 import { AUDIBLE_CMD, AUDIBLE_FOLDER } from '$lib/server/env';
+import * as notify from '$lib/server/notify';
+import * as rights from './rights';
 
 // --------------------------------------------------------------------------------------------
 // Library helpers
 // --------------------------------------------------------------------------------------------
+
+/**
+ * Notify that an account can no longer download some of its books
+ * @param id the account
+ * @param name its name
+ * @param lost the books, from rights.save
+ */
+const notifyLostAccess = async (id: string, name: string, lost: rights.LostAccess[]) => {
+	const notDownloaded = lost.filter((l) => !l.downloaded).length;
+	const lines = lost.map(
+		(l) =>
+			`${l.downloaded ? '•' : '✗'} ${l.title}${l.borrowed ? ' (catalog title)' : ''}: ` +
+			(l.downloaded ? 'already downloaded, so the copy in your library is kept' : 'never downloaded')
+	);
+	await notify.send({
+		title:
+			lost.length === 1
+				? `Can no longer download: ${lost[0].title}`
+				: `Can no longer download ${lost.length} books`,
+		message: `Audible no longer lets '${name}' download ${
+			lost.length === 1 ? 'this book' : 'these books'
+		}.\n${lines.join('\n')}`,
+		priority: notDownloaded > 0 ? 4 : 3,
+		tags: ['lock'],
+		path: lost.length === 1 ? `/library/books/${lost[0].asin}` : `/sources/audible/${id}`
+	});
+};
 
 type Correction = {
 	s: string;
@@ -496,6 +525,14 @@ export const get = async (
 		try {
 			fs.rmSync(`/tmp/${cli_id}.library.json`, { recursive: true, force: true });
 		} catch (e) {}
+
+		// Which books Audible lets this account download. Not fatal: without them, books keep the
+		// rights from the last sync that got them.
+		const accountRights = await rights.fetch(cli_id);
+		if (accountRights !== null) {
+			const lost = await rights.save(id, accountRights);
+			if (lost.length > 0) void notifyLostAccess(id, source.name, lost);
+		}
 
 		// Update the last sync time
 		await prisma.source.update({

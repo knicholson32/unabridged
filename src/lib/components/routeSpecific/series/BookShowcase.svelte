@@ -4,6 +4,7 @@
 	import * as helpers from '$lib/helpers';
 	import type { Prisma } from '@prisma/client';
 	import { getContext } from 'svelte';
+	import NotDownloadable from '$lib/components/badges/NotDownloadable.svelte';
 
 	type Book = Prisma.BookGetPayload<{
 		include: {
@@ -81,6 +82,8 @@
 								clip-rule="evenodd"
 							/>
 						</svg>
+					{:else if !book.downloadable}
+						<span class="m-1"><NotDownloadable /></span>
 					{:else}
 						<button
 							on:click={download}
