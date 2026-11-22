@@ -220,6 +220,8 @@ export const actions = {
 		// starts the download manager, which the sync response does not need to wait for)
 		if (results.err === CLIError.NO_ERROR && results.results !== undefined)
 			void LibraryManager.queueNewBooks(id, results.results);
+		else if (results.err !== CLIError.NO_ERROR)
+			void LibraryManager.notifySyncFailed(id, results.err, 'Manual');
 
 		// const notification: Notification = {
 		// 	id: uuidv4(),

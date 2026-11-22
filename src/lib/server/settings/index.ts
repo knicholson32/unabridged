@@ -38,6 +38,11 @@ export const TypeNames = {
 	'abs.scan.inProgress': false,
 	// Audiobookshelf.Authors ----------------
 	'abs.authors.match': true, // Match authors without an image after books are added or changed
+	// Notifications (ntfy) -----------------
+	'notify.ntfy.enable': false,
+	'notify.ntfy.url': '', // Full topic URL, e.g. https://ntfy.sh/my-topic
+	'notify.ntfy.token': '', // Encrypted; optional access token for protected topics
+	'notify.linkAddress': '', // URL browsers use to open Unabridged, for links in notifications
 	// Library -------------------------------
 	'library.location': '/library',
 	// Whether metadata.json has been written for existing books. False on new and upgraded
@@ -107,6 +112,14 @@ export type ObjectType<T extends TypeName> = T extends 'progress.running'
 	? boolean // Boolean
 	: T extends 'abs.authors.match'
 	? boolean // Boolean
+	: T extends 'notify.ntfy.enable'
+	? boolean // Boolean
+	: T extends 'notify.ntfy.url'
+	? string // String
+	: T extends 'notify.ntfy.token'
+	? string // String (encrypted)
+	: T extends 'notify.linkAddress'
+	? string // String
 	: T extends 'library.location'
 	? string // String
 	: T extends 'library.metadataFilesWritten'
@@ -162,6 +175,7 @@ export const get = async <T extends TypeName>(
 			case 'abs.scan.inProgress':
 			case 'abs.authors.match':
 			case 'library.metadataFilesWritten':
+			case 'notify.ntfy.enable':
 				return (settingVal.value === 'true' ? true : false) as ObjectType<T>;
 
 			// Integer Conversion ------------------------------------------------------------------------
@@ -188,10 +202,13 @@ export const get = async <T extends TypeName>(
 			case 'abs.library.id':
 			case 'abs.library.name':
 			case 'abs.library.folderId':
+			case 'notify.ntfy.url':
+			case 'notify.linkAddress':
 				return settingVal.value as ObjectType<T>;
 
 			// Encrypted Strings -------------------------------------------------------------------------
 			case 'abs.apiKey':
+			case 'notify.ntfy.token':
 				return (await helpers.decrypt(settingVal.value)) as ObjectType<T>;
 
 			// Unknown -----------------------------------------------------------------------------------
@@ -313,7 +330,7 @@ export const set = async <T extends TypeName>(setting: T, value: ObjectType<T>) 
 	// Make sure the setting can exist
 	if (!(setting in TypeNames)) throw Error(`Unknown setting: ${setting}`);
 
-	if (setting === 'abs.apiKey') {
+	if (setting === 'abs.apiKey' || setting === 'notify.ntfy.token') {
 		value = (await helpers.encrypt(value as string)) as ObjectType<T>;
 	}
 

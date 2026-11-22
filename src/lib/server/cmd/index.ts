@@ -15,6 +15,7 @@ import * as AbsSettings from '$lib/server/audiobookshelf/settings';
 import * as validators from '$lib/types/prisma';
 import * as events from '$lib/server/events';
 import * as metadata from '$lib/server/metadata';
+import * as notify from '$lib/server/notify';
 import cron from 'node-cron';
 
 enum ProcessState {
@@ -82,6 +83,127 @@ export namespace LibraryManager {
 
 	const unlockProcessQueue = () => {
 		isLocked = false;
+	};
+
+	// ---------------------------------------------------------------------------------------------
+	// Notifications
+	// ---------------------------------------------------------------------------------------------
+
+	/**
+	 * Books Auto Download queued, by ASIN, and how each one ended (undefined while it is still
+	 * queued). When every one has ended, a single summary is sent and the list starts over. Kept in
+	 * memory, so a restart part-way through a batch loses that batch's summary.
+	 */
+	const autoDownloads = new Map<
+		string,
+		{ title: string; account: string; result: ProcessError | undefined }
+	>();
+
+	/**
+	 * Record how a queued book ended, and send the Auto Download summary if it was the last one
+	 * @param asin the book
+	 * @param result how it ended
+	 */
+	const autoDownloadEnded = (asin: string, result: ProcessError) => {
+		const entry = autoDownloads.get(asin);
+		if (entry === undefined || entry.result !== undefined) return;
+		entry.result = result;
+		for (const e of autoDownloads.values()) if (e.result === undefined) return;
+
+		const all = [...autoDownloads.values()];
+		autoDownloads.clear();
+		const done = all.filter((e) => e.result === ProcessError.NO_ERROR);
+		const failed = all.filter(
+			(e) => e.result !== ProcessError.NO_ERROR && e.result !== ProcessError.CANCELED
+		);
+		const canceled = all.filter((e) => e.result === ProcessError.CANCELED);
+
+		const lines: string[] = [];
+		for (const e of done) lines.push(`✓ ${e.title} (${e.account})`);
+		for (const e of failed)
+			lines.push(`✗ ${e.title} (${e.account}): ${types.processErrorToStringShort(e.result!)}`);
+		for (const e of canceled) lines.push(`– ${e.title} (${e.account}): canceled`);
+
+		const counts = [`${done.length} downloaded`];
+		if (failed.length > 0) counts.push(`${failed.length} failed`);
+		if (canceled.length > 0) counts.push(`${canceled.length} canceled`);
+
+		void notify.send({
+			title: `Auto Download: ${counts.join(', ')}`,
+			message: lines.join('\n'),
+			priority: failed.length > 0 ? 4 : 3,
+			tags: [failed.length > 0 ? 'warning' : 'books'],
+			path: '/library'
+		});
+	};
+
+	/**
+	 * Notify that a queued book could not be downloaded or converted. Canceling is not a failure.
+	 * @param id the queue entry
+	 * @param result why it failed
+	 */
+	const notifyProcessFailed = async (id: string, result: ProcessError) => {
+		try {
+			const entry = await prisma.processQueue.findUnique({
+				where: { id },
+				select: {
+					book: {
+						select: {
+							book: { select: { asin: true, title: true, sources: { select: { name: true } } } }
+						}
+					}
+				}
+			});
+			const book = entry?.book?.book;
+			if (book === undefined || book === null) return;
+			autoDownloadEnded(book.asin, result);
+			if (result === ProcessError.CANCELED) return;
+			const accounts = book.sources.map((s) => s.name).join(', ');
+			void notify.send({
+				title: `Download failed: ${book.title}`,
+				message:
+					`${types.processErrorToStringLong(result)}\n` +
+					`Account: ${accounts === '' ? 'none' : accounts}\n` +
+					`Error: ${result}`,
+				priority: 4,
+				tags: ['warning'],
+				path: `/library/books/${book.asin}`
+			});
+		} catch (e) {
+			console.log('Notify: could not report a failed download', e);
+		}
+	};
+
+	/**
+	 * Notify that an account could not be synced
+	 * @param sourceId the account
+	 * @param err why
+	 * @param how whether this was the scheduled sync or one started from the account page
+	 */
+	export const notifySyncFailed = async (
+		sourceId: string,
+		err: CLIError,
+		how: 'Scheduled' | 'Manual'
+	) => {
+		try {
+			const source = await prisma.source.findUnique({
+				where: { id: sourceId },
+				select: { name: true }
+			});
+			const hint =
+				err === CLIError.NOT_AUTHORIZED
+					? "\nOpen the account in Unabridged and use 'Refresh Login' to sign in again."
+					: '';
+			await notify.send({
+				title: `Sync failed: ${source?.name ?? 'Unknown account'}`,
+				message: `${how} sync: ${cliErrorToString(err)}.${hint}`,
+				priority: 4,
+				tags: ['warning'],
+				path: `/sources/audible/${sourceId}`
+			});
+		} catch (e) {
+			console.log('Notify: could not report a failed sync', e);
+		}
 	};
 
 	// ---------------------------------------------------------------------------------------------
@@ -162,6 +284,7 @@ export namespace LibraryManager {
 				}
 			});
 			await sendInvalidate();
+			await notifyProcessFailed(id, result);
 		} else {
 			console.log(`ERROR: Unimplemented process type: ${type}`, id);
 		}
@@ -312,6 +435,8 @@ export namespace LibraryManager {
 							break;
 						case BookDownloadError.NO_PROFILE:
 							// This book has no account that owns it. It should be deleted.
+							// Record the outcome now: once the book is deleted, processFailed cannot look it up
+							autoDownloadEnded(queueEntry.book.book.asin, ProcessError.NO_PROFILE);
 							await tools.deleteBook(queueEntry.book.book.asin);
 							// Delete this entry
 							await processFailed(queueEntry.id, type, ProcessError.NO_PROFILE, 0, 0);
@@ -486,6 +611,8 @@ export namespace LibraryManager {
 								break;
 							case ConversionError.NO_PROFILE:
 								// This book has no account that owns it. It should be deleted.
+								// Record the outcome now: once the book is deleted, processFailed cannot look it up
+								autoDownloadEnded(queueEntry.book.book.asin, ProcessError.NO_PROFILE);
 								await tools.deleteBook(queueEntry.book.book.asin);
 								// Delete this entry
 								await processFailed(queueEntry.id, type, ProcessError.NO_PROFILE, 1, 0);
@@ -505,21 +632,23 @@ export namespace LibraryManager {
 									1,
 									0
 								);
+								break;
 							case ConversionError.INVALID_FILE:
 								// The file is not valid
 								// Delete this entry
 								await processFailed(queueEntry.id, type, ProcessError.INVALID_FILE, 1, 0);
+								break;
 							case ConversionError.COULD_NOT_SAVE:
 								// Delete this entry
 								await processFailed(queueEntry.id, type, ProcessError.COULD_NOT_SAVE, 1, 0);
 								break;
 							default:
-								console.log('ERROR: Unexpected ConversionError:', bookDownload);
+								console.log('ERROR: Unexpected ConversionError:', bookProcess);
 								// Delete this queued entry
 								await processFailed(
 									queueEntry.id,
 									type,
-									bookDownload as unknown as ProcessError,
+									bookProcess as unknown as ProcessError,
 									1,
 									0
 								);
@@ -563,6 +692,7 @@ export namespace LibraryManager {
 							};
 							await prisma.notification.create({ data: notification });
 							events.emit('notification.created', [notification]);
+							autoDownloadEnded(queueEntry.book.book.asin, ProcessError.NO_ERROR);
 							// Note that books were added and a scan should be issued
 							libraryScanShouldBeIssued = true;
 						}
@@ -592,7 +722,10 @@ export namespace LibraryManager {
 								}
 							});
 							await sendInvalidate();
+							await notifyProcessFailed(queueEntry.id, 'UNKNOWN' as ProcessError);
 						}
+						if (queueEntry?.book)
+							autoDownloadEnded(queueEntry.book.book.asin, 'UNKNOWN' as ProcessError);
 					} catch (e) {
 						// Nothing to do if this fails
 					}
@@ -740,8 +873,11 @@ export namespace LibraryManager {
 	/**
 	 * Queue a book to be downloaded and processed
 	 * @param asin the asin of the book to be downloaded and processed
+	 * @returns true if it was queued; false if it already had a queue entry (even a finished one
+	 *          that has not been dismissed) or queueing failed
 	 */
-	export const queueBook = async (asin: string, run = true) => {
+	export const queueBook = async (asin: string, run = true): Promise<boolean> => {
+		let created = false;
 		try {
 			if (!(await getIsQueued(asin))) {
 				// Generate a unique ID that is only a couple characters long. Verify by checking in the DB, but only try this a couple times. Increase the ID size each time to make it
@@ -766,11 +902,13 @@ export namespace LibraryManager {
 				});
 				console.log('queued', queued);
 				if (queued !== null) await sendInvalidate();
+				created = true;
 			}
 			if (run) await global.manager.runProcess();
 		} catch (e) {
 			console.log('Library Manager QueueBook', e);
 		}
+		return created;
 	};
 
 	/**
@@ -813,11 +951,19 @@ export namespace LibraryManager {
 			});
 			if (books.length === 0) return 0;
 			console.log(
-				`Auto download: queueing ${books.length} new book${books.length === 1 ? '' : 's'} from '${source.name}': ` +
-					books.map((b) => b.title).join(', ')
+				`Auto download: queueing ${books.length} new book${books.length === 1 ? '' : 's'} from '${
+					source.name
+				}': ` + books.map((b) => b.title).join(', ')
 			);
-			await queueBooks(books.map((b) => b.asin));
-			return books.length;
+			// Track only the books that were queued here, so the summary waits for nothing else
+			let queued = 0;
+			for (const b of books) {
+				if (!(await queueBook(b.asin, false))) continue;
+				autoDownloads.set(b.asin, { title: b.title, account: source.name, result: undefined });
+				queued++;
+			}
+			await global.manager.runProcess();
+			return queued;
 		} catch (e) {
 			console.log('Auto download: could not queue new books', e);
 			return 0;
@@ -839,7 +985,7 @@ export namespace LibraryManager {
 			console.log('REMOVE QUEUE', asin);
 			// Find by the ASIN and the in_progress tag. This will only capture books that are currently in process. Other
 			// books must
-			await prisma.processQueue.updateMany({
+			const removed = await prisma.processQueue.updateMany({
 				where: {
 					in_progress: false,
 					is_done: false,
@@ -850,6 +996,8 @@ export namespace LibraryManager {
 					result
 				}
 			});
+			// A book that was in progress ends through processFailed instead
+			if (removed.count > 0) autoDownloadEnded(asin, result);
 			const eventProcess = await prisma.processQueue.findFirst({
 				where: { book: { bookAsin: asin } }
 			});
@@ -960,6 +1108,9 @@ export namespace Cron {
 							cronRecord.booksUpdated += results.results.numUpdated;
 							await LibraryManager.queueNewBooks(source.id, results.results);
 						}
+
+						if (results.err !== CLIError.NO_ERROR)
+							await LibraryManager.notifySyncFailed(source.id, results.err, 'Scheduled');
 
 						// Check if the sync worked
 						if (debug) {
